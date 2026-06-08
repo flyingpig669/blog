@@ -7,16 +7,27 @@ let searchTerm = "";
 const app = document.querySelector("#app");
 const SHOW_LOCAL_IMPORT_TOOLS = false;
 const SITE_PROFILE = {
-  aboutTitle: "计算、物理和数学之间的研究笔记。",
-  aboutEyebrow: "About / Research",
-  aboutParagraphs: [
-    "我关注计算物理、数值分析、PDE、Hamiltonian 系统和科学计算工具链。这个博客会放推导、实验记录、代码片段、论文阅读、附件和可视化结果。",
-    "写作目标是让每个想法都能被重新检查：假设清楚，公式可追踪，实验可复现，代码能回到具体问题。",
+  profileTitle: "简介",
+  profileEyebrow: "Profile / Contact",
+  profileIntro:
+    "这里放研究方向、写作主题、常用工具链和联系方式。把下面的占位内容替换成你的真实介绍即可。",
+  introItems: [
+    {
+      title: "研究方向",
+      meta: "Research",
+      text: "我关注计算物理、数值分析、PDE、Hamiltonian 系统和科学计算工具链。这个博客会放推导、实验记录、代码片段、论文阅读、附件和可视化结果。",
+    },
+    {
+      title: "写作目标",
+      meta: "Writing",
+      text: "写作目标是让每个想法都能被重新检查：假设清楚，公式可追踪，实验可复现，代码能回到具体问题。",
+    },
+    {
+      title: "常用主题",
+      meta: "Topics",
+      text: "结构保持算法、谱方法、稀疏线性代数、可复现实验、科学计算工程和研究日志。",
+    },
   ],
-  contactTitle: "联系与研究入口。",
-  contactEyebrow: "Contact",
-  contactIntro:
-    "这里可以放你的邮箱、GitHub、Google Scholar、ORCID、个人主页或实验室页面。把下面 links 里的占位链接替换成你的真实信息即可。",
   links: [
     { label: "Email", href: "mailto:hello@example.com" },
     { label: "GitHub", href: "https://github.com/" },
@@ -511,6 +522,28 @@ function renderPostCard(post) {
   `;
 }
 
+function renderPostListItem(post) {
+  return `
+    <article class="post-list-item">
+      <a href="#post/${post.slug}">
+        <div class="list-thumb">
+          <img src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)} 封面" loading="lazy" />
+        </div>
+        <div class="list-body">
+          <div class="meta">
+            <span>${formatDate(post.date)}</span>
+            ${renderCategoryMeta(post)}
+            ${!isBlank(post.series) ? `<span class="dot">${escapeHtml(post.series)}</span>` : ""}
+            <span class="dot">${escapeHtml(post.readTime)}</span>
+          </div>
+          <h3>${highlight(post.title)}</h3>
+          <p>${highlight(post.excerpt)}</p>
+        </div>
+      </a>
+    </article>
+  `;
+}
+
 function renderImportPanel() {
   return `
     <section class="import-panel">
@@ -550,28 +583,39 @@ function renderSeriesList() {
     .join("");
 }
 
-function renderSeriesCards() {
+function renderSeriesIndexItem(group) {
+  const preview = group.posts[0];
+  return `
+    <article class="post-list-item series-list-item">
+      <a href="#series/${encodeURIComponent(group.name)}">
+        <div class="list-thumb">
+          ${
+            preview?.cover
+              ? `<img src="${escapeHtml(preview.cover)}" alt="${escapeHtml(group.name)} 专栏封面" loading="lazy" />`
+              : ""
+          }
+        </div>
+        <div class="list-body">
+          <div class="meta">
+            <span>${group.posts.length} 篇文章</span>
+            <span class="dot">Series</span>
+            ${preview ? `<span class="dot">${formatDate(preview.date)}</span>` : ""}
+          </div>
+          <h3>${escapeHtml(group.name)}</h3>
+          <p>${escapeHtml(preview?.excerpt || "这个专栏还没有摘要。")}</p>
+        </div>
+      </a>
+    </article>
+  `;
+}
+
+function renderSeriesIndexList() {
   const groups = getSeriesGroups();
   if (!groups.length) {
     return `<div class="empty-state">还没有专栏。给文章添加 series 字段后，这里会自动出现专栏。</div>`;
   }
 
-  return groups
-    .map(
-      (group) => `
-        <article class="series-card">
-          <a href="#series/${encodeURIComponent(group.name)}">
-            <div class="meta">
-              <span>${group.posts.length} 篇文章</span>
-              <span class="dot">Series</span>
-            </div>
-            <h2>${escapeHtml(group.name)}</h2>
-            <p>${escapeHtml(group.posts[0]?.excerpt || "这个专栏还没有摘要。")}</p>
-          </a>
-        </article>
-      `,
-    )
-    .join("");
+  return groups.map(renderSeriesIndexItem).join("");
 }
 
 function renderResearchPanel() {
@@ -599,20 +643,7 @@ function renderResearchPanel() {
 }
 
 function renderHome() {
-  const [featured, ...rest] = getFilteredPosts();
-  const archive = posts
-    .slice(0, 5)
-    .map(
-      (post) => `
-        <li>
-          <a href="#post/${post.slug}">
-            <strong>${escapeHtml(post.title)}</strong>
-            <span>${formatDate(post.date)}</span>
-          </a>
-        </li>
-      `,
-    )
-    .join("");
+  const filteredPosts = getFilteredPosts();
 
   app.innerHTML = `
     <section class="intro-band" id="home">
@@ -623,7 +654,6 @@ function renderHome() {
           这里记录数值方法、PDE、Hamiltonian 系统、稀疏线性代数和研究工程化。
           每篇文章都尽量留下公式、图像、代码、附件和可复现线索。
         </p>
-        ${renderResearchPanel()}
       </div>
       <aside class="search-panel" aria-label="文章筛选">
         <div class="search-box">
@@ -634,67 +664,20 @@ function renderHome() {
           <div class="filter-label">CATEGORY</div>
           <div class="tag-row" id="categoryRow">${renderButtonRow(getCategories(), activeCategory, "category")}</div>
         </div>
-        <div class="filter-block">
-          <div class="filter-label">SERIES</div>
-          <div class="tag-row" id="seriesRow">${renderButtonRow(getSeries(), activeSeries, "series")}</div>
-        </div>
-        <div class="filter-block">
-          <div class="filter-label">TAG</div>
-          <div class="tag-row" id="tagRow">${renderButtonRow(getTags(), activeTag, "tag")}</div>
-        </div>
       </aside>
     </section>
 
-    <section class="home-layout">
-      <div>
-        ${
-          featured
-            ? `
-              <a class="featured-link" href="#post/${featured.slug}">
-                <div class="featured-media">
-                  <img src="${escapeHtml(featured.cover)}" alt="${escapeHtml(featured.title)} 封面" />
-                </div>
-                <div class="featured-body">
-                  <div class="meta">
-                    <span>${formatDate(featured.date)}</span>
-                    ${renderCategoryMeta(featured)}
-                    ${!isBlank(featured.series) ? `<span class="dot">${escapeHtml(featured.series)}</span>` : ""}
-                    <span class="dot">${escapeHtml(featured.readTime)}</span>
-                  </div>
-                  <h2>${highlight(featured.title)}</h2>
-                  <p>${highlight(featured.excerpt)}</p>
-                </div>
-              </a>
-              <div class="post-grid">${rest.map(renderPostCard).join("")}</div>
-            `
-            : `<div class="empty-state">没有找到匹配的文章，换个关键词或筛选条件试试。</div>`
-        }
-        ${SHOW_LOCAL_IMPORT_TOOLS ? renderImportPanel() : ""}
+    <section class="home-list-section" aria-label="文章列表">
+      <div class="list-heading">
+        <h2>文章列表</h2>
+        <span>${filteredPosts.length} 篇</span>
       </div>
-
-      <aside class="sidebar">
-        <section class="side-section">
-          <h2>FOCUS</h2>
-          <ul class="now-list">
-            <li>长时间数值积分中的结构保持方法。</li>
-            <li>PDE 离散化、谱方法和误差分析。</li>
-            <li>面向可复现实验的代码与数据流程。</li>
-          </ul>
-        </section>
-        <section class="side-section">
-          <h2>SERIES</h2>
-          <ul class="archive-list">${renderSeriesList()}</ul>
-        </section>
-        <section class="side-section">
-          <h2>RECENT</h2>
-          <ul class="archive-list">${archive}</ul>
-        </section>
-        <section class="side-section">
-          <h2>GUIDE</h2>
-          <p>新增文章后运行 <code>node scripts/generate-manifest.mjs</code> 自动更新索引。公开站点默认隐藏本地导入工具。</p>
-          <p><a class="text-link" href="#guide">查看使用说明</a></p>
-        </section>
-      </aside>
+      ${
+        filteredPosts.length
+          ? `<div class="post-list">${filteredPosts.map(renderPostListItem).join("")}</div>`
+          : `<div class="empty-state">没有找到匹配的文章，换个关键词或筛选条件试试。</div>`
+      }
+      ${SHOW_LOCAL_IMPORT_TOOLS ? renderImportPanel() : ""}
     </section>
   `;
 
@@ -962,24 +945,12 @@ function renderSeriesPage(seriesName) {
         <h1>${escapeHtml(seriesName)}</h1>
         <p>这个专栏共有 ${group.posts.length} 篇文章，按 seriesOrder 排列，适合连续阅读。</p>
       </header>
-      <div class="series-timeline">
-        ${group.posts
-          .map(
-            (post, index) => `
-              <article>
-                <span>${String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <div class="meta">
-                    <span>${formatDate(post.date)}</span>
-                    ${renderCategoryMeta(post)}
-                  </div>
-                  <h2><a href="#post/${post.slug}">${escapeHtml(post.title)}</a></h2>
-                  <p>${escapeHtml(post.excerpt)}</p>
-                </div>
-              </article>
-            `,
-          )
-          .join("")}
+      <div class="list-heading">
+        <h2>文章列表</h2>
+        <span>${group.posts.length} 篇</span>
+      </div>
+      <div class="post-list series-post-list">
+        ${group.posts.map(renderPostListItem).join("")}
       </div>
     </section>
   `;
@@ -994,61 +965,96 @@ function renderSeriesIndex() {
         <h1>专栏</h1>
         <p>这里按 series 字段自动聚合文章。给多篇文章写同一个 series 名字，它们就会组成一个连续阅读的专栏。</p>
       </header>
-      <div class="series-grid">
-        ${renderSeriesCards()}
+      <div class="list-heading">
+        <h2>专栏列表</h2>
+        <span>${getSeriesGroups().length} 个</span>
+      </div>
+      <div class="post-list series-index-list">
+        ${renderSeriesIndexList()}
+      </div>
+    </section>
+  `;
+}
+
+function renderProfileInfoItem(item, index) {
+  return `
+    <article class="post-list-item profile-list-item">
+      <div class="profile-row">
+        <div class="list-thumb profile-index">${String(index + 1).padStart(2, "0")}</div>
+        <div class="list-body">
+          <div class="meta">
+            <span>${escapeHtml(item.meta)}</span>
+            <span class="dot">Profile</span>
+          </div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.text)}</p>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderProfileLinkItem(link) {
+  const external = /^https?:/.test(link.href);
+  return `
+    <article class="post-list-item profile-list-item">
+      <a href="${escapeHtml(link.href)}" ${external ? 'target="_blank" rel="noreferrer"' : ""}>
+        <div class="list-thumb profile-index">Go</div>
+        <div class="list-body">
+          <div class="meta">
+            <span>Contact</span>
+            <span class="dot">${external ? "External" : "Site"}</span>
+          </div>
+          <h3>${escapeHtml(link.label)}</h3>
+          <p>${escapeHtml(link.href)}</p>
+        </div>
+      </a>
+    </article>
+  `;
+}
+
+function renderProfile() {
+  const profileItems = SITE_PROFILE.introItems.filter(
+    (item) => !isBlank(item.title) && !isBlank(item.text),
+  );
+  const profileLinks = SITE_PROFILE.links.filter(
+    (link) => !isBlank(link.label) && !isBlank(link.href),
+  );
+
+  app.innerHTML = `
+    <section class="series-page profile-page" id="profile">
+      <a class="back-link" href="#home">返回文章列表</a>
+      <header class="series-hero">
+        <p class="eyebrow">${escapeHtml(SITE_PROFILE.profileEyebrow)}</p>
+        <h1>${escapeHtml(SITE_PROFILE.profileTitle)}</h1>
+        <p>${escapeHtml(SITE_PROFILE.profileIntro)}</p>
+      </header>
+
+      <div class="list-heading">
+        <h2>介绍</h2>
+        <span>${profileItems.length} 项</span>
+      </div>
+      <div class="post-list profile-list">
+        ${profileItems.map(renderProfileInfoItem).join("")}
+      </div>
+
+      <div class="list-heading profile-contact-heading">
+        <h2>联系方式</h2>
+        <span>${profileLinks.length} 个</span>
+      </div>
+      <div class="post-list profile-list">
+        ${profileLinks.map(renderProfileLinkItem).join("")}
       </div>
     </section>
   `;
 }
 
 function renderAbout() {
-  app.innerHTML = `
-    <section class="about-page" id="about">
-      <a class="back-link" href="#home">返回文章列表</a>
-      <div class="about-panel">
-        <div>
-          <p class="eyebrow">${escapeHtml(SITE_PROFILE.aboutEyebrow)}</p>
-          <h1>${escapeHtml(SITE_PROFILE.aboutTitle)}</h1>
-        </div>
-        <div>
-          ${SITE_PROFILE.aboutParagraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join("")}
-          ${renderProfileLinks()}
-        </div>
-      </div>
-    </section>
-  `;
+  renderProfile();
 }
 
 function renderContact() {
-  app.innerHTML = `
-    <section class="about-page" id="contact">
-      <a class="back-link" href="#home">返回文章列表</a>
-      <div class="about-panel">
-        <div>
-          <p class="eyebrow">${escapeHtml(SITE_PROFILE.contactEyebrow)}</p>
-          <h1>${escapeHtml(SITE_PROFILE.contactTitle)}</h1>
-        </div>
-        <div>
-          <p>${escapeHtml(SITE_PROFILE.contactIntro)}</p>
-          ${renderProfileLinks()}
-        </div>
-      </div>
-    </section>
-  `;
-}
-
-function renderProfileLinks() {
-  return `
-    <div class="contact-row">
-      ${SITE_PROFILE.links
-        .filter((link) => !isBlank(link.label) && !isBlank(link.href))
-        .map((link) => {
-          const external = /^https?:/.test(link.href);
-          return `<a href="${escapeHtml(link.href)}" ${external ? 'target="_blank" rel="noreferrer"' : ""}>${escapeHtml(link.label)}</a>`;
-        })
-        .join("")}
-    </div>
-  `;
+  renderProfile();
 }
 
 function renderGuide() {
@@ -1115,10 +1121,8 @@ function route() {
   } else if (hash.startsWith("#series/")) {
     activeSeries = decodeURIComponent(hash.replace("#series/", ""));
     renderSeriesPage(activeSeries);
-  } else if (hash === "#about") {
-    renderAbout();
-  } else if (hash === "#contact") {
-    renderContact();
+  } else if (hash === "#profile" || hash === "#about" || hash === "#contact") {
+    renderProfile();
   } else if (hash === "#guide") {
     renderGuide();
   } else {

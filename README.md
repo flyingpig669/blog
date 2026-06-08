@@ -94,6 +94,45 @@ BLOG_PORT=4180 ./scripts/run-server.sh
 http://localhost:4180/admin
 ```
 
+### 局域网或全局监听
+
+默认后台只监听本机 `127.0.0.1`。如果想让同一局域网里的手机、平板或另一台电脑访问，可以用 `BLOG_HOST=0.0.0.0` 启动：
+
+```bash
+BLOG_HOST=0.0.0.0 ./scripts/run-server.sh
+```
+
+也可以同时指定端口：
+
+```bash
+BLOG_HOST=0.0.0.0 BLOG_PORT=4173 ./scripts/run-server.sh
+```
+
+其他设备访问：
+
+```text
+http://你的电脑IP:4173
+http://你的电脑IP:4173/admin
+```
+
+Mac 查看本机局域网 IP：
+
+```bash
+ipconfig getifaddr en0
+```
+
+监听 `0.0.0.0` 会把服务暴露给局域网或公网。启动前一定要换掉默认后台密码和 session secret：
+
+```bash
+BLOG_HOST=0.0.0.0 \
+BLOG_PORT=4173 \
+BLOG_ADMIN_PASSWORD='换成强密码' \
+BLOG_SESSION_SECRET="$(openssl rand -hex 32)" \
+./scripts/run-server.sh
+```
+
+如果仍使用默认密码或默认 session secret，服务会拒绝在 `0.0.0.0` 下启动。公网正式上线更推荐保持 `BLOG_HOST=127.0.0.1`，再用 Nginx 反向代理到外部域名。
+
 如果你的机器有 `npm`，也可以用：
 
 ```bash
@@ -141,6 +180,247 @@ BLOG_MAX_UPLOAD_BYTES=8388608
 - `BLOG_MAX_UPLOAD_BYTES`：单个附件最大字节数。
 
 `.env` 已经在 `.gitignore` 中，不会提交到 GitHub。
+
+## 从 Git clone 到上线
+
+下面以一台 Linux 服务器为例，说明从拉取代码到公开访问的完整流程。博客本身没有第三方 npm 依赖，只需要 Git、Node.js 和一个反向代理，例如 Nginx。
+
+### 1. 准备服务器环境
+
+在 Ubuntu/Debian 服务器上安装基础工具：
+
+```bash
+sudo apt update
+sudo apt install -y git nodejs nginx
+```
+
+确认 Node.js 可用：
+
+```bash
+node -v
+```
+
+如果服务器系统源里的 Node.js 太旧，可以用 NodeSource、nvm 或云服务商提供的 Node.js 运行时安装新版 Node.js。
+
+### 2. 拉取项目
+
+进入准备存放网站的目录，然后 clone 仓库：
+
+```bash
+sudo mkdir -p /var/www/phase-space-notes
+sudo chown -R $USER:$USER /var/www/phase-space-notes
+git clone git@github.com:flyingpig669/blog.git /var/www/phase-space-notes
+cd /var/www/phase-space-notes
+```
+
+如果服务器还没有配置 GitHub SSH key，也可以使用 HTTPS 地址：
+
+```bash
+git clone https://github.com/flyingpig669/blog.git /var/www/phase-space-notes
+```
+
+### 3. 配置生产环境变量
+
+复制示例配置：
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env`：
+
+```bash
+nano .env
+```
+
+公网部署时建议至少修改这些字段：
+
+```env
+BLOG_PORT=4173
+BLOG_HOST=127.0.0.1
+BLOG_ADMIN_USER=admin
+BLOG_ADMIN_PASSWORD=换成强密码
+BLOG_SESSION_SECRET=换成长随机字符串
+BLOG_SITE_ORIGIN=https://你的域名
+```
+
+说明：
+
+- `BLOG_HOST=127.0.0.1` 表示 Node 服务只给本机访问，外部用户通过 Nginx 访问，更安全。
+- `BLOG_ADMIN_PASSWORD` 不要使用默认值。
+- `BLOG_SESSION_SECRET` 可以用下面命令生成：
+
+```bash
+openssl rand -hex 32
+```
+
+### 4. 生成文章索引并本机试跑
+
+生成 `content/manifest.json`：
+
+```bash
+node scripts/generate-manifest.mjs
+```
+
+启动服务测试：
+
+```bash
+node server.mjs
+```
+
+另开一个终端检查：
+
+```bash
+curl http://127.0.0.1:4173
+curl http://127.0.0.1:4173/admin
+```
+
+如果能返回页面内容，按 `Ctrl+C` 停止临时服务，继续配置常驻运行。
+
+### 5. 用 systemd 常驻运行
+
+创建 systemd 服务文件：
+
+```bash
+sudo nano /etc/systemd/system/phase-space-notes.service
+```
+
+写入以下内容，并把 `User` 和路径改成你的服务器实际值：
+
+```ini
+[Unit]
+Description=Phase Space Notes
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/var/www/phase-space-notes
+ExecStart=/usr/bin/node /var/www/phase-space-notes/server.mjs
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用并启动服务：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable phase-space-notes
+sudo systemctl start phase-space-notes
+sudo systemctl status phase-space-notes
+```
+
+查看日志：
+
+```bash
+journalctl -u phase-space-notes -f
+```
+
+### 6. 用 Nginx 绑定域名
+
+创建 Nginx 配置：
+
+```bash
+sudo nano /etc/nginx/sites-available/phase-space-notes
+```
+
+写入：
+
+```nginx
+server {
+    listen 80;
+    server_name example.com www.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:4173;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+把 `example.com` 换成你的域名。启用配置并重载 Nginx：
+
+```bash
+sudo ln -s /etc/nginx/sites-available/phase-space-notes /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+这时访问：
+
+```text
+http://example.com
+http://example.com/admin
+```
+
+### 7. 配置 HTTPS
+
+如果域名已经解析到服务器，可以用 Certbot 配置免费 HTTPS：
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d example.com -d www.example.com
+```
+
+完成后把 `.env` 里的来源改成 HTTPS：
+
+```env
+BLOG_SITE_ORIGIN=https://example.com
+```
+
+然后重启服务：
+
+```bash
+sudo systemctl restart phase-space-notes
+```
+
+### 8. 后续更新上线
+
+每次在服务器上拉取新内容或新代码后，按这个顺序更新：
+
+```bash
+cd /var/www/phase-space-notes
+git pull
+node scripts/generate-manifest.mjs
+sudo systemctl restart phase-space-notes
+```
+
+如果是在后台 `/admin` 写文章，保存时会自动刷新 `content/manifest.json`。写完后建议提交到 Git，方便备份和回滚：
+
+```bash
+git status
+git add content/ content/manifest.json
+git commit -m "Add new note"
+git push
+```
+
+### 9. 只发布静态博客的选择
+
+如果你不需要公网写作后台，只想展示文章，可以把这些文件部署到 GitHub Pages、Netlify、Vercel 或任意静态空间：
+
+```text
+index.html
+styles.css
+scripts.js
+assets/
+content/
+```
+
+静态部署前记得生成索引：
+
+```bash
+node scripts/generate-manifest.mjs
+```
+
+静态部署只能浏览博客，不能使用登录、在线写作、保存文章和上传附件功能。
 
 ## 在线写作后台
 
