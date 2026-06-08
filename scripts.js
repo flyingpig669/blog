@@ -6,6 +6,23 @@ let searchTerm = "";
 
 const app = document.querySelector("#app");
 const SHOW_LOCAL_IMPORT_TOOLS = false;
+const SITE_PROFILE = {
+  aboutTitle: "计算、物理和数学之间的研究笔记。",
+  aboutEyebrow: "About / Research",
+  aboutParagraphs: [
+    "我关注计算物理、数值分析、PDE、Hamiltonian 系统和科学计算工具链。这个博客会放推导、实验记录、代码片段、论文阅读、附件和可视化结果。",
+    "写作目标是让每个想法都能被重新检查：假设清楚，公式可追踪，实验可复现，代码能回到具体问题。",
+  ],
+  contactTitle: "联系与研究入口。",
+  contactEyebrow: "Contact",
+  contactIntro:
+    "这里可以放你的邮箱、GitHub、Google Scholar、ORCID、个人主页或实验室页面。把下面 links 里的占位链接替换成你的真实信息即可。",
+  links: [
+    { label: "Email", href: "mailto:hello@example.com" },
+    { label: "GitHub", href: "https://github.com/" },
+    { label: "写作说明", href: "#guide" },
+  ],
+};
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -23,9 +40,16 @@ function escapeHtml(value = "") {
     .replaceAll('"', "&quot;");
 }
 
+function cleanText(value = "") {
+  return String(value).trim();
+}
+
+function isBlank(value) {
+  return cleanText(value).length === 0;
+}
+
 function slugify(value) {
-  return String(value)
-    .trim()
+  return cleanText(value)
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-|-$/g, "");
@@ -72,8 +96,8 @@ function parseFrontMatter(markdown) {
 }
 
 function normalizeList(value, fallback = []) {
-  if (Array.isArray(value)) return value.filter(Boolean);
-  if (value) return [value];
+  if (Array.isArray(value)) return value.map(cleanText).filter((item) => !isBlank(item));
+  if (!isBlank(value)) return [cleanText(value)];
   return fallback;
 }
 
@@ -257,7 +281,7 @@ function postFromMarkdown(markdown, markdownPath, fallbackSlug, manifestEntry = 
     readTime: attrs.readTime || "未估算",
     category: categories[0],
     categories,
-    series: attrs.series || "",
+    series: cleanText(attrs.series),
     seriesOrder: Number(attrs.seriesOrder || 0),
     tags: normalizeList(attrs.tags),
     cover: resolveAssetPath(markdownPath, attrs.cover || attachments[0]?.path || ""),
@@ -270,7 +294,7 @@ function postFromMarkdown(markdown, markdownPath, fallbackSlug, manifestEntry = 
       paper: attrs.paper || "",
       repo: attrs.repo || "",
       dataset: attrs.dataset || "",
-      status: attrs.status || "",
+      status: cleanText(attrs.status),
     },
   };
 }
@@ -298,7 +322,7 @@ function getCategories() {
 function getSeries() {
   return [
     "全部",
-    ...Array.from(new Set(posts.map((post) => post.series).filter(Boolean))),
+    ...Array.from(new Set(posts.map((post) => post.series).filter((series) => !isBlank(series)))),
   ];
 }
 
@@ -322,7 +346,7 @@ function getFilteredPosts() {
   return posts.filter((post) => {
     const matchesCategory =
       activeCategory === "全部" || post.categories.includes(activeCategory);
-    const matchesSeries = activeSeries === "全部" || post.series === activeSeries;
+    const matchesSeries = activeSeries === "全部" || cleanText(post.series) === activeSeries;
     const matchesTag = activeTag === "全部" || post.tags.includes(activeTag);
     const haystack = [
       post.title,
@@ -470,7 +494,7 @@ function renderPostCard(post) {
           <div class="meta">
             <span>${formatDate(post.date)}</span>
             ${renderCategoryMeta(post)}
-            ${post.series ? `<span class="dot">${escapeHtml(post.series)}</span>` : ""}
+            ${!isBlank(post.series) ? `<span class="dot">${escapeHtml(post.series)}</span>` : ""}
             <span class="dot">${escapeHtml(post.readTime)}</span>
           </div>
           <h3>${highlight(post.title)}</h3>
@@ -628,7 +652,7 @@ function renderHome() {
                   <div class="meta">
                     <span>${formatDate(featured.date)}</span>
                     ${renderCategoryMeta(featured)}
-                    ${featured.series ? `<span class="dot">${escapeHtml(featured.series)}</span>` : ""}
+                    ${!isBlank(featured.series) ? `<span class="dot">${escapeHtml(featured.series)}</span>` : ""}
                     <span class="dot">${escapeHtml(featured.readTime)}</span>
                   </div>
                   <h2>${highlight(featured.title)}</h2>
@@ -833,7 +857,7 @@ function renderArticle(slug) {
     return;
   }
 
-  const seriesPosts = post.series
+  const seriesPosts = !isBlank(post.series)
     ? posts
         .filter((item) => item.series === post.series)
         .sort((a, b) => a.seriesOrder - b.seriesOrder || new Date(a.date) - new Date(b.date))
@@ -848,7 +872,7 @@ function renderArticle(slug) {
           <div class="meta">
             <span>${formatDate(post.date)}</span>
             ${renderCategoryMeta(post)}
-            ${post.series ? `<span class="dot">${escapeHtml(post.series)}</span>` : ""}
+            ${!isBlank(post.series) ? `<span class="dot">${escapeHtml(post.series)}</span>` : ""}
             <span class="dot">${escapeHtml(post.readTime)}</span>
           </div>
           <h1>${escapeHtml(post.title)}</h1>
@@ -885,7 +909,7 @@ function renderArticle(slug) {
             <dt>分类</dt>
             <dd>${escapeHtml(post.categories.join(" / "))}</dd>
             <dt>专栏</dt>
-            <dd>${escapeHtml(post.series || "无")}</dd>
+            <dd>${escapeHtml(isBlank(post.series) ? "无" : post.series)}</dd>
             <dt>来源</dt>
             <dd>${escapeHtml(post.sourcePath)}</dd>
           </dl>
@@ -977,22 +1001,12 @@ function renderAbout() {
       <a class="back-link" href="#home">返回文章列表</a>
       <div class="about-panel">
         <div>
-          <p class="eyebrow">About / Research</p>
-          <h1>计算、物理和数学之间的研究笔记。</h1>
+          <p class="eyebrow">${escapeHtml(SITE_PROFILE.aboutEyebrow)}</p>
+          <h1>${escapeHtml(SITE_PROFILE.aboutTitle)}</h1>
         </div>
         <div>
-          <p>
-            我关注计算物理、数值分析、PDE、Hamiltonian 系统和科学计算工具链。
-            这个博客会放推导、实验记录、代码片段、论文阅读、附件和可视化结果。
-          </p>
-          <p>
-            写作目标是让每个想法都能被重新检查：假设清楚，公式可追踪，实验可复现，代码能回到具体问题。
-          </p>
-          <div class="contact-row">
-            <a href="mailto:hello@example.com">Email</a>
-            <a href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
-            <a href="#guide">使用说明</a>
-          </div>
+          ${SITE_PROFILE.aboutParagraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join("")}
+          ${renderProfileLinks()}
         </div>
       </div>
     </section>
@@ -1005,22 +1019,29 @@ function renderContact() {
       <a class="back-link" href="#home">返回文章列表</a>
       <div class="about-panel">
         <div>
-          <p class="eyebrow">Contact</p>
-          <h1>联系与研究入口。</h1>
+          <p class="eyebrow">${escapeHtml(SITE_PROFILE.contactEyebrow)}</p>
+          <h1>${escapeHtml(SITE_PROFILE.contactTitle)}</h1>
         </div>
         <div>
-          <p>
-            这里可以放你的邮箱、GitHub、Google Scholar、ORCID、个人主页或实验室页面。
-            当前还是占位信息，后续把链接替换成你的真实信息即可。
-          </p>
-          <div class="contact-row">
-            <a href="mailto:hello@example.com">Email</a>
-            <a href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
-            <a href="#guide">写作说明</a>
-          </div>
+          <p>${escapeHtml(SITE_PROFILE.contactIntro)}</p>
+          ${renderProfileLinks()}
         </div>
       </div>
     </section>
+  `;
+}
+
+function renderProfileLinks() {
+  return `
+    <div class="contact-row">
+      ${SITE_PROFILE.links
+        .filter((link) => !isBlank(link.label) && !isBlank(link.href))
+        .map((link) => {
+          const external = /^https?:/.test(link.href);
+          return `<a href="${escapeHtml(link.href)}" ${external ? 'target="_blank" rel="noreferrer"' : ""}>${escapeHtml(link.label)}</a>`;
+        })
+        .join("")}
+    </div>
   `;
 }
 

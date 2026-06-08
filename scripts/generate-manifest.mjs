@@ -1,9 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = process.cwd();
-const contentDir = path.join(root, "content");
-const manifestPath = path.join(contentDir, "manifest.json");
 const ignoredNames = new Set([".DS_Store", "manifest.json"]);
 
 async function exists(filePath) {
@@ -32,33 +30,43 @@ async function listFiles(dir, baseDir = dir) {
   return files.sort((a, b) => a.localeCompare(b));
 }
 
-const entries = await fs.readdir(contentDir, { withFileTypes: true });
-const notes = [];
+export async function generateManifest(root = process.cwd()) {
+  const contentDir = path.join(root, "content");
+  const manifestPath = path.join(contentDir, "manifest.json");
+  const entries = await fs.readdir(contentDir, { withFileTypes: true });
+  const notes = [];
 
-for (const entry of entries) {
-  if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
 
-  const noteDir = path.join(contentDir, entry.name);
-  const markdownPath = path.join(noteDir, "index.md");
-  if (!(await exists(markdownPath))) continue;
+    const noteDir = path.join(contentDir, entry.name);
+    const markdownPath = path.join(noteDir, "index.md");
+    if (!(await exists(markdownPath))) continue;
 
-  const attachments = (await listFiles(noteDir))
-    .filter((file) => file !== "index.md")
-    .map((file) => `content/${entry.name}/${file}`);
+    const attachments = (await listFiles(noteDir))
+      .filter((file) => file !== "index.md")
+      .map((file) => `content/${entry.name}/${file}`);
 
-  notes.push({
-    slug: entry.name,
-    path: `content/${entry.name}/index.md`,
-    attachments,
-  });
+    notes.push({
+      slug: entry.name,
+      path: `content/${entry.name}/index.md`,
+      attachments,
+    });
+  }
+
+  notes.sort((a, b) => a.slug.localeCompare(b.slug));
+
+  await fs.writeFile(
+    manifestPath,
+    `${JSON.stringify({ notes }, null, 2)}\n`,
+    "utf8",
+  );
+
+  return { notes, manifestPath };
 }
 
-notes.sort((a, b) => a.slug.localeCompare(b.slug));
-
-await fs.writeFile(
-  manifestPath,
-  `${JSON.stringify({ notes }, null, 2)}\n`,
-  "utf8",
-);
-
-console.log(`Generated content/manifest.json with ${notes.length} notes.`);
+const currentFile = fileURLToPath(import.meta.url);
+if (process.argv[1] === currentFile) {
+  const result = await generateManifest();
+  console.log(`Generated content/manifest.json with ${result.notes.length} notes.`);
+}

@@ -34,9 +34,9 @@
 - `说明`：显示站内使用说明。
 - `联系`：显示站内联系页面。页面中的邮箱、GitHub 等信息可以在 `scripts.js` 的 `renderContact()` 里替换。
 
-## 运行
+## 运行公开博客
 
-在项目目录运行：
+只看公开博客，可以运行静态服务：
 
 ```bash
 python3 -m http.server 4173
@@ -52,6 +52,188 @@ http://localhost:4173
 
 ```bash
 npm run serve
+```
+
+注意：静态服务只能浏览博客，不能使用登录、在线写作和保存 API。
+
+## 运行写作后台
+
+后台需要 Node 服务，而不是 Python 静态服务。
+
+```bash
+node server.mjs
+```
+
+如果终端提示找不到 `node`，运行这个脚本：
+
+```bash
+./scripts/run-server.sh
+```
+
+它会自动寻找常见 Node 路径，包括 Codex 内置 Node：
+
+```text
+/Applications/Codex.app/Contents/Resources/node
+```
+
+也可以手动指定 Node 路径：
+
+```bash
+NODE=/Applications/Codex.app/Contents/Resources/node ./scripts/run-server.sh
+```
+
+如果 `4173` 端口已经被 Python 静态服务占用，可以先停止原来的服务，或者临时换端口：
+
+```bash
+BLOG_PORT=4180 ./scripts/run-server.sh
+```
+
+然后访问：
+
+```text
+http://localhost:4180/admin
+```
+
+如果你的机器有 `npm`，也可以用：
+
+```bash
+npm run server
+```
+
+然后访问：
+
+```text
+http://localhost:4173/admin
+```
+
+不要用 `http://localhost:4173/admin.html` 作为正式后台入口。虽然它能加载页面文件，但如果当前端口跑的是 Python 静态服务，`/api/session`、`/api/login`、`/api/notes` 都不存在，后台无法登录和保存。
+
+## .env 配置
+
+复制示例配置：
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env`：
+
+```env
+BLOG_PORT=4173
+BLOG_ADMIN_USER=admin
+BLOG_ADMIN_PASSWORD=change-this-password
+BLOG_SESSION_SECRET=change-this-long-random-secret
+BLOG_SITE_ORIGIN=http://localhost:4173
+```
+
+字段说明：
+
+- `BLOG_PORT`：服务端口。
+- `BLOG_ADMIN_USER`：后台登录账号。
+- `BLOG_ADMIN_PASSWORD`：后台登录密码。
+- `BLOG_SESSION_SECRET`：登录 cookie 签名密钥，建议设置成长随机字符串。
+- `BLOG_SITE_ORIGIN`：预留字段，方便以后做跨域或部署限制。
+
+`.env` 已经在 `.gitignore` 中，不会提交到 GitHub。
+
+## 在线写作后台
+
+后台功能：
+
+- 登录后才能访问保存接口。
+- 提供固定写作模板字段。
+- 自动生成 Markdown front matter。
+- 分类、标签支持逗号分隔。
+- 专栏字段为空时就是独立文章。
+- 专栏字段有值时才写入 `series` 和 `seriesOrder`。
+- 正文 Markdown 支持实时预览。
+- 保存后自动写入 `content/<slug>/index.md`。
+- 保存后自动刷新 `content/manifest.json`。
+
+多端同步说明：
+
+- 只要多台设备访问同一个运行中的 `server.mjs` 服务，就会写入同一个服务器上的 `content/` 目录。
+- 这不是浏览器本地缓存同步，而是通过服务端文件系统同步。
+- 如果部署到公网服务器，建议使用 HTTPS，并设置强密码。
+- 保存后仍建议用 Git 提交和推送，作为长期备份与回滚点。
+
+## 后台 API
+
+服务端提供这些接口：
+
+```text
+POST /api/login
+POST /api/logout
+GET  /api/session
+GET  /api/options
+GET  /api/notes
+POST /api/notes
+```
+
+除 `/api/login` 和 `/api/session` 外，写作相关接口都需要登录 cookie。
+
+## 修改个人信息
+
+个人信息主要在两个地方修改。
+
+### 站点标题、导航和页脚
+
+编辑：
+
+```text
+index.html
+```
+
+可修改内容：
+
+- 浏览器标题：`<title>`
+- SEO 描述：`<meta name="description">`
+- 顶部品牌名：`Phase Space Notes`
+- 顶部副标题：`computation · physics · math`
+- 导航链接文字
+- 页脚文字
+- favicon：`assets/favicon.svg`
+
+### 关于页和联系页
+
+编辑：
+
+```text
+scripts.js
+```
+
+找到开头的配置：
+
+```js
+const SITE_PROFILE = {
+  aboutTitle: "计算、物理和数学之间的研究笔记。",
+  aboutParagraphs: [
+    "我关注计算物理、数值分析、PDE、Hamiltonian 系统和科学计算工具链。",
+  ],
+  contactTitle: "联系与研究入口。",
+  links: [
+    { label: "Email", href: "mailto:hello@example.com" },
+    { label: "GitHub", href: "https://github.com/" },
+  ],
+};
+```
+
+把邮箱、GitHub、Google Scholar、ORCID、个人主页或实验室页面替换成你的真实信息即可。
+
+### 后台账号密码
+
+编辑：
+
+```text
+.env
+```
+
+修改：
+
+```env
+BLOG_ADMIN_USER=admin
+BLOG_ADMIN_PASSWORD=change-this-password
+BLOG_SESSION_SECRET=change-this-long-random-secret
 ```
 
 ## 内容结构
