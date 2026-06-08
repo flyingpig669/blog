@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import http from "node:http";
+import os from "node:os";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -104,10 +105,43 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(config.port, config.host, () => {
-  const shownHost = config.host === "0.0.0.0" ? "localhost" : config.host;
-  console.log(`Phase Space Notes running at http://${shownHost}:${config.port}`);
-  console.log(`Admin editor: http://${shownHost}:${config.port}/admin`);
+  const listenUrl = buildServerUrl(config.host, config.port);
+  console.log(`Phase Space Notes listening on ${listenUrl}`);
+  console.log(`Admin editor: ${listenUrl}/admin`);
+
+  if (isPublicBindHost(config.host)) {
+    console.log(`Local access: http://localhost:${config.port}`);
+    console.log(`Local admin: http://localhost:${config.port}/admin`);
+    const lanAdminUrls = getLanHosts().map((host) => `${buildServerUrl(host, config.port)}/admin`);
+    if (lanAdminUrls.length) {
+      console.log(`LAN admin: ${lanAdminUrls.join(", ")}`);
+    }
+  }
 });
+
+function isPublicBindHost(host) {
+  return host === "0.0.0.0" || host === "::";
+}
+
+function buildServerUrl(host, port) {
+  const formattedHost = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+  return `http://${formattedHost}:${port}`;
+}
+
+function getLanHosts() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((address) => address && address.family === "IPv4" && !address.internal)
+    .filter((address) => isPrivateIpv4(address.address))
+    .map((address) => address.address);
+}
+
+function isPrivateIpv4(address) {
+  if (address.startsWith("10.")) return true;
+  if (address.startsWith("192.168.")) return true;
+  const match = address.match(/^172\.(\d+)\./);
+  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+}
 
 async function loadEnv(filePath) {
   try {

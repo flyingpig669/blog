@@ -44,6 +44,9 @@ async function init() {
 }
 
 function renderServerMissing(error) {
+  const adminUrl = ["http:", "https:"].includes(window.location.protocol)
+    ? `${window.location.origin}/admin`
+    : "http://127.0.0.1:4173/admin";
   app.innerHTML = `
     <section class="login-panel">
       <h1>后台服务未启动</h1>
@@ -55,7 +58,7 @@ function renderServerMissing(error) {
       <p>请在项目目录运行：</p>
       <pre><code>node server.mjs</code></pre>
       <p>然后访问：</p>
-      <pre><code>http://localhost:4173/admin</code></pre>
+      <pre><code>${escapeHtml(adminUrl)}</code></pre>
       <p class="status">错误信息：${escapeHtml(error.message)}</p>
       <div class="actions">
         <a href="/"><button type="button">返回博客</button></a>
