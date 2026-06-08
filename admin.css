@@ -208,9 +208,52 @@ select:focus {
   min-height: 1.6rem;
 }
 
+.upload-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 11, 16, 0.42);
+  padding: 14px;
+}
+
+.upload-box h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.upload-result {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-result li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.upload-result code {
+  overflow-wrap: anywhere;
+  color: #d8e7ef;
+}
+
+.upload-result button {
+  min-height: 32px;
+  padding-inline: 10px;
+}
+
 @media (max-width: 980px) {
   .editor-grid,
-  .field-grid {
+  .field-grid,
+  .upload-result li {
     grid-template-columns: 1fr;
   }
 

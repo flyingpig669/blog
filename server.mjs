@@ -8,11 +8,40 @@ import { generateManifest } from "./scripts/generate-manifest.mjs";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const env = { ...(await loadEnv(path.join(root, ".env"))), ...process.env };
 const config = {
+  host: env.BLOG_HOST || "127.0.0.1",
   port: Number(env.BLOG_PORT || 4173),
   user: env.BLOG_ADMIN_USER || "admin",
   password: env.BLOG_ADMIN_PASSWORD || "change-this-password",
   secret: env.BLOG_SESSION_SECRET || "dev-secret-change-me",
+  maxJsonBytes: Number(env.BLOG_MAX_JSON_BYTES || 12 * 1024 * 1024),
+  maxUploadBytes: Number(env.BLOG_MAX_UPLOAD_BYTES || 8 * 1024 * 1024),
 };
+
+const allowedUploadExtensions = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".svg",
+  ".pdf",
+  ".csv",
+  ".txt",
+  ".md",
+  ".json",
+  ".zip",
+]);
+
+const publicRootFiles = new Set([
+  "index.html",
+  "admin.html",
+  "styles.css",
+  "scripts.js",
+  "admin.css",
+  "admin.js",
+]);
+
+warnIfWeakConfig();
+const loginAttempts = new Map();
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -35,9 +64,11 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
     if (url.pathname === "/api/login" && req.method === "POST") {
+      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
       return handleLogin(req, res);
     }
     if (url.pathname === "/api/logout" && req.method === "POST") {
+      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
       return handleLogout(res);
     }
     if (url.pathname === "/api/session") {
@@ -52,23 +83,30 @@ const server = http.createServer(async (req, res) => {
       return handleListNotes(res);
     }
     if (url.pathname === "/api/notes" && req.method === "POST") {
+      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
       if (!isAuthenticated(req)) return sendUnauthorized(res);
       return handleSaveNote(req, res);
+    }
+    if (url.pathname === "/api/attachments" && req.method === "POST") {
+      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
+      if (!isAuthenticated(req)) return sendUnauthorized(res);
+      return handleUploadAttachments(req, res);
     }
     if (url.pathname === "/admin") {
       return serveFile(res, path.join(root, "admin.html"));
     }
 
     const requested = url.pathname === "/" ? "/index.html" : url.pathname;
-    return serveFile(res, path.join(root, requested));
+    return servePublicFile(res, requested);
   } catch (error) {
     sendJson(res, { error: error.message }, 500);
   }
 });
 
-server.listen(config.port, () => {
-  console.log(`Phase Space Notes running at http://localhost:${config.port}`);
-  console.log(`Admin editor: http://localhost:${config.port}/admin`);
+server.listen(config.port, config.host, () => {
+  const shownHost = config.host === "0.0.0.0" ? "localhost" : config.host;
+  console.log(`Phase Space Notes running at http://${shownHost}:${config.port}`);
+  console.log(`Admin editor: http://${shownHost}:${config.port}/admin`);
 });
 
 async function loadEnv(filePath) {
@@ -130,10 +168,19 @@ function parseCookies(cookieHeader) {
 }
 
 async function handleLogin(req, res) {
+  const clientId = req.socket.remoteAddress || "unknown";
+  if (isLoginLimited(clientId)) {
+    return sendJson(res, { error: "登录尝试过于频繁，请稍后再试" }, 429);
+  }
+
   const body = await readJson(req);
-  const userOk = body.username === config.user;
-  const passwordOk = body.password === config.password;
-  if (!userOk || !passwordOk) return sendJson(res, { error: "账号或密码错误" }, 401);
+  const userOk = safeEqual(body.username, config.user);
+  const passwordOk = safeEqual(body.password, config.password);
+  if (!userOk || !passwordOk) {
+    recordLoginFailure(clientId);
+    return sendJson(res, { error: "账号或密码错误" }, 401);
+  }
+  loginAttempts.delete(clientId);
 
   res.setHeader(
     "Set-Cookie",
@@ -168,6 +215,10 @@ async function handleSaveNote(req, res) {
 
   const slug = slugify(note.slug || title);
   if (isBlank(slug)) return sendJson(res, { error: "无法生成 slug" }, 400);
+  if (slug.length > 80) return sendJson(res, { error: "slug 过长" }, 400);
+  if (!parseList(note.categories).length) {
+    return sendJson(res, { error: "至少需要一个分类" }, 400);
+  }
 
   const noteDir = path.join(root, "content", slug);
   const attachmentDir = path.join(noteDir, "attachments");
@@ -183,6 +234,45 @@ async function handleSaveNote(req, res) {
     path: `content/${slug}/index.md`,
     manifestCount: manifest.notes.length,
   });
+}
+
+async function handleUploadAttachments(req, res) {
+  const payload = await readJson(req);
+  const slug = slugify(payload.slug);
+  if (isBlank(slug)) return sendJson(res, { error: "请先填写 slug" }, 400);
+
+  const files = Array.isArray(payload.files) ? payload.files : [];
+  if (!files.length) return sendJson(res, { error: "没有收到附件文件" }, 400);
+  if (files.length > 12) return sendJson(res, { error: "一次最多上传 12 个附件" }, 400);
+
+  const attachmentDir = path.join(root, "content", slug, "attachments");
+  await fs.mkdir(attachmentDir, { recursive: true });
+
+  const saved = [];
+  for (const file of files) {
+    const name = safeFileName(file.name);
+    if (isBlank(name)) continue;
+    const ext = path.extname(name).toLowerCase();
+    if (!allowedUploadExtensions.has(ext)) {
+      return sendJson(res, { error: `不允许上传 ${ext || "无扩展名"} 文件` }, 400);
+    }
+    const bytes = Buffer.from(String(file.content || ""), "base64");
+    if (bytes.length > config.maxUploadBytes) {
+      return sendJson(res, { error: `${name} 超过上传大小限制` }, 400);
+    }
+    const target = path.join(attachmentDir, name);
+    await fs.writeFile(target, bytes);
+    saved.push({
+      name,
+      path: `content/${slug}/attachments/${name}`,
+      markdownPath: `attachments/${name}`,
+    });
+  }
+
+  if (!saved.length) return sendJson(res, { error: "没有可保存的附件" }, 400);
+
+  const manifest = await generateManifest(root);
+  return sendJson(res, { ok: true, files: saved, manifestCount: manifest.notes.length });
 }
 
 async function readAllNotes() {
@@ -220,23 +310,23 @@ function buildMarkdown(note) {
   const tags = parseList(note.tags);
   const frontMatter = [
     "---",
-    `title: ${note.title}`,
-    `date: ${cleanText(note.date) || new Date().toISOString().slice(0, 10)}`,
-    `readTime: ${cleanText(note.readTime) || "5 分钟"}`,
+    `title: ${cleanLine(note.title)}`,
+    `date: ${cleanLine(note.date) || new Date().toISOString().slice(0, 10)}`,
+    `readTime: ${cleanLine(note.readTime) || "5 分钟"}`,
     categories.length === 1
       ? `category: ${categories[0]}`
       : `categories: [${categories.join(", ")}]`,
-    !isBlank(note.series) ? `series: ${cleanText(note.series)}` : "",
+    !isBlank(note.series) ? `series: ${cleanLine(note.series)}` : "",
     !isBlank(note.series) && !isBlank(note.seriesOrder)
       ? `seriesOrder: ${Number(note.seriesOrder) || 1}`
       : "",
     tags.length ? `tags: [${tags.join(", ")}]` : "",
-    !isBlank(note.status) ? `status: ${cleanText(note.status)}` : "",
-    !isBlank(note.paper) ? `paper: ${cleanText(note.paper)}` : "",
-    !isBlank(note.repo) ? `repo: ${cleanText(note.repo)}` : "",
-    !isBlank(note.dataset) ? `dataset: ${cleanText(note.dataset)}` : "",
-    `cover: ${cleanText(note.cover) || "attachments/cover.png"}`,
-    `excerpt: ${cleanText(note.excerpt) || "这篇文章还没有摘要。"}`,
+    !isBlank(note.status) ? `status: ${cleanLine(note.status)}` : "",
+    !isBlank(note.paper) ? `paper: ${cleanLine(note.paper)}` : "",
+    !isBlank(note.repo) ? `repo: ${cleanLine(note.repo)}` : "",
+    !isBlank(note.dataset) ? `dataset: ${cleanLine(note.dataset)}` : "",
+    `cover: ${cleanLine(note.cover) || "attachments/cover.png"}`,
+    `excerpt: ${cleanLine(note.excerpt) || "这篇文章还没有摘要。"}`,
     "---",
   ].filter((line) => line !== "");
 
@@ -282,12 +372,16 @@ function parseList(value) {
   if (Array.isArray(value)) return value.map(cleanText).filter((item) => !isBlank(item));
   return String(value || "")
     .split(",")
-    .map(cleanText)
+    .map(cleanLine)
     .filter((item) => !isBlank(item));
 }
 
 function cleanText(value = "") {
   return String(value).trim();
+}
+
+function cleanLine(value = "") {
+  return cleanText(value).replace(/[\r\n]+/g, " ");
 }
 
 function isBlank(value) {
@@ -301,26 +395,108 @@ function slugify(value) {
     .replace(/^-|-$/g, "");
 }
 
+function safeFileName(value = "") {
+  const name = path.basename(cleanText(value)).replace(/[^\p{L}\p{N}._-]+/gu, "-");
+  return name.replace(/^\.+/, "");
+}
+
+function isSameOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  const expected = new URL(`http://${req.headers.host}`).origin;
+  return origin === expected;
+}
+
 async function readJson(req) {
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let total = 0;
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > config.maxJsonBytes) {
+      throw new Error("请求体过大");
+    }
+    chunks.push(chunk);
+  }
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
 
+async function servePublicFile(res, urlPath) {
+  const decoded = decodeURIComponent(urlPath.split("?")[0]);
+  const relative = decoded.replace(/^\/+/, "");
+  if (!isPublicPath(relative)) return sendText(res, "Forbidden", 403);
+  return serveFile(res, path.join(root, relative || "index.html"));
+}
+
 async function serveFile(res, absolutePath) {
-  const normalized = path.normalize(absolutePath);
-  if (!normalized.startsWith(root)) return sendText(res, "Forbidden", 403);
+  const normalized = path.resolve(absolutePath);
+  if (!isInsideRoot(normalized)) return sendText(res, "Forbidden", 403);
 
   try {
     const stat = await fs.stat(normalized);
-    if (stat.isDirectory()) return serveFile(res, path.join(normalized, "index.html"));
+    if (stat.isDirectory()) return sendText(res, "Forbidden", 403);
     const ext = path.extname(normalized).toLowerCase();
-    res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type": mimeTypes[ext] || "application/octet-stream",
+      "Cache-Control": ext === ".html" ? "no-store" : "public, max-age=3600",
+    });
     res.end(await fs.readFile(normalized));
   } catch {
     sendText(res, "Not found", 404);
   }
+}
+
+function isPublicPath(relativePath) {
+  const normalized = path.normalize(relativePath).replaceAll(path.sep, "/");
+  if (normalized.startsWith("../") || normalized.includes("/../")) return false;
+  if (normalized.split("/").some((part) => part.startsWith("."))) return false;
+  if (publicRootFiles.has(normalized)) return true;
+  if (normalized.startsWith("assets/")) return true;
+  if (normalized.startsWith("content/")) return true;
+  return false;
+}
+
+function isInsideRoot(filePath) {
+  const relative = path.relative(root, filePath);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function safeEqual(a = "", b = "") {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function warnIfWeakConfig() {
+  const hasDefaultSecret = config.password === "change-this-password" || config.secret === "dev-secret-change-me";
+  const publicHost = config.host === "0.0.0.0" || config.host === "::";
+  if (hasDefaultSecret && publicHost) {
+    console.error("Refusing to listen on a public host with default admin password/session secret.");
+    console.error("Set BLOG_ADMIN_PASSWORD and BLOG_SESSION_SECRET in .env first.");
+    process.exit(1);
+  }
+  if (hasDefaultSecret) {
+    console.warn("Warning: default admin password/session secret detected. Set .env before exposing this server.");
+  }
+}
+
+function isLoginLimited(clientId) {
+  const record = loginAttempts.get(clientId);
+  if (!record) return false;
+  if (Date.now() > record.resetAt) {
+    loginAttempts.delete(clientId);
+    return false;
+  }
+  return record.count >= 8;
+}
+
+function recordLoginFailure(clientId) {
+  const existing = loginAttempts.get(clientId);
+  if (!existing || Date.now() > existing.resetAt) {
+    loginAttempts.set(clientId, { count: 1, resetAt: Date.now() + 1000 * 60 * 10 });
+    return;
+  }
+  existing.count += 1;
 }
 
 function sendJson(res, data, status = 200) {

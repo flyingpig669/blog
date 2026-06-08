@@ -377,7 +377,7 @@ function renderInline(text = "", markdownPath = "") {
   output = output.replace(
     /\[([^\]]+)]\(([^)]+)\)/g,
     (_, label, href) => {
-      const url = resolveAssetPath(markdownPath, href.trim());
+      const url = safeHref(resolveAssetPath(markdownPath, href.trim()));
       return `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${label}</a>`;
     },
   );
@@ -385,6 +385,12 @@ function renderInline(text = "", markdownPath = "") {
   output = output.replace(/`([^`]+)`/g, "<code>$1</code>");
   output = output.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   return output;
+}
+
+function safeHref(value = "") {
+  const href = String(value).trim();
+  if (/^(https?:|mailto:|#|\/|content\/|assets\/|attachments\/)/i.test(href)) return href;
+  return "#";
 }
 
 function highlight(text) {

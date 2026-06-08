@@ -120,19 +120,25 @@ cp .env.example .env
 
 ```env
 BLOG_PORT=4173
+BLOG_HOST=127.0.0.1
 BLOG_ADMIN_USER=admin
 BLOG_ADMIN_PASSWORD=change-this-password
 BLOG_SESSION_SECRET=change-this-long-random-secret
 BLOG_SITE_ORIGIN=http://localhost:4173
+BLOG_MAX_JSON_BYTES=12582912
+BLOG_MAX_UPLOAD_BYTES=8388608
 ```
 
 字段说明：
 
 - `BLOG_PORT`：服务端口。
+- `BLOG_HOST`：监听地址。默认 `127.0.0.1` 只允许本机访问；多端访问可设为 `0.0.0.0`。
 - `BLOG_ADMIN_USER`：后台登录账号。
 - `BLOG_ADMIN_PASSWORD`：后台登录密码。
 - `BLOG_SESSION_SECRET`：登录 cookie 签名密钥，建议设置成长随机字符串。
 - `BLOG_SITE_ORIGIN`：预留字段，方便以后做跨域或部署限制。
+- `BLOG_MAX_JSON_BYTES`：API 请求体最大字节数。
+- `BLOG_MAX_UPLOAD_BYTES`：单个附件最大字节数。
 
 `.env` 已经在 `.gitignore` 中，不会提交到 GitHub。
 
@@ -147,6 +153,8 @@ BLOG_SITE_ORIGIN=http://localhost:4173
 - 专栏字段为空时就是独立文章。
 - 专栏字段有值时才写入 `series` 和 `seriesOrder`。
 - 正文 Markdown 支持实时预览。
+- 可以在后台上传附件到当前文章的 `attachments/` 文件夹。
+- 上传附件后会返回 `attachments/文件名`，可直接复制进正文、封面或 dataset 字段。
 - 保存后自动写入 `content/<slug>/index.md`。
 - 保存后自动刷新 `content/manifest.json`。
 
@@ -154,6 +162,7 @@ BLOG_SITE_ORIGIN=http://localhost:4173
 
 - 只要多台设备访问同一个运行中的 `server.mjs` 服务，就会写入同一个服务器上的 `content/` 目录。
 - 这不是浏览器本地缓存同步，而是通过服务端文件系统同步。
+- 默认 `BLOG_HOST=127.0.0.1` 只允许本机访问。局域网或公网多端访问需要改成 `BLOG_HOST=0.0.0.0`。
 - 如果部署到公网服务器，建议使用 HTTPS，并设置强密码。
 - 保存后仍建议用 Git 提交和推送，作为长期备份与回滚点。
 
@@ -168,9 +177,44 @@ GET  /api/session
 GET  /api/options
 GET  /api/notes
 POST /api/notes
+POST /api/attachments
 ```
 
 除 `/api/login` 和 `/api/session` 外，写作相关接口都需要登录 cookie。
+
+## 安全说明
+
+Node 后台服务做了这些防护：
+
+- 默认只监听 `127.0.0.1`，不会直接暴露到局域网或公网。
+- 如果监听 `0.0.0.0` 且仍使用默认密码或默认 session secret，服务会拒绝启动。
+- 静态文件服务使用白名单，只公开博客页面、后台前端、`assets/` 和 `content/`。
+- `.env`、`.git/`、`server.mjs`、`package.json` 等敏感或内部文件不会被公开访问。
+- 写作类 POST API 会检查同源请求，降低跨站请求风险。
+- 登录失败会做简单的内存限速，降低暴力尝试风险。
+- 附件上传需要登录。
+- 附件上传限制文件数量、文件大小和扩展名。
+- 文章保存和附件上传都把 slug 和文件名做安全化处理。
+- 后台实时预览会把 `attachments/...` 映射到 `/content/<slug>/attachments/...`，保存到 Markdown 时仍保留相对路径。
+
+公网部署建议：
+
+- 一定要修改 `.env` 中的 `BLOG_ADMIN_PASSWORD` 和 `BLOG_SESSION_SECRET`。
+- 使用 HTTPS。
+- 不要把 `.env` 提交到 GitHub。
+- 定期 `git commit` 和 `git push` 作为备份。
+
+`POST /api/attachments` 用于上传附件。它会根据 `slug` 保存到：
+
+```text
+content/<slug>/attachments/
+```
+
+返回值里会包含可在 Markdown 中引用的路径：
+
+```text
+attachments/figure.png
+```
 
 ## 修改个人信息
 
@@ -512,6 +556,13 @@ node scripts/generate-manifest.mjs
 dataset: attachments/result.csv
 paper: attachments/derivation.pdf
 ```
+
+如果使用写作后台，可以直接在“附件上传”区域选择文件。上传后会显示两个常用操作：
+
+- `插入图片`：自动把 `![文件名](attachments/文件名)` 插入正文。
+- `复制路径`：复制 `attachments/文件名`，可填入 `cover`、`dataset`、`paper` 等字段。
+
+附件上传依赖 Node 后台服务。静态服务 `python3 -m http.server 4173` 没有上传接口。
 
 ## 本地导入工具
 

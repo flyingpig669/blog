@@ -152,6 +152,16 @@ function renderEditor() {
             正文 Markdown
             <textarea id="body">${defaultBody}</textarea>
           </label>
+          <section class="upload-box">
+            <h2>附件上传</h2>
+            <p class="hint">附件会保存到 <code>content/&lt;slug&gt;/attachments/</code>。上传后把返回的 <code>attachments/文件名</code> 复制到正文、封面或 dataset 字段。</p>
+            <input id="attachmentInput" type="file" multiple />
+            <div class="actions">
+              <button id="uploadButton" type="button">上传附件</button>
+            </div>
+            <p class="status" id="uploadStatus"></p>
+            <ul class="upload-result" id="uploadResult"></ul>
+          </section>
           <div class="actions">
             <button class="primary" id="saveButton" type="button">保存文章</button>
             <button id="templateButton" type="button">重置模板</button>
@@ -170,6 +180,7 @@ function renderEditor() {
 
   document.querySelector("#logoutButton").addEventListener("click", logout);
   document.querySelector("#saveButton").addEventListener("click", saveNote);
+  document.querySelector("#uploadButton").addEventListener("click", uploadAttachments);
   document.querySelector("#templateButton").addEventListener("click", () => {
     document.querySelector("#body").value = defaultBody;
     updatePreview();
@@ -260,7 +271,7 @@ function buildFrontMatter(note) {
 function updatePreview() {
   const note = collectNote();
   const markdown = `${buildFrontMatter(note)}\n\n${note.body}`;
-  document.querySelector("#preview").innerHTML = renderMarkdown(markdown);
+  document.querySelector("#preview").innerHTML = renderMarkdown(markdown, note);
   if (window.MathJax?.typesetPromise) {
     window.MathJax.typesetPromise([document.querySelector("#preview")]).catch(() => {});
   }
@@ -291,12 +302,91 @@ async function saveNote() {
   }
 }
 
+async function uploadAttachments() {
+  const status = document.querySelector("#uploadStatus");
+  const result = document.querySelector("#uploadResult");
+  const slug = document.querySelector("#slug").value.trim() || slugify(document.querySelector("#title").value);
+  const files = Array.from(document.querySelector("#attachmentInput").files || []);
+
+  if (isBlank(slug)) {
+    status.textContent = "请先填写标题或 slug。";
+    return;
+  }
+  if (!files.length) {
+    status.textContent = "请选择至少一个附件。";
+    return;
+  }
+
+  status.textContent = "正在读取并上传附件...";
+  try {
+    const payloadFiles = await Promise.all(
+      files.map(async (file) => ({
+        name: file.name,
+        type: file.type,
+        content: await fileToBase64(file),
+      })),
+    );
+    const response = await fetchJson("/api/attachments", {
+      method: "POST",
+      body: JSON.stringify({ slug, files: payloadFiles }),
+    });
+    status.textContent = `已上传 ${response.files.length} 个附件。`;
+    result.innerHTML = response.files
+      .map(
+        (file) => `
+          <li>
+            <strong>${escapeHtml(file.name)}</strong>
+            <code>${escapeHtml(file.markdownPath)}</code>
+            <button type="button" data-insert-image="${escapeHtml(file.markdownPath)}">插入图片</button>
+            <button type="button" data-copy-path="${escapeHtml(file.markdownPath)}">复制路径</button>
+          </li>
+        `,
+      )
+      .join("");
+    result.querySelectorAll("[data-insert-image]").forEach((button) => {
+      button.addEventListener("click", () => insertAtCursor(`![${button.dataset.insertImage}](${button.dataset.insertImage})`));
+    });
+    result.querySelectorAll("[data-copy-path]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(button.dataset.copyPath);
+        status.textContent = `已复制：${button.dataset.copyPath}`;
+      });
+    });
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      resolve(String(reader.result).split(",")[1] || "");
+    });
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(file);
+  });
+}
+
+function insertAtCursor(text) {
+  const textarea = document.querySelector("#body");
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const before = textarea.value.slice(0, start);
+  const after = textarea.value.slice(end);
+  const insertion = `${text}\n`;
+  textarea.value = `${before}${insertion}${after}`;
+  textarea.focus();
+  textarea.selectionStart = textarea.selectionEnd = start + insertion.length;
+  updatePreview();
+}
+
 async function logout() {
   await fetchJson("/api/logout", { method: "POST" });
   await init();
 }
 
-function renderMarkdown(markdown) {
+function renderMarkdown(markdown, note = collectNote()) {
   const body = markdown.replace(/^---[\s\S]*?\n---\s*/, "");
   const lines = body.split(/\r?\n/);
   const html = [];
@@ -330,7 +420,11 @@ function renderMarkdown(markdown) {
       html.push(`<h2>${inline(trimmed.slice(3))}</h2>`);
     } else if (trimmed.startsWith("![")) {
       const match = trimmed.match(/^!\[(.*)]\((.*)\)$/);
-      html.push(match ? `<figure><img src="${escapeHtml(match[2])}" alt="${escapeHtml(match[1])}" /><figcaption>${escapeHtml(match[1])}</figcaption></figure>` : "");
+      html.push(
+        match
+          ? `<figure><img src="${escapeHtml(resolvePreviewAsset(match[2], note))}" alt="${escapeHtml(match[1])}" /><figcaption>${escapeHtml(match[1])}</figcaption></figure>`
+          : "",
+      );
     } else if (/^- \[[ xX]\]/.test(trimmed)) {
       html.push(`<p>${escapeHtml(trimmed)}</p>`);
     } else {
@@ -341,11 +435,27 @@ function renderMarkdown(markdown) {
   return html.join("");
 }
 
+function resolvePreviewAsset(src, note) {
+  const trimmed = String(src || "").trim();
+  if (/^(https?:|blob:|data:|\/)/.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("attachments/")) {
+    const slug = note.slug || slugify(note.title);
+    return slug ? `/content/${slug}/${trimmed}` : trimmed;
+  }
+  return trimmed;
+}
+
 function inline(text) {
   return escapeHtml(text)
-    .replace(/\[([^\]]+)]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+    .replace(/\[([^\]]+)]\(([^)]+)\)/g, (_, label, href) => `<a href="${escapeHtml(safeHref(href))}" target="_blank" rel="noreferrer">${label}</a>`)
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
+function safeHref(value = "") {
+  const href = String(value).trim();
+  if (/^(https?:|mailto:|#|\/|content\/|assets\/|attachments\/)/i.test(href)) return href;
+  return "#";
 }
 
 async function fetchJson(url, options = {}) {
