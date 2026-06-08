@@ -1,0 +1,24 @@
+{
+  "notes": [
+    {
+      "slug": "phase-space-numerical-experiment",
+      "path": "content/phase-space-numerical-experiment/index.md"
+    },
+    {
+      "slug": "sparse-solver-notes",
+      "path": "content/sparse-solver-notes/index.md"
+    },
+    {
+      "slug": "math-and-images-note",
+      "path": "content/math-and-images-note/index.md"
+    },
+    {
+      "slug": "spectral-method-reading",
+      "path": "content/spectral-method-reading/index.md"
+    },
+    {
+      "slug": "simulation-logbook",
+      "path": "content/simulation-logbook/index.md"
+    }
+  ]
+}

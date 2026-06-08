@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f3e8"/>
+      <stop offset="0.52" stop-color="#d8e5df"/>
+      <stop offset="1" stop-color="#a8c1b8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#20342f" flood-opacity=".20"/>
+    </filter>
+  </defs>
+  <rect width="1400" height="860" fill="url(#bg)"/>
+  <path d="M0 674 C184 598 286 722 461 666 C631 611 692 426 854 440 C1022 455 1058 662 1208 682 C1279 691 1342 665 1400 632 L1400 860 L0 860 Z" fill="#405f5d" opacity=".78"/>
+  <path d="M0 730 C228 672 356 791 558 706 C733 633 759 527 921 548 C1065 566 1120 746 1400 681 L1400 860 L0 860 Z" fill="#1f3f45" opacity=".92"/>
+  <g filter="url(#shadow)">
+    <rect x="182" y="126" width="382" height="498" rx="26" fill="#fffaf0"/>
+    <rect x="220" y="176" width="214" height="18" rx="9" fill="#2a6568"/>
+    <rect x="220" y="234" width="260" height="12" rx="6" fill="#a7aea5"/>
+    <rect x="220" y="270" width="230" height="12" rx="6" fill="#c3a15a"/>
+    <rect x="220" y="340" width="294" height="10" rx="5" fill="#d5d8cf"/>
+    <rect x="220" y="374" width="254" height="10" rx="5" fill="#d5d8cf"/>
+    <rect x="220" y="408" width="304" height="10" rx="5" fill="#d5d8cf"/>
+    <circle cx="456" cy="520" r="46" fill="#b85d6d"/>
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" opacity=".72">
+    <path d="M736 194 C844 135 952 137 1054 196" stroke-width="8"/>
+    <path d="M700 285 C842 219 1014 230 1142 306" stroke-width="6"/>
+    <path d="M778 392 C914 333 1046 359 1146 447" stroke-width="5"/>
+  </g>
+</svg>

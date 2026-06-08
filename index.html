@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Phase Space Notes - 计算物理与数学研究笔记</title>
+    <meta
+      name="description"
+      content="计算机、物理、数学方向的研究笔记、数值实验和工程实现。"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#home" aria-label="回到首页">
+        <span class="brand-mark">ψ</span>
+        <span>
+          <strong>Phase Space Notes</strong>
+          <small>computation · physics · math</small>
+        </span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#home">文章</a>
+        <a href="#home">专栏</a>
+        <a href="#about">关于</a>
+        <a href="#guide">说明</a>
+        <a href="mailto:hello@example.com">联系</a>
+      </nav>
+    </header>
+
+    <main id="app" tabindex="-1"></main>
+
+    <footer class="site-footer">
+      <span>Phase Space Notes</span>
+      <span>数值实验、模型推导和研究日志。</span>
+    </footer>
+
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["\\(", "\\)"],
+            ["$", "$"],
+          ],
+          displayMath: [["\\[", "\\]"]],
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
+    </script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+    ></script>
+    <script src="scripts.js"></script>
+  </body>
+</html>
