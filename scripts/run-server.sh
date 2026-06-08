@@ -1,12 +1,18 @@
 #!/usr/bin/env sh
 set -eu
 
+run_with_node() {
+  node_bin="$1"
+  "$node_bin" scripts/generate-manifest.mjs
+  exec "$node_bin" server.mjs
+}
+
 if [ -n "${NODE:-}" ] && [ -x "$NODE" ]; then
-  exec "$NODE" server.mjs
+  run_with_node "$NODE"
 fi
 
 if command -v node >/dev/null 2>&1; then
-  exec node server.mjs
+  run_with_node "$(command -v node)"
 fi
 
 for candidate in \
@@ -15,7 +21,7 @@ for candidate in \
   "/usr/local/bin/node"
 do
   if [ -x "$candidate" ]; then
-    exec "$candidate" server.mjs
+    run_with_node "$candidate"
   fi
 done
 

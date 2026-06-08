@@ -76,6 +76,14 @@ node server.mjs
 /Applications/Codex.app/Contents/Resources/node
 ```
 
+启动前会先运行：
+
+```bash
+node scripts/generate-manifest.mjs
+```
+
+这样新增或修改文章后，`content/manifest.json` 会先刷新，再启动后台服务。
+
 也可以手动指定 Node 路径：
 
 ```bash

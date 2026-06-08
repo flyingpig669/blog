@@ -322,21 +322,34 @@ async function readAllNotes() {
   for (const entry of manifest.notes || []) {
     try {
       const markdown = await fs.readFile(path.join(root, entry.path), "utf8");
-      const attrs = parseFrontMatter(markdown).attrs;
+      const { attrs, body } = parseFrontMatter(markdown);
       notes.push({
         slug: entry.slug,
         path: entry.path,
         title: attrs.title || entry.slug,
+        date: attrs.date || "",
+        readTime: attrs.readTime || "",
         categories: normalizeList(attrs.categories, normalizeList(attrs.category)),
         tags: normalizeList(attrs.tags),
         series: cleanText(attrs.series),
-        date: attrs.date || "",
+        seriesOrder: attrs.seriesOrder || "",
+        status: attrs.status || "",
+        paper: attrs.paper || "",
+        repo: attrs.repo || "",
+        dataset: attrs.dataset || "",
+        cover: attrs.cover || "",
+        excerpt: attrs.excerpt || "",
+        body,
       });
     } catch {
       // Skip broken note files so the editor can still open.
     }
   }
-  return notes;
+  return notes.sort((a, b) => {
+    const dateCompare = String(b.date).localeCompare(String(a.date));
+    if (dateCompare) return dateCompare;
+    return a.title.localeCompare(b.title);
+  });
 }
 
 function buildMarkdown(note) {

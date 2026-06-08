@@ -2,6 +2,7 @@ const app = document.querySelector("#adminApp");
 const state = {
   authenticated: false,
   options: { categories: [], tags: [], series: [] },
+  notes: [],
 };
 
 const defaultBody = `## 问题背景
@@ -37,6 +38,7 @@ async function init() {
       return;
     }
     await loadOptions();
+    await loadNotes();
     renderEditor();
   } catch (error) {
     renderServerMissing(error);
@@ -114,6 +116,11 @@ async function loadOptions() {
   state.options = await fetchJson("/api/options");
 }
 
+async function loadNotes() {
+  const data = await fetchJson("/api/notes");
+  state.notes = Array.isArray(data.notes) ? data.notes : [];
+}
+
 function renderEditor() {
   const today = new Date().toISOString().slice(0, 10);
   app.innerHTML = `
@@ -131,6 +138,7 @@ function renderEditor() {
 
       <div class="editor-grid">
         <section>
+          <div id="notesPanel">${renderNotesPanel()}</div>
           <h2>固定模板字段</h2>
           <div class="field-grid">
             ${field("title", "标题", "辛积分方法笔记")}
@@ -185,15 +193,72 @@ function renderEditor() {
   document.querySelector("#saveButton").addEventListener("click", saveNote);
   document.querySelector("#uploadButton").addEventListener("click", uploadAttachments);
   document.querySelector("#templateButton").addEventListener("click", () => {
-    document.querySelector("#body").value = defaultBody;
-    updatePreview();
+    resetEditorForm();
   });
+  bindNotesPanel();
   document.querySelectorAll("input, textarea, select").forEach((item) => {
     item.addEventListener("input", updatePreview);
     item.addEventListener("change", updatePreview);
   });
   document.querySelector("#title").addEventListener("input", updateSlugFromTitle);
   updatePreview();
+}
+
+function renderNotesPanel() {
+  return `
+    <section class="notes-box">
+      <div class="notes-heading">
+        <div>
+          <h2>已有文章</h2>
+          <p>${state.notes.length ? `共 ${state.notes.length} 篇，点击可继续编辑。` : "还没有读取到文章。"}</p>
+        </div>
+        <button id="newNoteButton" type="button">新建文章</button>
+      </div>
+      ${
+        state.notes.length
+          ? `
+            <ul class="notes-list">
+              ${state.notes.map(renderNoteListItem).join("")}
+            </ul>
+          `
+          : `<p class="hint">保存第一篇文章后，这里会自动显示文章列表。</p>`
+      }
+    </section>
+  `;
+}
+
+function renderNoteListItem(note) {
+  const meta = [
+    note.date,
+    ...normalizeList(note.categories),
+    note.series,
+  ].filter((item) => !isBlank(item));
+  return `
+    <li>
+      <button type="button" data-load-note="${escapeHtml(note.slug)}">
+        <strong>${escapeHtml(note.title || note.slug)}</strong>
+        <span>${escapeHtml(meta.join(" · ") || note.path)}</span>
+      </button>
+    </li>
+  `;
+}
+
+function bindNotesPanel() {
+  document.querySelector("#newNoteButton")?.addEventListener("click", resetEditorForm);
+  document.querySelectorAll("[data-load-note]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const note = state.notes.find((item) => item.slug === button.dataset.loadNote);
+      if (note) loadNoteIntoForm(note);
+    });
+  });
+}
+
+async function refreshNotesPanel() {
+  await loadNotes();
+  const panel = document.querySelector("#notesPanel");
+  if (!panel) return;
+  panel.innerHTML = renderNotesPanel();
+  bindNotesPanel();
 }
 
 function field(id, label, value = "", type = "text") {
@@ -221,6 +286,58 @@ function updateSlugFromTitle() {
   const slug = document.querySelector("#slug");
   if (!isBlank(slug.value)) return;
   slug.value = slugify(document.querySelector("#title").value);
+}
+
+function setFieldValue(id, value = "") {
+  const input = document.querySelector(`#${id}`);
+  if (input) input.value = value;
+}
+
+function resetEditorForm() {
+  const today = new Date().toISOString().slice(0, 10);
+  [
+    "title",
+    "slug",
+    "readTime",
+    "categories",
+    "tags",
+    "series",
+    "seriesOrder",
+    "status",
+    "paper",
+    "repo",
+    "dataset",
+    "cover",
+    "excerpt",
+  ].forEach((id) => setFieldValue(id, ""));
+  setFieldValue("date", today);
+  setFieldValue("readTime", "8 分钟");
+  setFieldValue("dataset", "attachments/result.csv");
+  setFieldValue("cover", "attachments/cover.png");
+  setFieldValue("excerpt", "这是一篇新的研究笔记。");
+  document.querySelector("#body").value = defaultBody;
+  document.querySelector("#saveStatus").textContent = "";
+  updatePreview();
+}
+
+function loadNoteIntoForm(note) {
+  setFieldValue("title", note.title);
+  setFieldValue("slug", note.slug);
+  setFieldValue("date", note.date);
+  setFieldValue("readTime", note.readTime || "5 分钟");
+  setFieldValue("categories", normalizeList(note.categories).join(", "));
+  setFieldValue("tags", normalizeList(note.tags).join(", "));
+  setFieldValue("series", note.series);
+  setFieldValue("seriesOrder", note.seriesOrder);
+  setFieldValue("status", note.status);
+  setFieldValue("paper", note.paper);
+  setFieldValue("repo", note.repo);
+  setFieldValue("dataset", note.dataset);
+  setFieldValue("cover", note.cover || "attachments/cover.png");
+  setFieldValue("excerpt", note.excerpt);
+  document.querySelector("#body").value = note.body || "";
+  document.querySelector("#saveStatus").textContent = `正在编辑：${note.path}`;
+  updatePreview();
 }
 
 function collectNote() {
@@ -300,6 +417,7 @@ async function saveNote() {
     });
     status.textContent = `已保存：${result.path}，manifest 共 ${result.manifestCount} 篇。`;
     await loadOptions();
+    await refreshNotesPanel();
   } catch (error) {
     status.textContent = error.message;
   }
@@ -476,6 +594,12 @@ function parseList(value) {
     .split(",")
     .map((item) => item.trim())
     .filter((item) => !isBlank(item));
+}
+
+function normalizeList(value) {
+  if (Array.isArray(value)) return value.filter((item) => !isBlank(item));
+  if (!isBlank(value)) return [value];
+  return [];
 }
 
 function isBlank(value) {
