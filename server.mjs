@@ -15,6 +15,7 @@ const config = {
   user: env.BLOG_ADMIN_USER || "admin",
   password: env.BLOG_ADMIN_PASSWORD || "change-this-password",
   secret: env.BLOG_SESSION_SECRET || "dev-secret-change-me",
+  siteOrigin: normalizeOrigin(env.BLOG_SITE_ORIGIN || ""),
   maxJsonBytes: Number(env.BLOG_MAX_JSON_BYTES || 12 * 1024 * 1024),
   maxUploadBytes: Number(env.BLOG_MAX_UPLOAD_BYTES || 8 * 1024 * 1024),
 };
@@ -66,11 +67,11 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
     if (url.pathname === "/api/login" && req.method === "POST") {
-      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
+      if (!isSameOrigin(req)) return sendForbidden(res);
       return handleLogin(req, res);
     }
     if (url.pathname === "/api/logout" && req.method === "POST") {
-      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
+      if (!isSameOrigin(req)) return sendForbidden(res);
       return handleLogout(res);
     }
     if (url.pathname === "/api/session") {
@@ -85,12 +86,12 @@ const server = http.createServer(async (req, res) => {
       return handleListNotes(res);
     }
     if (url.pathname === "/api/notes" && req.method === "POST") {
-      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
+      if (!isSameOrigin(req)) return sendForbidden(res);
       if (!isAuthenticated(req)) return sendUnauthorized(res);
       return handleSaveNote(req, res);
     }
     if (url.pathname === "/api/attachments" && req.method === "POST") {
-      if (!isSameOrigin(req)) return sendText(res, "Forbidden", 403);
+      if (!isSameOrigin(req)) return sendForbidden(res);
       if (!isAuthenticated(req)) return sendUnauthorized(res);
       return handleUploadAttachments(req, res);
     }
@@ -451,8 +452,26 @@ function safeFileName(value = "") {
 function isSameOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
-  const expected = new URL(`http://${req.headers.host}`).origin;
+  if (config.siteOrigin && origin === config.siteOrigin) return true;
+  const expected = getRequestOrigin(req);
   return origin === expected;
+}
+
+function getRequestOrigin(req) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const forwardedHost = String(req.headers["x-forwarded-host"] || "").split(",")[0].trim();
+  const proto = forwardedProto || "http";
+  const host = forwardedHost || req.headers.host;
+  return new URL(`${proto}://${host}`).origin;
+}
+
+function normalizeOrigin(value) {
+  if (isBlank(value)) return "";
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
 }
 
 async function readJson(req) {
@@ -559,4 +578,8 @@ function sendText(res, text, status = 200) {
 
 function sendUnauthorized(res) {
   return sendJson(res, { error: "需要登录" }, 401);
+}
+
+function sendForbidden(res) {
+  return sendJson(res, { error: "请求来源不匹配，请从后台服务地址重新打开页面" }, 403);
 }

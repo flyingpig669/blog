@@ -183,11 +183,41 @@ BLOG_MAX_UPLOAD_BYTES=8388608
 - `BLOG_ADMIN_USER`：后台登录账号。
 - `BLOG_ADMIN_PASSWORD`：后台登录密码。
 - `BLOG_SESSION_SECRET`：登录 cookie 签名密钥，建议设置成长随机字符串。
-- `BLOG_SITE_ORIGIN`：预留字段，方便以后做跨域或部署限制。
+- `BLOG_SITE_ORIGIN`：公网访问来源。使用 Lucky、Nginx、Cloudflare Tunnel 等反向代理时，填外部访问地址，例如 `https://blog.example.com`。
 - `BLOG_MAX_JSON_BYTES`：API 请求体最大字节数。
 - `BLOG_MAX_UPLOAD_BYTES`：单个附件最大字节数。
 
 `.env` 已经在 `.gitignore` 中，不会提交到 GitHub。
+
+### Lucky 反向代理说明
+
+如果通过 Lucky 把公网域名反代到本机后台，建议 `.env` 使用：
+
+```env
+BLOG_HOST=127.0.0.1
+BLOG_PORT=4173
+BLOG_SITE_ORIGIN=https://你的域名
+```
+
+Lucky 反代目标填：
+
+```text
+http://127.0.0.1:4173
+```
+
+后台入口使用：
+
+```text
+https://你的域名/admin
+```
+
+如果保存、上传或登录时报 `Forbidden`，通常是浏览器请求来源和后台判断的来源不一致。优先确认：
+
+- `BLOG_SITE_ORIGIN` 是否和浏览器地址栏的协议、域名、端口一致。
+- Lucky 是否转发了原始 `Host`。
+- Lucky 是否设置或保留了 `X-Forwarded-Proto` 和 `X-Forwarded-Host`。
+
+使用 HTTPS 域名访问时，`BLOG_SITE_ORIGIN` 必须写 `https://...`，不要写内网的 `http://127.0.0.1:4173`。
 
 ## 从 Git clone 到上线
 
