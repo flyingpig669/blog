@@ -1,0 +1,10 @@
+{
+  "name": "phase-space-notes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "manifest": "node scripts/generate-manifest.mjs",
+    "serve": "python3 -m http.server 4173"
+  }
+}

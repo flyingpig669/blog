@@ -5,6 +5,7 @@ let activeTag = "全部";
 let searchTerm = "";
 
 const app = document.querySelector("#app");
+const SHOW_LOCAL_IMPORT_TOOLS = false;
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -18,7 +19,8 @@ function escapeHtml(value = "") {
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function slugify(value) {
@@ -75,9 +77,54 @@ function normalizeList(value, fallback = []) {
   return fallback;
 }
 
+function uniqueHeadingId(text, usedIds) {
+  const base = slugify(text) || "section";
+  let id = base;
+  let index = 2;
+  while (usedIds.has(id)) {
+    id = `${base}-${index}`;
+    index += 1;
+  }
+  usedIds.add(id);
+  return id;
+}
+
+function parseTable(lines, start) {
+  const header = lines[start].trim();
+  const separator = lines[start + 1]?.trim() || "";
+  if (!header.includes("|") || !/^\|?[\s:|-]+\|[\s:|-]+\|?$/.test(separator)) {
+    return null;
+  }
+
+  const rows = [];
+  let index = start + 2;
+  while (index < lines.length && lines[index].trim().includes("|")) {
+    rows.push(lines[index].trim());
+    index += 1;
+  }
+
+  const split = (line) =>
+    line
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((cell) => cell.trim());
+
+  return {
+    block: {
+      type: "table",
+      headers: split(header),
+      rows: rows.map(split),
+    },
+    nextIndex: index - 1,
+  };
+}
+
 function parseMarkdown(markdown, markdownPath) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
+  const footnotes = [];
+  const usedIds = new Set();
   let paragraph = [];
 
   function flushParagraph() {
@@ -95,6 +142,13 @@ function parseMarkdown(markdown, markdownPath) {
       continue;
     }
 
+    const footnote = trimmed.match(/^\[\^(.+?)]:\s+(.+)$/);
+    if (footnote) {
+      flushParagraph();
+      footnotes.push({ id: footnote[1], text: footnote[2] });
+      continue;
+    }
+
     const fence = trimmed.match(/^```(\w+)?/);
     if (fence) {
       flushParagraph();
@@ -104,7 +158,7 @@ function parseMarkdown(markdown, markdownPath) {
         code.push(lines[index]);
         index += 1;
       }
-      blocks.push({ type: "code", lang: fence[1] || "", text: code.join("\n") });
+      blocks.push({ type: "code", lang: fence[1] || "text", text: code.join("\n") });
       continue;
     }
 
@@ -117,6 +171,14 @@ function parseMarkdown(markdown, markdownPath) {
         index += 1;
       }
       blocks.push({ type: "math", text: formula.join("\n") });
+      continue;
+    }
+
+    const table = parseTable(lines, index);
+    if (table) {
+      flushParagraph();
+      blocks.push(table.block);
+      index = table.nextIndex;
       continue;
     }
 
@@ -135,7 +197,14 @@ function parseMarkdown(markdown, markdownPath) {
     const heading = trimmed.match(/^(#{2,3})\s+(.+)$/);
     if (heading) {
       flushParagraph();
-      blocks.push({ type: heading[1].length === 2 ? "h2" : "h3", text: heading[2] });
+      const level = heading[1].length;
+      const text = heading[2];
+      blocks.push({
+        type: level === 2 ? "h2" : "h3",
+        level,
+        id: uniqueHeadingId(text, usedIds),
+        text,
+      });
       continue;
     }
 
@@ -145,18 +214,42 @@ function parseMarkdown(markdown, markdownPath) {
       continue;
     }
 
+    const task = trimmed.match(/^[-*]\s+\[( |x|X)]\s+(.+)$/);
+    if (task) {
+      flushParagraph();
+      blocks.push({ type: "task", checked: task[1].toLowerCase() === "x", text: task[2] });
+      continue;
+    }
+
     paragraph.push(trimmed);
   }
 
   flushParagraph();
+  if (footnotes.length) blocks.push({ type: "footnotes", footnotes });
   return blocks;
 }
 
-function postFromMarkdown(markdown, markdownPath, fallbackSlug) {
+function blockText(block) {
+  if (["p", "h2", "h3", "quote", "task", "math", "code"].includes(block.type)) {
+    return block.text || "";
+  }
+  if (block.type === "image") return `${block.alt || ""} ${block.caption || ""}`;
+  if (block.type === "table") return [...block.headers, ...block.rows.flat()].join(" ");
+  if (block.type === "footnotes") return block.footnotes.map((note) => note.text).join(" ");
+  return "";
+}
+
+function postFromMarkdown(markdown, markdownPath, fallbackSlug, manifestEntry = {}) {
   const { attrs, body } = parseFrontMatter(markdown);
   const title = attrs.title || fallbackSlug;
   const slug = attrs.slug || fallbackSlug || slugify(title);
   const categories = normalizeList(attrs.categories, normalizeList(attrs.category, ["未分类"]));
+  const content = parseMarkdown(body, markdownPath);
+  const attachments = normalizeList(manifestEntry.attachments).map((filePath) => ({
+    path: filePath,
+    name: filePath.split("/").pop(),
+  }));
+
   return {
     slug,
     title,
@@ -167,10 +260,18 @@ function postFromMarkdown(markdown, markdownPath, fallbackSlug) {
     series: attrs.series || "",
     seriesOrder: Number(attrs.seriesOrder || 0),
     tags: normalizeList(attrs.tags),
-    cover: resolveAssetPath(markdownPath, attrs.cover || ""),
+    cover: resolveAssetPath(markdownPath, attrs.cover || attachments[0]?.path || ""),
     excerpt: attrs.excerpt || "这篇笔记还没有摘要。",
-    content: parseMarkdown(body, markdownPath),
+    content,
+    bodyText: content.map(blockText).join(" "),
     sourcePath: markdownPath,
+    attachments,
+    research: {
+      paper: attrs.paper || "",
+      repo: attrs.repo || "",
+      dataset: attrs.dataset || "",
+      status: attrs.status || "",
+    },
   };
 }
 
@@ -183,7 +284,7 @@ async function loadManifestPosts() {
     manifest.notes.map(async (entry) => {
       const response = await fetch(entry.path);
       if (!response.ok) throw new Error(`${entry.path} 加载失败`);
-      return postFromMarkdown(await response.text(), entry.path, entry.slug);
+      return postFromMarkdown(await response.text(), entry.path, entry.slug, entry);
     }),
   );
 
@@ -226,9 +327,11 @@ function getFilteredPosts() {
     const haystack = [
       post.title,
       post.excerpt,
+      post.bodyText,
       ...post.categories,
       post.series,
       ...post.tags,
+      ...Object.values(post.research),
     ]
       .join(" ")
       .toLowerCase();
@@ -236,12 +339,44 @@ function getFilteredPosts() {
   });
 }
 
+function getStats() {
+  return {
+    posts: posts.length,
+    categories: getCategories().length - 1,
+    series: getSeries().length - 1,
+    attachments: posts.reduce((count, post) => count + post.attachments.length, 0),
+  };
+}
+
+function renderInline(text = "", markdownPath = "") {
+  let output = escapeHtml(text);
+  output = output.replace(
+    /\[([^\]]+)]\(([^)]+)\)/g,
+    (_, label, href) => {
+      const url = resolveAssetPath(markdownPath, href.trim());
+      return `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${label}</a>`;
+    },
+  );
+  output = output.replace(/\[\^(.+?)]/g, (_, id) => `<sup><a href="#fn-${slugify(id)}">[${escapeHtml(id)}]</a></sup>`);
+  output = output.replace(/`([^`]+)`/g, "<code>$1</code>");
+  output = output.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  return output;
+}
+
+function highlight(text) {
+  const query = searchTerm.trim();
+  if (!query) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const needle = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return escaped.replace(new RegExp(`(${needle})`, "gi"), "<mark>$1</mark>");
+}
+
 function renderButtonRow(items, activeValue, dataName) {
   return items
     .map(
       (item) => `
-        <button class="tag-button ${item === activeValue ? "active" : ""}" type="button" data-${dataName}="${item}">
-          ${item}
+        <button class="tag-button ${item === activeValue ? "active" : ""}" type="button" data-${dataName}="${escapeHtml(item)}">
+          ${escapeHtml(item)}
         </button>
       `,
     )
@@ -249,35 +384,78 @@ function renderButtonRow(items, activeValue, dataName) {
 }
 
 function renderCategoryMeta(post) {
-  return post.categories.map((category) => `<span class="dot">${category}</span>`).join("");
+  return post.categories.map((category) => `<span class="dot">${escapeHtml(category)}</span>`).join("");
 }
 
-function renderContentBlock(block) {
-  if (block.type === "h2") return `<h2>${block.text}</h2>`;
-  if (block.type === "h3") return `<h3>${block.text}</h3>`;
-  if (block.type === "quote") return `<blockquote>${block.text}</blockquote>`;
+function renderContentBlock(block, post) {
+  if (block.type === "h2") {
+    return `<h2 id="${block.id}">${renderInline(block.text, post.sourcePath)}</h2>`;
+  }
+  if (block.type === "h3") {
+    return `<h3 id="${block.id}">${renderInline(block.text, post.sourcePath)}</h3>`;
+  }
+  if (block.type === "quote") return `<blockquote>${renderInline(block.text, post.sourcePath)}</blockquote>`;
+  if (block.type === "task") {
+    return `
+      <label class="task-line">
+        <input type="checkbox" ${block.checked ? "checked" : ""} disabled />
+        <span>${renderInline(block.text, post.sourcePath)}</span>
+      </label>
+    `;
+  }
   if (block.type === "math") return `<div class="math-block">\\[${block.text}\\]</div>`;
   if (block.type === "code") {
     return `
       <div class="code-block">
-        <pre><code>${escapeHtml(block.text)}</code></pre>
+        <pre><code class="language-${escapeHtml(block.lang)}">${escapeHtml(block.text)}</code></pre>
       </div>
     `;
   }
   if (block.type === "image") {
     return `
       <figure class="article-figure">
-        <img src="${block.src}" alt="${block.alt || ""}" loading="lazy" />
-        ${block.caption ? `<figcaption>${block.caption}</figcaption>` : ""}
+        <img src="${escapeHtml(block.src)}" alt="${escapeHtml(block.alt || "")}" loading="lazy" />
+        ${block.caption ? `<figcaption>${renderInline(block.caption, post.sourcePath)}</figcaption>` : ""}
       </figure>
     `;
   }
-  return `<p>${block.text}</p>`;
+  if (block.type === "table") {
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>${block.headers.map((cell) => `<th>${renderInline(cell, post.sourcePath)}</th>`).join("")}</tr>
+          </thead>
+          <tbody>
+            ${block.rows
+              .map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell, post.sourcePath)}</td>`).join("")}</tr>`)
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  if (block.type === "footnotes") {
+    return `
+      <section class="footnotes">
+        <h2>脚注</h2>
+        <ol>
+          ${block.footnotes
+            .map((note) => `<li id="fn-${slugify(note.id)}">${renderInline(note.text, post.sourcePath)}</li>`)
+            .join("")}
+        </ol>
+      </section>
+    `;
+  }
+  return `<p>${renderInline(block.text, post.sourcePath)}</p>`;
 }
 
-function typesetMath() {
+function typesetEnhancements() {
   if (window.MathJax?.typesetPromise) {
     window.MathJax.typesetPromise([app]).catch(() => {});
+  }
+  if (window.Prism?.highlightAllUnder) {
+    window.Prism.highlightAllUnder(app);
   }
 }
 
@@ -286,17 +464,17 @@ function renderPostCard(post) {
     <article class="post-card">
       <a href="#post/${post.slug}">
         <div class="thumb">
-          <img src="${post.cover}" alt="${post.title} 封面" loading="lazy" />
+          <img src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)} 封面" loading="lazy" />
         </div>
         <div class="body">
           <div class="meta">
             <span>${formatDate(post.date)}</span>
             ${renderCategoryMeta(post)}
-            ${post.series ? `<span class="dot">${post.series}</span>` : ""}
-            <span class="dot">${post.readTime}</span>
+            ${post.series ? `<span class="dot">${escapeHtml(post.series)}</span>` : ""}
+            <span class="dot">${escapeHtml(post.readTime)}</span>
           </div>
-          <h3>${post.title}</h3>
-          <p>${post.excerpt}</p>
+          <h3>${highlight(post.title)}</h3>
+          <p>${highlight(post.excerpt)}</p>
         </div>
       </a>
     </article>
@@ -308,7 +486,7 @@ function renderImportPanel() {
     <section class="import-panel">
       <div>
         <h2>导入本地笔记</h2>
-        <p>选择单个 Markdown，或选择包含 index.md 与 attachments/ 的笔记文件夹。导入内容只在当前浏览器预览。</p>
+        <p>选择单个 Markdown，或选择包含 index.md 与 attachments/ 的笔记文件夹。导入内容只在当前浏览器预览；长期保存请放入 content/ 后运行 manifest 生成器。</p>
       </div>
       <div class="import-actions">
         <label class="file-button">
@@ -333,13 +511,61 @@ function renderSeriesList() {
       (group) => `
         <li>
           <a href="#series/${encodeURIComponent(group.name)}">
-            <strong>${group.name}</strong>
+            <strong>${escapeHtml(group.name)}</strong>
             <span>${group.posts.length} 篇</span>
           </a>
         </li>
       `,
     )
     .join("");
+}
+
+function renderSeriesCards() {
+  const groups = getSeriesGroups();
+  if (!groups.length) {
+    return `<div class="empty-state">还没有专栏。给文章添加 series 字段后，这里会自动出现专栏。</div>`;
+  }
+
+  return groups
+    .map(
+      (group) => `
+        <article class="series-card">
+          <a href="#series/${encodeURIComponent(group.name)}">
+            <div class="meta">
+              <span>${group.posts.length} 篇文章</span>
+              <span class="dot">Series</span>
+            </div>
+            <h2>${escapeHtml(group.name)}</h2>
+            <p>${escapeHtml(group.posts[0]?.excerpt || "这个专栏还没有摘要。")}</p>
+          </a>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderResearchPanel() {
+  const stats = getStats();
+  return `
+    <section class="research-panel">
+      <div>
+        <span>${stats.posts}</span>
+        <strong>Notes</strong>
+      </div>
+      <div>
+        <span>${stats.categories}</span>
+        <strong>Categories</strong>
+      </div>
+      <div>
+        <span>${stats.series}</span>
+        <strong>Series</strong>
+      </div>
+      <div>
+        <span>${stats.attachments}</span>
+        <strong>Attachments</strong>
+      </div>
+    </section>
+  `;
 }
 
 function renderHome() {
@@ -350,7 +576,7 @@ function renderHome() {
       (post) => `
         <li>
           <a href="#post/${post.slug}">
-            <strong>${post.title}</strong>
+            <strong>${escapeHtml(post.title)}</strong>
             <span>${formatDate(post.date)}</span>
           </a>
         </li>
@@ -365,13 +591,14 @@ function renderHome() {
         <h1>计算物理、数学模型与代码实验的交汇处。</h1>
         <p>
           这里记录数值方法、PDE、Hamiltonian 系统、稀疏线性代数和研究工程化。
-          每篇文章都尽量留下公式、图像、代码和可复现线索。
+          每篇文章都尽量留下公式、图像、代码、附件和可复现线索。
         </p>
+        ${renderResearchPanel()}
       </div>
       <aside class="search-panel" aria-label="文章筛选">
         <div class="search-box">
-          <label for="searchInput">SEARCH</label>
-          <input id="searchInput" type="search" placeholder="Hamiltonian / PDE / solver" value="${searchTerm}" />
+          <label for="searchInput">SEARCH FULL TEXT</label>
+          <input id="searchInput" type="search" placeholder="Hamiltonian / PDE / solver / 正文关键词" value="${escapeHtml(searchTerm)}" />
         </div>
         <div class="filter-block">
           <div class="filter-label">CATEGORY</div>
@@ -395,24 +622,24 @@ function renderHome() {
             ? `
               <a class="featured-link" href="#post/${featured.slug}">
                 <div class="featured-media">
-                  <img src="${featured.cover}" alt="${featured.title} 封面" />
+                  <img src="${escapeHtml(featured.cover)}" alt="${escapeHtml(featured.title)} 封面" />
                 </div>
                 <div class="featured-body">
                   <div class="meta">
                     <span>${formatDate(featured.date)}</span>
                     ${renderCategoryMeta(featured)}
-                    ${featured.series ? `<span class="dot">${featured.series}</span>` : ""}
-                    <span class="dot">${featured.readTime}</span>
+                    ${featured.series ? `<span class="dot">${escapeHtml(featured.series)}</span>` : ""}
+                    <span class="dot">${escapeHtml(featured.readTime)}</span>
                   </div>
-                  <h2>${featured.title}</h2>
-                  <p>${featured.excerpt}</p>
+                  <h2>${highlight(featured.title)}</h2>
+                  <p>${highlight(featured.excerpt)}</p>
                 </div>
               </a>
               <div class="post-grid">${rest.map(renderPostCard).join("")}</div>
             `
             : `<div class="empty-state">没有找到匹配的文章，换个关键词或筛选条件试试。</div>`
         }
-        ${renderImportPanel()}
+        ${SHOW_LOCAL_IMPORT_TOOLS ? renderImportPanel() : ""}
       </div>
 
       <aside class="sidebar">
@@ -434,7 +661,7 @@ function renderHome() {
         </section>
         <section class="side-section">
           <h2>GUIDE</h2>
-          <p>文章来自 content/ 下的 Markdown 文件。每篇文章有独立 attachments/ 文件夹；分类和专栏写在 Markdown 头信息里。</p>
+          <p>新增文章后运行 <code>node scripts/generate-manifest.mjs</code> 自动更新索引。公开站点默认隐藏本地导入工具。</p>
           <p><a class="text-link" href="#guide">查看使用说明</a></p>
         </section>
       </aside>
@@ -502,14 +729,22 @@ async function importNoteFolder(event) {
   const objectUrls = new Map();
   files.forEach((file) => {
     const relativePath = file.webkitRelativePath || file.name;
-    objectUrls.set(relativePath.replace(/^.*?\/index\.md$/i, "index.md"), URL.createObjectURL(file));
     objectUrls.set(relativePath, URL.createObjectURL(file));
   });
 
   const folderRoot = (markdownFile.webkitRelativePath || "").split("/")[0] || "local-note";
   const markdown = await markdownFile.text();
-  const post = postFromMarkdown(markdown, `${folderRoot}/index.md`, slugify(folderRoot));
+  const post = postFromMarkdown(markdown, `${folderRoot}/index.md`, slugify(folderRoot), {
+    attachments: files
+      .map((file) => file.webkitRelativePath || file.name)
+      .filter((filePath) => !/(^|\/)index\.md$/i.test(filePath)),
+  });
+
   post.cover = objectUrls.get(`${folderRoot}/${post.cover.replace(`${folderRoot}/`, "")}`) || post.cover;
+  post.attachments = post.attachments.map((attachment) => ({
+    ...attachment,
+    path: objectUrls.get(attachment.path) || attachment.path,
+  }));
   post.content = post.content.map((block) => {
     if (block.type !== "image") return block;
     const relative = block.src.replace(`${folderRoot}/`, "");
@@ -534,6 +769,63 @@ function setImportStatus(message) {
   if (status) status.textContent = message;
 }
 
+function getPostToc(post) {
+  return post.content.filter((block) => block.type === "h2" || block.type === "h3");
+}
+
+function renderResearchLinks(post) {
+  const entries = [
+    ["状态", post.research.status],
+    ["论文", post.research.paper],
+    ["代码", post.research.repo],
+    ["数据", post.research.dataset],
+  ].filter(([, value]) => value);
+
+  if (!entries.length) return "";
+
+  return `
+    <h2>研究线索</h2>
+    <dl>
+      ${entries
+        .map(([label, value]) => {
+          const isLink = /^(https?:|attachments\/|content\/|\/)/.test(value);
+          const resolved = resolveAssetPath(post.sourcePath, value);
+          return `
+            <dt>${label}</dt>
+            <dd>${
+              isLink
+                ? `<a class="text-link" href="${escapeHtml(resolved)}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
+                : escapeHtml(value)
+            }</dd>
+          `;
+        })
+        .join("")}
+    </dl>
+  `;
+}
+
+function renderAttachments(post) {
+  if (!post.attachments.length) return "";
+
+  return `
+    <h2>本文附件</h2>
+    <ul class="attachment-list">
+      ${post.attachments
+        .map(
+          (attachment) => `
+            <li>
+              <a href="${escapeHtml(attachment.path)}" target="_blank" rel="noreferrer">
+                <span>${escapeHtml(attachment.name)}</span>
+                <small>${escapeHtml(attachment.path)}</small>
+              </a>
+            </li>
+          `,
+        )
+        .join("")}
+    </ul>
+  `;
+}
+
 function renderArticle(slug) {
   const post = posts.find((item) => item.slug === slug);
   if (!post) {
@@ -546,6 +838,7 @@ function renderArticle(slug) {
         .filter((item) => item.series === post.series)
         .sort((a, b) => a.seriesOrder - b.seriesOrder || new Date(a.date) - new Date(b.date))
     : [];
+  const toc = getPostToc(post);
 
   app.innerHTML = `
     <article class="article-page">
@@ -555,29 +848,49 @@ function renderArticle(slug) {
           <div class="meta">
             <span>${formatDate(post.date)}</span>
             ${renderCategoryMeta(post)}
-            ${post.series ? `<span class="dot">${post.series}</span>` : ""}
-            <span class="dot">${post.readTime}</span>
+            ${post.series ? `<span class="dot">${escapeHtml(post.series)}</span>` : ""}
+            <span class="dot">${escapeHtml(post.readTime)}</span>
           </div>
-          <h1>${post.title}</h1>
+          <h1>${escapeHtml(post.title)}</h1>
         </div>
         <figure class="article-cover">
-          <img src="${post.cover}" alt="${post.title} 封面" />
+          <img src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)} 封面" />
         </figure>
       </header>
       <div class="article-layout">
         <div class="article-body">
-          ${post.content.map(renderContentBlock).join("")}
+          ${post.content.map((block) => renderContentBlock(block, post)).join("")}
         </div>
         <aside class="article-aside">
+          ${
+            toc.length
+              ? `
+                <h2>目录</h2>
+                <ol class="toc-list">
+                  ${toc
+                    .map(
+                      (item) => `
+                        <li class="level-${item.level}">
+                          <a href="#${item.id}">${escapeHtml(item.text)}</a>
+                        </li>
+                      `,
+                    )
+                    .join("")}
+                </ol>
+              `
+              : ""
+          }
           <h2>文章信息</h2>
           <dl>
             <dt>分类</dt>
-            <dd>${post.categories.join(" / ")}</dd>
+            <dd>${escapeHtml(post.categories.join(" / "))}</dd>
             <dt>专栏</dt>
-            <dd>${post.series || "无"}</dd>
+            <dd>${escapeHtml(post.series || "无")}</dd>
             <dt>来源</dt>
-            <dd>${post.sourcePath}</dd>
+            <dd>${escapeHtml(post.sourcePath)}</dd>
           </dl>
+          ${renderResearchLinks(post)}
+          ${renderAttachments(post)}
           ${
             seriesPosts.length
               ? `
@@ -587,7 +900,7 @@ function renderArticle(slug) {
                     .map(
                       (item) => `
                         <li class="${item.slug === post.slug ? "current" : ""}">
-                          <a href="#post/${item.slug}">${item.title}</a>
+                          <a href="#post/${item.slug}">${escapeHtml(item.title)}</a>
                         </li>
                       `,
                     )
@@ -601,7 +914,61 @@ function renderArticle(slug) {
     </article>
   `;
 
-  typesetMath();
+  typesetEnhancements();
+}
+
+function renderSeriesPage(seriesName) {
+  const group = getSeriesGroups().find((item) => item.name === seriesName);
+  if (!group) {
+    window.location.hash = "#home";
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="series-page">
+      <a class="back-link" href="#home">返回文章列表</a>
+      <header class="series-hero">
+        <p class="eyebrow">Series</p>
+        <h1>${escapeHtml(seriesName)}</h1>
+        <p>这个专栏共有 ${group.posts.length} 篇文章，按 seriesOrder 排列，适合连续阅读。</p>
+      </header>
+      <div class="series-timeline">
+        ${group.posts
+          .map(
+            (post, index) => `
+              <article>
+                <span>${String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <div class="meta">
+                    <span>${formatDate(post.date)}</span>
+                    ${renderCategoryMeta(post)}
+                  </div>
+                  <h2><a href="#post/${post.slug}">${escapeHtml(post.title)}</a></h2>
+                  <p>${escapeHtml(post.excerpt)}</p>
+                </div>
+              </article>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderSeriesIndex() {
+  app.innerHTML = `
+    <section class="series-page">
+      <a class="back-link" href="#home">返回文章列表</a>
+      <header class="series-hero">
+        <p class="eyebrow">All Series</p>
+        <h1>专栏</h1>
+        <p>这里按 series 字段自动聚合文章。给多篇文章写同一个 series 名字，它们就会组成一个连续阅读的专栏。</p>
+      </header>
+      <div class="series-grid">
+        ${renderSeriesCards()}
+      </div>
+    </section>
+  `;
 }
 
 function renderAbout() {
@@ -616,7 +983,7 @@ function renderAbout() {
         <div>
           <p>
             我关注计算物理、数值分析、PDE、Hamiltonian 系统和科学计算工具链。
-            这个博客会放推导、实验记录、代码片段、论文阅读和可视化结果。
+            这个博客会放推导、实验记录、代码片段、论文阅读、附件和可视化结果。
           </p>
           <p>
             写作目标是让每个想法都能被重新检查：假设清楚，公式可追踪，实验可复现，代码能回到具体问题。
@@ -625,6 +992,31 @@ function renderAbout() {
             <a href="mailto:hello@example.com">Email</a>
             <a href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
             <a href="#guide">使用说明</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderContact() {
+  app.innerHTML = `
+    <section class="about-page" id="contact">
+      <a class="back-link" href="#home">返回文章列表</a>
+      <div class="about-panel">
+        <div>
+          <p class="eyebrow">Contact</p>
+          <h1>联系与研究入口。</h1>
+        </div>
+        <div>
+          <p>
+            这里可以放你的邮箱、GitHub、Google Scholar、ORCID、个人主页或实验室页面。
+            当前还是占位信息，后续把链接替换成你的真实信息即可。
+          </p>
+          <div class="contact-row">
+            <a href="mailto:hello@example.com">Email</a>
+            <a href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
+            <a href="#guide">写作说明</a>
           </div>
         </div>
       </div>
@@ -642,16 +1034,32 @@ function renderGuide() {
           <h1>如何写一篇新笔记。</h1>
         </div>
         <div>
-          <p>每篇文章一个独立文件夹，正文使用 Markdown，附件放在同级 attachments/ 目录。</p>
-          <div class="code-block"><pre><code>${escapeHtml(`content/
+          <p>每篇文章一个独立文件夹，正文使用 Markdown，附件放在同级 attachments/ 目录。新增文章后运行 manifest 生成器，网站会自动发现文章和附件。</p>
+          <div class="code-block"><pre><code class="language-bash">${escapeHtml(`node scripts/generate-manifest.mjs`)}</code></pre></div>
+          <div class="code-block"><pre><code class="language-text">${escapeHtml(`content/
   manifest.json
   symplectic-integrator-notes/
     index.md
     attachments/
       cover.png
-      phase-plot.png`)}</code></pre></div>
-          <p>在 index.md 开头写分类和专栏信息：</p>
-          <div class="code-block"><pre><code>${escapeHtml(`---
+      phase-plot.png
+      result.csv`)}</code></pre></div>
+          <p>独立文章不需要专栏，直接省略 series 和 seriesOrder：</p>
+          <div class="code-block"><pre><code class="language-yaml">${escapeHtml(`---
+title: 一个独立的误差分析笔记
+date: 2026-06-08
+readTime: 5 分钟
+categories: [数学札记, 数值方法]
+tags: [误差分析, PDE]
+status: experiment
+paper: arXiv:xxxx.xxxxx
+repo: https://github.com/your/name
+dataset: attachments/result.csv
+cover: attachments/cover.png
+excerpt: 这篇文章不属于任何专栏。
+---`)}</code></pre></div>
+          <p>如果文章属于一个系列，再写 series 和 seriesOrder：</p>
+          <div class="code-block"><pre><code class="language-yaml">${escapeHtml(`---
 title: 辛积分方法笔记
 date: 2026-06-08
 readTime: 8 分钟
@@ -662,22 +1070,28 @@ tags: [计算物理, Hamiltonian, 数值方法]
 cover: attachments/cover.png
 excerpt: 这是一篇关于辛积分的研究笔记。
 ---`)}</code></pre></div>
-          <p>如果只有一个分类，也可以写 category: 计算物理。最后把文章登记到 content/manifest.json。完整说明已经写在 README.md。</p>
+          <p>Markdown 支持行内公式、块级公式、图片、代码块、表格、链接、脚注和任务列表。本地导入工具默认隐藏，只建议本地预览时临时开启。完整说明已经写在 README.md。</p>
         </div>
       </div>
     </section>
   `;
+  typesetEnhancements();
 }
 
 function route() {
   const hash = window.location.hash || "#home";
   if (hash.startsWith("#post/")) {
     renderArticle(hash.replace("#post/", ""));
+  } else if (hash === "#series") {
+    activeSeries = "全部";
+    renderSeriesIndex();
   } else if (hash.startsWith("#series/")) {
     activeSeries = decodeURIComponent(hash.replace("#series/", ""));
-    renderHome();
+    renderSeriesPage(activeSeries);
   } else if (hash === "#about") {
     renderAbout();
+  } else if (hash === "#contact") {
+    renderContact();
   } else if (hash === "#guide") {
     renderGuide();
   } else {
@@ -685,7 +1099,7 @@ function route() {
   }
 
   window.scrollTo({ top: 0, behavior: "instant" });
-  typesetMath();
+  typesetEnhancements();
 }
 
 async function initialize() {

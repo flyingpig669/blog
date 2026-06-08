@@ -5,7 +5,7 @@ readTime: 7 分钟
 category: 计算物理
 series: 结构保持算法
 seriesOrder: 1
-tags: [计算物理, 数值方法, Hamiltonian]
+tags: [计算物理, 数值方法, Hamiltonian,test]
 cover: attachments/cover.png
 excerpt: 用辛积分保持 Hamiltonian 系统的几何结构，比单纯追求局部误差更接近物理问题本身。
 ---

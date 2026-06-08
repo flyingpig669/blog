@@ -1,24 +1,39 @@
 {
   "notes": [
     {
-      "slug": "phase-space-numerical-experiment",
-      "path": "content/phase-space-numerical-experiment/index.md"
-    },
-    {
-      "slug": "sparse-solver-notes",
-      "path": "content/sparse-solver-notes/index.md"
-    },
-    {
       "slug": "math-and-images-note",
-      "path": "content/math-and-images-note/index.md"
+      "path": "content/math-and-images-note/index.md",
+      "attachments": [
+        "content/math-and-images-note/attachments/cover.png"
+      ]
     },
     {
-      "slug": "spectral-method-reading",
-      "path": "content/spectral-method-reading/index.md"
+      "slug": "phase-space-numerical-experiment",
+      "path": "content/phase-space-numerical-experiment/index.md",
+      "attachments": [
+        "content/phase-space-numerical-experiment/attachments/cover.png"
+      ]
     },
     {
       "slug": "simulation-logbook",
-      "path": "content/simulation-logbook/index.md"
+      "path": "content/simulation-logbook/index.md",
+      "attachments": [
+        "content/simulation-logbook/attachments/cover.png"
+      ]
+    },
+    {
+      "slug": "sparse-solver-notes",
+      "path": "content/sparse-solver-notes/index.md",
+      "attachments": [
+        "content/sparse-solver-notes/attachments/cover.png"
+      ]
+    },
+    {
+      "slug": "spectral-method-reading",
+      "path": "content/spectral-method-reading/index.md",
+      "attachments": [
+        "content/spectral-method-reading/attachments/cover.png"
+      ]
     }
   ]
 }
