@@ -3,9 +3,13 @@ let activeCategory = "全部";
 let activeSeries = "全部";
 let activeTag = "全部";
 let searchTerm = "";
+let homePage = 1;
+let seriesIndexPage = 1;
+let seriesPostPage = 1;
 
 const app = document.querySelector("#app");
 const DEFAULT_COVER = "/assets/favicon.svg";
+const LIST_PAGE_SIZE = 8;
 const SHOW_LOCAL_IMPORT_TOOLS = false;
 const SITE_PROFILE = {
   profileTitle: "简介",
@@ -382,6 +386,66 @@ function getFilteredPosts() {
   });
 }
 
+function clampPage(page, totalItems, pageSize = LIST_PAGE_SIZE) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  return Math.min(Math.max(Number(page) || 1, 1), totalPages);
+}
+
+function paginateItems(items, page, pageSize = LIST_PAGE_SIZE) {
+  const safePage = clampPage(page, items.length, pageSize);
+  const start = (safePage - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    page: safePage,
+    pageSize,
+    start,
+    total: items.length,
+    totalPages: Math.max(1, Math.ceil(items.length / pageSize)),
+  };
+}
+
+function renderPagination({ page, total, totalPages }, scope) {
+  if (totalPages <= 1) return "";
+  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+  return `
+    <nav class="pagination" aria-label="分页">
+      <button type="button" data-page-scope="${scope}" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一页</button>
+      <div>
+        ${pages
+          .map(
+            (item) => `
+              <button class="${item === page ? "active" : ""}" type="button" data-page-scope="${scope}" data-page="${item}" ${item === page ? 'aria-current="page"' : ""}>
+                ${item}
+              </button>
+            `,
+          )
+          .join("")}
+      </div>
+      <button type="button" data-page-scope="${scope}" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""}>下一页</button>
+      <span>${page} / ${totalPages} · ${total} 条</span>
+    </nav>
+  `;
+}
+
+function bindPaginationEvents() {
+  document.querySelectorAll("[data-page-scope][data-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const page = Number(button.dataset.page);
+      if (button.dataset.pageScope === "home") {
+        homePage = page;
+        renderHome();
+      } else if (button.dataset.pageScope === "series-index") {
+        seriesIndexPage = page;
+        renderSeriesIndex();
+      } else if (button.dataset.pageScope === "series-posts") {
+        seriesPostPage = page;
+        renderSeriesPage(activeSeries);
+      }
+      window.scrollTo({ top: 0, behavior: "instant" });
+    });
+  });
+}
+
 function getStats() {
   return {
     posts: posts.length,
@@ -620,12 +684,7 @@ function renderSeriesIndexItem(group) {
   `;
 }
 
-function renderSeriesIndexList() {
-  const groups = getSeriesGroups();
-  if (!groups.length) {
-    return `<div class="empty-state">还没有专栏。给文章添加 series 字段后，这里会自动出现专栏。</div>`;
-  }
-
+function renderSeriesIndexList(groups) {
   return groups.map(renderSeriesIndexItem).join("");
 }
 
@@ -655,6 +714,11 @@ function renderResearchPanel() {
 
 function renderHome() {
   const filteredPosts = getFilteredPosts();
+  const pageData = paginateItems(filteredPosts, homePage);
+  homePage = pageData.page;
+  const rangeText = filteredPosts.length
+    ? `${pageData.start + 1}-${pageData.start + pageData.items.length} / ${filteredPosts.length} 篇`
+    : "0 篇";
 
   app.innerHTML = `
     <section class="intro-band" id="home">
@@ -681,11 +745,14 @@ function renderHome() {
     <section class="home-list-section" aria-label="文章列表">
       <div class="list-heading">
         <h2>文章列表</h2>
-        <span>${filteredPosts.length} 篇</span>
+        <span>${rangeText}</span>
       </div>
       ${
         filteredPosts.length
-          ? `<div class="post-list">${filteredPosts.map(renderPostListItem).join("")}</div>`
+          ? `
+            <div class="post-list">${pageData.items.map(renderPostListItem).join("")}</div>
+            ${renderPagination(pageData, "home")}
+          `
           : `<div class="empty-state">没有找到匹配的文章，换个关键词或筛选条件试试。</div>`
       }
       ${SHOW_LOCAL_IMPORT_TOOLS ? renderImportPanel() : ""}
@@ -693,6 +760,7 @@ function renderHome() {
   `;
 
   bindHomeEvents();
+  bindPaginationEvents();
 }
 
 function bindHomeEvents() {
@@ -705,6 +773,7 @@ function bindHomeEvents() {
 
   searchInput?.addEventListener("input", (event) => {
     searchTerm = event.target.value;
+    homePage = 1;
     renderHome();
     document.querySelector("#searchInput")?.focus();
   });
@@ -713,6 +782,7 @@ function bindHomeEvents() {
     const button = event.target.closest("[data-category]");
     if (!button) return;
     activeCategory = button.dataset.category;
+    homePage = 1;
     renderHome();
   });
 
@@ -720,6 +790,7 @@ function bindHomeEvents() {
     const button = event.target.closest("[data-series]");
     if (!button) return;
     activeSeries = button.dataset.series;
+    homePage = 1;
     renderHome();
   });
 
@@ -727,6 +798,7 @@ function bindHomeEvents() {
     const button = event.target.closest("[data-tag]");
     if (!button) return;
     activeTag = button.dataset.tag;
+    homePage = 1;
     renderHome();
   });
 
@@ -944,6 +1016,11 @@ function renderSeriesPage(seriesName) {
     window.location.hash = "#home";
     return;
   }
+  const pageData = paginateItems(group.posts, seriesPostPage);
+  seriesPostPage = pageData.page;
+  const rangeText = group.posts.length
+    ? `${pageData.start + 1}-${pageData.start + pageData.items.length} / ${group.posts.length} 篇`
+    : "0 篇";
 
   app.innerHTML = `
     <section class="series-page">
@@ -955,16 +1032,23 @@ function renderSeriesPage(seriesName) {
       </header>
       <div class="list-heading">
         <h2>文章列表</h2>
-        <span>${group.posts.length} 篇</span>
+        <span>${rangeText}</span>
       </div>
       <div class="post-list series-post-list">
-        ${group.posts.map(renderPostListItem).join("")}
+        ${pageData.items.map(renderPostListItem).join("")}
       </div>
+      ${renderPagination(pageData, "series-posts")}
     </section>
   `;
+  bindPaginationEvents();
 }
 
 function renderSeriesIndex() {
+  const groups = getSeriesGroups();
+  const pageData = paginateItems(groups, seriesIndexPage);
+  seriesIndexPage = pageData.page;
+  const rangeText = groups.length ? `${pageData.start + 1}-${pageData.start + pageData.items.length} / ${groups.length} 个` : "0 个";
+
   app.innerHTML = `
     <section class="series-page">
       <a class="back-link" href="#home">返回文章列表</a>
@@ -975,13 +1059,21 @@ function renderSeriesIndex() {
       </header>
       <div class="list-heading">
         <h2>专栏列表</h2>
-        <span>${getSeriesGroups().length} 个</span>
+        <span>${rangeText}</span>
       </div>
-      <div class="post-list series-index-list">
-        ${renderSeriesIndexList()}
-      </div>
+      ${
+        groups.length
+          ? `
+            <div class="post-list series-index-list">
+              ${renderSeriesIndexList(pageData.items)}
+            </div>
+            ${renderPagination(pageData, "series-index")}
+          `
+          : `<div class="empty-state">还没有专栏。给文章添加 series 字段后，这里会自动出现专栏。</div>`
+      }
     </section>
   `;
+  bindPaginationEvents();
 }
 
 function renderProfileInfoItem(item, index) {
@@ -1127,7 +1219,9 @@ function route() {
     activeSeries = "全部";
     renderSeriesIndex();
   } else if (hash.startsWith("#series/")) {
-    activeSeries = decodeURIComponent(hash.replace("#series/", ""));
+    const nextSeries = decodeURIComponent(hash.replace("#series/", ""));
+    if (activeSeries !== nextSeries) seriesPostPage = 1;
+    activeSeries = nextSeries;
     renderSeriesPage(activeSeries);
   } else if (hash === "#profile" || hash === "#about" || hash === "#contact") {
     renderProfile();

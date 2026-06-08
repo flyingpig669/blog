@@ -231,6 +231,40 @@ select:focus {
   white-space: nowrap;
 }
 
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pagination div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pagination button {
+  min-height: 32px;
+  padding-inline: 10px;
+}
+
+.pagination button.active {
+  background: rgba(56, 213, 232, 0.18);
+  border-color: rgba(56, 213, 232, 0.68);
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.pagination span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

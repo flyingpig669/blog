@@ -1,9 +1,11 @@
 const app = document.querySelector("#adminApp");
 const DEFAULT_COVER = "/assets/favicon.svg";
+const NOTES_PAGE_SIZE = 6;
 const state = {
   authenticated: false,
   options: { categories: [], tags: [], series: [] },
   notes: [],
+  notesPage: 1,
 };
 
 const defaultBody = `## 问题背景
@@ -206,12 +208,18 @@ function renderEditor() {
 }
 
 function renderNotesPanel() {
+  const pageData = paginateItems(state.notes, state.notesPage, NOTES_PAGE_SIZE);
+  state.notesPage = pageData.page;
+  const rangeText = state.notes.length
+    ? `${pageData.start + 1}-${pageData.start + pageData.items.length} / ${state.notes.length} 篇，点击可继续编辑。`
+    : "还没有读取到文章。";
+
   return `
     <section class="notes-box">
       <div class="notes-heading">
         <div>
           <h2>已有文章</h2>
-          <p>${state.notes.length ? `共 ${state.notes.length} 篇，点击可继续编辑。` : "还没有读取到文章。"}</p>
+          <p>${rangeText}</p>
         </div>
         <button id="newNoteButton" type="button">新建文章</button>
       </div>
@@ -219,12 +227,52 @@ function renderNotesPanel() {
         state.notes.length
           ? `
             <ul class="notes-list">
-              ${state.notes.map(renderNoteListItem).join("")}
+              ${pageData.items.map(renderNoteListItem).join("")}
             </ul>
+            ${renderPagination(pageData)}
           `
           : `<p class="hint">保存第一篇文章后，这里会自动显示文章列表。</p>`
       }
     </section>
+  `;
+}
+
+function clampPage(page, totalItems, pageSize) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  return Math.min(Math.max(Number(page) || 1, 1), totalPages);
+}
+
+function paginateItems(items, page, pageSize) {
+  const safePage = clampPage(page, items.length, pageSize);
+  const start = (safePage - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    page: safePage,
+    start,
+    total: items.length,
+    totalPages: Math.max(1, Math.ceil(items.length / pageSize)),
+  };
+}
+
+function renderPagination({ page, total, totalPages }) {
+  if (totalPages <= 1) return "";
+  return `
+    <nav class="pagination" aria-label="已有文章分页">
+      <button type="button" data-notes-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一页</button>
+      <div>
+        ${Array.from({ length: totalPages }, (_, index) => index + 1)
+          .map(
+            (item) => `
+              <button class="${item === page ? "active" : ""}" type="button" data-notes-page="${item}" ${item === page ? 'aria-current="page"' : ""}>
+                ${item}
+              </button>
+            `,
+          )
+          .join("")}
+      </div>
+      <button type="button" data-notes-page="${page + 1}" ${page >= totalPages ? "disabled" : ""}>下一页</button>
+      <span>${page} / ${totalPages} · ${total} 条</span>
+    </nav>
   `;
 }
 
@@ -246,6 +294,12 @@ function renderNoteListItem(note) {
 
 function bindNotesPanel() {
   document.querySelector("#newNoteButton")?.addEventListener("click", resetEditorForm);
+  document.querySelectorAll("[data-notes-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.notesPage = Number(button.dataset.notesPage);
+      refreshNotesPanel();
+    });
+  });
   document.querySelectorAll("[data-load-note]").forEach((button) => {
     button.addEventListener("click", () => {
       const note = state.notes.find((item) => item.slug === button.dataset.loadNote);
