@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { generateManifest } from "./scripts/generate-manifest.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_COVER = "/assets/favicon.svg";
 const env = { ...(await loadEnv(path.join(root, ".env"))), ...process.env };
 const config = {
   host: env.BLOG_HOST || "127.0.0.1",
@@ -372,7 +373,7 @@ function buildMarkdown(note) {
     !isBlank(note.paper) ? `paper: ${cleanLine(note.paper)}` : "",
     !isBlank(note.repo) ? `repo: ${cleanLine(note.repo)}` : "",
     !isBlank(note.dataset) ? `dataset: ${cleanLine(note.dataset)}` : "",
-    `cover: ${cleanLine(note.cover) || "attachments/cover.png"}`,
+    `cover: ${cleanLine(note.cover) || DEFAULT_COVER}`,
     `excerpt: ${cleanLine(note.excerpt) || "这篇文章还没有摘要。"}`,
     "---",
   ].filter((line) => line !== "");

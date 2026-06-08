@@ -1,4 +1,5 @@
 const app = document.querySelector("#adminApp");
+const DEFAULT_COVER = "/assets/favicon.svg";
 const state = {
   authenticated: false,
   options: { categories: [], tags: [], series: [] },
@@ -153,7 +154,7 @@ function renderEditor() {
             ${field("paper", "论文 / arXiv / PDF", "")}
             ${field("repo", "代码仓库", "")}
             ${field("dataset", "数据文件", "attachments/result.csv")}
-            ${field("cover", "封面", "attachments/cover.png")}
+            ${field("cover", "封面", DEFAULT_COVER)}
           </div>
           <label>
             摘要
@@ -313,7 +314,7 @@ function resetEditorForm() {
   setFieldValue("date", today);
   setFieldValue("readTime", "8 分钟");
   setFieldValue("dataset", "attachments/result.csv");
-  setFieldValue("cover", "attachments/cover.png");
+  setFieldValue("cover", DEFAULT_COVER);
   setFieldValue("excerpt", "这是一篇新的研究笔记。");
   document.querySelector("#body").value = defaultBody;
   document.querySelector("#saveStatus").textContent = "";
@@ -333,7 +334,7 @@ function loadNoteIntoForm(note) {
   setFieldValue("paper", note.paper);
   setFieldValue("repo", note.repo);
   setFieldValue("dataset", note.dataset);
-  setFieldValue("cover", note.cover || "attachments/cover.png");
+  setFieldValue("cover", note.cover || DEFAULT_COVER);
   setFieldValue("excerpt", note.excerpt);
   document.querySelector("#body").value = note.body || "";
   document.querySelector("#saveStatus").textContent = `正在编辑：${note.path}`;
@@ -381,7 +382,7 @@ function buildFrontMatter(note) {
     !isBlank(note.paper) ? `paper: ${note.paper}` : "",
     !isBlank(note.repo) ? `repo: ${note.repo}` : "",
     !isBlank(note.dataset) ? `dataset: ${note.dataset}` : "",
-    `cover: ${note.cover || "attachments/cover.png"}`,
+    `cover: ${note.cover || DEFAULT_COVER}`,
     `excerpt: ${note.excerpt || "这篇文章还没有摘要。"}`,
     "---",
   ];

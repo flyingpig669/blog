@@ -5,6 +5,7 @@ let activeTag = "全部";
 let searchTerm = "";
 
 const app = document.querySelector("#app");
+const DEFAULT_COVER = "/assets/favicon.svg";
 const SHOW_LOCAL_IMPORT_TOOLS = false;
 const SITE_PROFILE = {
   profileTitle: "简介",
@@ -285,6 +286,8 @@ function postFromMarkdown(markdown, markdownPath, fallbackSlug, manifestEntry = 
     name: filePath.split("/").pop(),
   }));
 
+  const cover = attrs.cover || findCoverAttachment(attachments) || DEFAULT_COVER;
+
   return {
     slug,
     title,
@@ -295,7 +298,7 @@ function postFromMarkdown(markdown, markdownPath, fallbackSlug, manifestEntry = 
     series: cleanText(attrs.series),
     seriesOrder: Number(attrs.seriesOrder || 0),
     tags: normalizeList(attrs.tags),
-    cover: resolveAssetPath(markdownPath, attrs.cover || attachments[0]?.path || ""),
+    cover: resolveAssetPath(markdownPath, cover),
     excerpt: attrs.excerpt || "这篇笔记还没有摘要。",
     content,
     bodyText: content.map(blockText).join(" "),
@@ -308,6 +311,11 @@ function postFromMarkdown(markdown, markdownPath, fallbackSlug, manifestEntry = 
       status: cleanText(attrs.status),
     },
   };
+}
+
+function findCoverAttachment(attachments) {
+  const imageAttachments = attachments.filter((attachment) => /\.(png|jpe?g|gif|svg|webp)$/i.test(attachment.path));
+  return imageAttachments.find((attachment) => /(^|\/)cover\./i.test(attachment.path))?.path || "";
 }
 
 async function loadManifestPosts() {
@@ -500,12 +508,19 @@ function typesetEnhancements() {
   }
 }
 
+function renderCoverImage(src, alt, loading = "") {
+  const cover = isBlank(src) ? DEFAULT_COVER : src;
+  const classAttr = cover === DEFAULT_COVER ? ' class="default-cover"' : "";
+  const loadingAttr = loading ? ` loading="${escapeHtml(loading)}"` : "";
+  return `<img src="${escapeHtml(cover)}" alt="${escapeHtml(alt)}"${classAttr}${loadingAttr} onerror="this.onerror=null;this.classList.add('default-cover');this.src='${DEFAULT_COVER}';" />`;
+}
+
 function renderPostCard(post) {
   return `
     <article class="post-card">
       <a href="#post/${post.slug}">
         <div class="thumb">
-          <img src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)} 封面" loading="lazy" />
+          ${renderCoverImage(post.cover, `${post.title} 封面`, "lazy")}
         </div>
         <div class="body">
           <div class="meta">
@@ -527,7 +542,7 @@ function renderPostListItem(post) {
     <article class="post-list-item">
       <a href="#post/${post.slug}">
         <div class="list-thumb">
-          <img src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)} 封面" loading="lazy" />
+          ${renderCoverImage(post.cover, `${post.title} 封面`, "lazy")}
         </div>
         <div class="list-body">
           <div class="meta">
@@ -589,11 +604,7 @@ function renderSeriesIndexItem(group) {
     <article class="post-list-item series-list-item">
       <a href="#series/${encodeURIComponent(group.name)}">
         <div class="list-thumb">
-          ${
-            preview?.cover
-              ? `<img src="${escapeHtml(preview.cover)}" alt="${escapeHtml(group.name)} 专栏封面" loading="lazy" />`
-              : ""
-          }
+          ${renderCoverImage(preview?.cover, `${group.name} 专栏封面`, "lazy")}
         </div>
         <div class="list-body">
           <div class="meta">
@@ -866,9 +877,6 @@ function renderArticle(slug) {
           </div>
           <h1>${escapeHtml(post.title)}</h1>
         </div>
-        <figure class="article-cover">
-          <img src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)} 封面" />
-        </figure>
       </header>
       <div class="article-layout">
         <div class="article-body">
