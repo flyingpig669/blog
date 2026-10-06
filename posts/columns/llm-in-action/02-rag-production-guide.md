@@ -1,7 +1,9 @@
 ---
-title: "大语言模型微调与 RAG 检索增强实战：从原理到生产落地"
+title: "大模型系统化实战（二）：RAG 检索增强与向量召回生产指南"
 date: 2026-09-24
 category: ai
+column: llm-in-action
+order: 2
 tags: [LLM, RAG, 向量检索, KaTeX, Python]
 pinned: true
 coverGradient: "from-purple-600 to-indigo-600"

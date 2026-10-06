@@ -66,6 +66,10 @@
       <!-- Desktop Nav Links -->
       <nav class="hidden md:flex items-center gap-1 text-sm">
         <a href="#/" data-nav-link="home" class="px-3 py-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">首页</a>
+        <a href="#/columns" data-nav-link="columns" class="px-3 py-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          <span>专栏</span>
+        </a>
         <a href="#/categories" data-nav-link="categories" class="px-3 py-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">分类标签</a>
         <a href="#/archives" data-nav-link="archives" class="px-3 py-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">文章归档</a>
         <a href="#/editor" data-nav-link="editor" class="px-3 py-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
@@ -102,6 +106,7 @@
     <!-- Mobile Menu Drawer -->
     <div id="mobile-drawer" class="hidden md:hidden px-4 pt-2 pb-4 space-y-1 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
       <a href="#/" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800">首页</a>
+      <a href="#/columns" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block px-3 py-2 rounded-lg text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800">专栏精选</a>
       <a href="#/categories" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800">分类标签</a>
       <a href="#/archives" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800">文章归档</a>
       <a href="#/editor" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block px-3 py-2 rounded-lg text-sm font-medium text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800">写文章</a>

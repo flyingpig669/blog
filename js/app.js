@@ -64,6 +64,9 @@ window.BlogApp = {
     } else if (path === '/archives') {
       this.currentRoute = { name: 'archives', params: {} };
       this.renderArchivesView();
+    } else if (path === '/columns') {
+      this.currentRoute = { name: 'columns', params: {} };
+      this.renderColumnsView();
     } else if (path === '/categories') {
       this.currentRoute = { name: 'categories', params: {} };
       this.renderCategoriesView();
@@ -379,6 +382,10 @@ window.BlogApp = {
     var isLiked = window.BlogStore.isPostLiked(post.id);
     var isBookmarked = window.BlogStore.isPostBookmarked(post.id);
 
+    
+    // Check if post belongs to a column
+    var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
+    var columnPosts = columnInfo ? columnInfo.posts : [];
     var allPosts = window.BlogStore.posts;
     var currentIndex = allPosts.findIndex(function(p) { return p.id === post.id; });
     var prevPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
@@ -397,6 +404,18 @@ window.BlogApp = {
     html += '</div>';
 
     html += '<header class="mb-8 p-8 md:p-10 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-sm relative overflow-hidden">';
+
+          // Column banner if applicable
+          if (columnInfo) {
+            html += '<div class="mb-4 p-3 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/50 flex flex-wrap items-center justify-between gap-2 text-xs">';
+            html += '  <div class="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 font-medium">';
+            html += '    <span class="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono text-[10px]">专栏连载</span>';
+            html += '    <span>收录于专栏《' + columnInfo.name + '》· 第 ' + (post.order || 1) + ' 讲</span>';
+            html += '  </div>';
+            html += '  <a href="#/columns" class="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1">专栏全目录 →</a>';
+            html += '</div>';
+          }
+
     html += '  <div class="flex flex-wrap items-center gap-2 text-xs mb-4">';
     html += '    <span class="px-3 py-1 rounded-full font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">' + post.categoryName + '</span>';
     html += '    <span class="text-slate-400 font-mono">发布于 ' + post.date + '</span>';
@@ -597,6 +616,91 @@ window.BlogApp = {
     this.showToast('感谢为精彩评论点赞', 'success');
   },
 
+  
+  renderColumnsView: function() {
+    var container = document.getElementById('app-main');
+    var columns = window.BlogStore.getColumns();
+
+    var html = '<div class="max-w-5xl mx-auto space-y-12">';
+    html += '  <div class="text-center">';
+    html += '    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-mono mb-3">';
+    html += '      ' + (window.BlogIcons ? window.BlogIcons.get('layers', 'w-3.5 h-3.5') : '') + ' CURATED SERIES & COLUMNS';
+    html += '    </div>';
+    html += '    <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">系统化专题技术专栏</h1>';
+    html += '    <p class="text-slate-500 text-xs max-w-xl mx-auto">循序渐进的系统化系列长文。支持在 posts/columns/ 目录下建立专属文件夹自动归档与连载。</p>';
+    html += '  </div>';
+
+    html += '  <div class="space-y-8">';
+    if (columns.length === 0) {
+      html += '    <div class="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 text-slate-400 text-xs">暂无专栏数据</div>';
+    } else {
+      columns.forEach(function(col) {
+        var totalWords = (col.totalWords || 0);
+        var totalMinutes = Math.max(1, Math.ceil(totalWords / 400));
+        var posts = col.posts || [];
+
+        html += '    <div class="bg-white dark:bg-slate-800/90 rounded-3xl border border-slate-200/90 dark:border-slate-700/80 shadow-sm overflow-hidden">';
+        
+        // Column Hero Header
+        html += '      <div class="p-6 md:p-8 bg-gradient-to-r ' + (col.color || 'from-indigo-600 to-purple-600') + ' text-white flex flex-col md:flex-row md:items-center justify-between gap-6">';
+        html += '        <div>';
+        html += '          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-semibold tracking-wider mb-2 uppercase">';
+        html += '            <span>专栏连载中</span>';
+        html += '          </div>';
+        html += '          <h2 class="text-xl md:text-2xl font-bold mb-2">' + col.name + '</h2>';
+        html += '          <p class="text-xs text-white/90 leading-relaxed max-w-2xl">' + col.desc + '</p>';
+        html += '        </div>';
+        html += '        <div class="flex items-center gap-4 text-xs font-mono bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 flex-shrink-0">';
+        html += '          <div class="text-center"><div class="text-base font-bold">' + col.postsCount + '</div><div class="text-[10px] text-white/80">章节讲数</div></div>';
+        html += '          <div class="w-px h-6 bg-white/20"></div>';
+        html += '          <div class="text-center"><div class="text-base font-bold">' + (totalWords / 1000).toFixed(1) + 'k</div><div class="text-[10px] text-white/80">专栏字数</div></div>';
+        html += '          <div class="w-px h-6 bg-white/20"></div>';
+        html += '          <div class="text-center"><div class="text-base font-bold">' + totalMinutes + '</div><div class="text-[10px] text-white/80">预计分</div></div>';
+        html += '        </div>';
+        html += '      </div>';
+
+        // Chapter Timeline List
+        html += '      <div class="p-6 md:p-8 divide-y divide-slate-100 dark:divide-slate-700/60">';
+        posts.forEach(function(p, idx) {
+          var chapterNum = p.order || (idx + 1);
+          html += '        <div class="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">';
+          html += '          <div class="flex items-start sm:items-center gap-3.5">';
+          html += '            <span class="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-bold text-xs text-slate-700 dark:text-slate-300 flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">' + chapterNum + '</span>';
+          html += '            <div>';
+          html += '              <a href="#/post/' + p.id + '" class="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">';
+          html += '                ' + p.title;
+          html += '              </a>';
+          html += '              <p class="text-xs text-slate-500 line-clamp-1 mt-0.5">' + p.excerpt + '</p>';
+          html += '            </div>';
+          html += '          </div>';
+          html += '          <div class="flex items-center gap-3 text-xs text-slate-400 flex-shrink-0 self-end sm:self-center">';
+          html += '            <span class="font-mono text-[11px]">' + p.readTime + '</span>';
+          html += '            <a href="#/post/' + p.id + '" class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-700/60 group-hover:bg-blue-600 group-hover:text-white text-slate-600 dark:text-slate-300 transition-all font-medium text-xs flex items-center gap-1">';
+          html += '              阅读 ' + (window.BlogIcons ? window.BlogIcons.get('chevron-right', 'w-3 h-3') : '');
+          html += '            </a>';
+          html += '          </div>';
+          html += '        </div>';
+        });
+        html += '      </div>';
+
+        html += '    </div>';
+      });
+    }
+    html += '  </div>';
+
+    // Folder sync guide callout
+    html += '  <div class="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-xs text-slate-600 dark:text-slate-400 flex items-center justify-between gap-4">';
+    html += '    <div class="flex items-center gap-3">';
+    html += '      <div class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">' + (window.BlogIcons ? window.BlogIcons.get('folder', 'w-4 h-4') : '') + '</div>';
+    html += '      <div><div class="font-bold text-slate-900 dark:text-white">如何新建文件夹专栏？</div><div>只需在 posts/columns/ 下新建子文件夹（例如 posts/columns/rust-primer/01-start.md），系统自动提取并编排专栏。</div></div>';
+    html += '    </div>';
+    html += '    <a href="#/editor" class="px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-medium flex-shrink-0">立即写作</a>';
+    html += '  </div>';
+
+    html += '</div>';
+
+    container.innerHTML = html;
+  },
   renderArchivesView: function() {
     var container = document.getElementById('app-main');
     var posts = window.BlogStore.getPosts();

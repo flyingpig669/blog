@@ -1,7 +1,9 @@
 ---
-title: "深度解析现代前端架构演进：从虚拟 DOM 到细粒度响应性与服务端组件"
+title: "前端架构演进（一）：从虚拟 DOM 到细粒度响应性与 RSC"
 date: 2026-09-28
 category: frontend
+column: frontend-architecture
+order: 1
 tags: [React, Vue, Signals, 前端架构, RSC]
 pinned: true
 coverGradient: "from-blue-600 to-cyan-500"

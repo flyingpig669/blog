@@ -24,6 +24,7 @@ window.BlogStore = {
       daysLive: 365
     };
 
+    this.columns = sample.columns || [];
     this.categories = (sample.categories && sample.categories.length > 0) ? sample.categories : [
       { id: "ai", name: "人工智能", desc: "LLM、Agent、RAG 向量检索与算法工程", color: "from-purple-500 to-indigo-600", icon: "sparkles" },
       { id: "frontend", name: "前端技术", desc: "现代 Web 框架、响应式渲染与工程化实践", color: "from-blue-500 to-cyan-500", icon: "code" },
@@ -39,12 +40,22 @@ window.BlogStore = {
       if (rawPosts) loadedPosts = JSON.parse(rawPosts);
     } catch (e) {}
 
-    if (Array.isArray(loadedPosts) && loadedPosts.length > 0) {
-      this.posts = loadedPosts;
-    } else {
-      this.posts = (sample.posts && sample.posts.length > 0) ? JSON.parse(JSON.stringify(sample.posts)) : [];
-      this.savePosts();
+    var samplePosts = (sample.posts && sample.posts.length > 0) ? JSON.parse(JSON.stringify(sample.posts)) : [];
+    var postMap = {};
+    samplePosts.forEach(function(p) { postMap[p.id] = p; });
+    if (Array.isArray(loadedPosts)) {
+      loadedPosts.forEach(function(p) {
+        // preserve likes and views from localStorage
+        if (postMap[p.id]) {
+          postMap[p.id].views = Math.max(postMap[p.id].views || 0, p.views || 0);
+          postMap[p.id].likes = Math.max(postMap[p.id].likes || 0, p.likes || 0);
+        } else {
+          postMap[p.id] = p;
+        }
+      });
     }
+    this.posts = Object.values(postMap);
+    this.savePosts();
 
     // Load Comments with fallback
     var loadedComments = {};
@@ -277,6 +288,15 @@ window.BlogStore = {
       .sort(function(a, b) { return b.count - a.count; });
   },
 
+  
+  getColumns: function() {
+    return this.columns || (window.BlogSampleData && window.BlogSampleData.columns) || [];
+  },
+
+  getColumnById: function(colId) {
+    var cols = this.getColumns();
+    return cols.find(function(c) { return c.id === colId; });
+  },
   getStats: function() {
     var totalWords = this.posts.reduce(function(sum, p) { return sum + (p.words || 0); }, 0);
     var totalLikes = this.posts.reduce(function(sum, p) { return sum + (p.likes || 0); }, 0);

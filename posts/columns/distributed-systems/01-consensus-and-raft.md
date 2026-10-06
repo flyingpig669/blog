@@ -1,7 +1,9 @@
 ---
-title: "构建高可用分布式系统：从 Paxos、Raft 共识机制到故障自愈"
+title: "分布式共识工程（一）：Paxos、Raft 机制与集群容灾"
 date: 2026-09-18
 category: backend
+column: distributed-systems
+order: 1
 tags: [分布式, Raft, 高可用, Go, 系统设计]
 pinned: false
 coverGradient: "from-emerald-600 to-teal-500"

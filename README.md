@@ -150,6 +150,41 @@ python3 sync_posts.py
 
 ---
 
+
+---
+
+## 文件夹子目录分类与技术专栏（Series）体系
+
+系统原生支持通过文件系统目录树自动组织分类与专题专栏：
+
+### 1. 普通分类子目录
+只需在 `posts/` 下创建对应分类名称的文件夹，其中的文章将自动继承该文件夹名称作为分类：
+```text
+posts/
+├── frontend/             # 自动归入“前端技术”分类
+│   └── react-notes.md
+├── backend/              # 自动归入“后端架构”分类
+│   └── go-microservice.md
+├── design/               # 自动归入“设计美学”分类
+└── life/                 # 自动归入“思考随笔”分类
+```
+
+### 2. 专题技术专栏（Series）子目录
+在 `posts/columns/<专栏标识>/` 目录下创建子文件夹，系统将自动识别为独立专栏，并在导航栏的 **“专栏”** 页面呈现完整的章节进阶学习树：
+```text
+posts/columns/
+├── llm-in-action/                        # 大模型系统化实战专栏
+│   ├── 01-prompt-engineering-mastery.md  # 第 1 讲
+│   └── 02-rag-production-guide.md        # 第 2 讲
+├── frontend-architecture/                # 现代前端架构演进专栏
+│   └── 01-virtual-dom-to-signals.md      # 第 1 讲
+└── distributed-systems/                  # 分布式共识与系统工程专栏
+    └── 01-consensus-and-raft.md          # 第 1 讲
+```
+
+* **章节命名规范**：文件名前缀使用数字（如 `01-xxx.md`、`02-xxx.md`），脚本将自动识别篇章序号并按顺序排版。
+* **专栏联动体验**：文章阅读页会自动浮现【专栏连载导读横幅】，展示当前章节序号并支持一键回溯专栏全集目录。
+
 ## GitHub Pages 自动化部署指南
 
 系统已内置官方 **GitHub Actions** CI/CD 自动化流水线（[.github/workflows/deploy.yml](.github/workflows/deploy.yml)）与本地一键部署脚本（[deploy.sh](deploy.sh)）。
