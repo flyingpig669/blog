@@ -76,7 +76,8 @@ def parse_md_file(filepath):
     post_id = "post-" + os.path.splitext(filename)[0].replace(".", "-")
 
     cat_names = {
-        "ai": "人工智能",
+        "quantum-ai": "量子计算与深度智能",
+        "ai": "量子计算与深度智能",
         "frontend": "前端技术",
         "backend": "后端架构",
         "design": "设计美学",
@@ -84,6 +85,7 @@ def parse_md_file(filepath):
     }
 
     col_names = {
+        "quantum-computing-ai": "量子物理与深度智能前沿专栏",
         "llm-in-action": "大模型系统化实战专栏",
         "frontend-architecture": "现代前端架构演进专栏",
         "distributed-systems": "分布式共识与系统工程专栏"
@@ -153,6 +155,7 @@ def sync():
     columns_map = {}
 
     col_meta = {
+        "quantum-computing-ai": {"name": "量子物理与深度智能前沿专栏", "desc": "以严密数学为基石，深入量子态叠加、哈密顿量演化与变分量子神经网络(VQC)。", "icon": "atom", "color": "from-cyan-400 via-blue-500 to-indigo-600"},
         "llm-in-action": {"name": "大模型系统化实战专栏", "desc": "涵盖 Prompt 工程、RAG 向量检索与多代理协作落地。", "icon": "sparkles", "color": "from-purple-500 to-indigo-600"},
         "frontend-architecture": {"name": "现代前端架构演进专栏", "desc": "从虚拟 DOM、细粒度响应性到 RSC 服务端组件演变。", "icon": "code", "color": "from-blue-500 to-cyan-500"},
         "distributed-systems": {"name": "分布式共识与系统工程专栏", "desc": "Paxos、Raft 机制、网络分区容灾与生产级高可用实践。", "icon": "terminal", "color": "from-emerald-500 to-teal-600"}
@@ -177,11 +180,26 @@ def sync():
         print(f" -> 扫描博文: {p['relPath']} (分类: {p['categoryName']}" + (f", 专栏: {p['columnName']} 第{p['order']}讲" if col else "") + ")")
 
     columns_list = []
-    for col_id, col_info in columns_map.items():
+    col_priority = ["quantum-computing-ai", "llm-in-action", "frontend-architecture", "distributed-systems"]
+    sorted_cols = sorted(columns_map.items(), key=lambda item: col_priority.index(item[0]) if item[0] in col_priority else 99)
+    for col_id, col_info in sorted_cols:
         col_info["posts"].sort(key=lambda x: x["order"])
         col_info["postsCount"] = len(col_info["posts"])
         col_info["totalWords"] = sum(x["words"] for x in col_info["posts"])
         columns_list.append(col_info)
+
+    # Update author & categories for quantum tech style
+    if "categories" in data and len(data["categories"]) > 0:
+        data["categories"][0] = {
+            "id": "quantum-ai",
+            "name": "量子计算与深度智能",
+            "desc": "高维希尔伯特空间、量子线路模拟、统计物理与深度自注意力同构",
+            "color": "from-cyan-400 via-blue-500 to-indigo-600",
+            "icon": "atom"
+        }
+    if "author" in data:
+        data["author"]["title"] = "全栈架构师 · 量子计算与深度智能研究者"
+        data["author"]["bio"] = "专注于现代计算架构、量子计算前沿、统计力学与大模型数学同构。崇尚严谨推导与心流开发，用代码记录思考与创造。"
 
     data["posts"] = synced_posts
     data["columns"] = columns_list

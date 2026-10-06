@@ -1,7 +1,7 @@
 ---
 title: "大模型系统化实战（二）：RAG 检索增强与向量召回生产指南"
 date: 2026-09-24
-category: ai
+category: quantum-ai
 column: llm-in-action
 order: 2
 tags: [LLM, RAG, 向量检索, KaTeX, Python]

@@ -2,6 +2,13 @@ var BT = String.fromCharCode(96);
 var BT3 = BT + BT + BT;
 // Aurora Blog - Main Controller
 window.BlogApp = {
+  getCategoryBadgeHtml: function(catId, catName) {
+    if (catId === 'quantum-ai') {
+      var icon = window.BlogIcons ? window.BlogIcons.get('atom', 'w-3.5 h-3.5 text-cyan-400') : '';
+      return '<span class="badge-quantum">' + icon + ' ' + catName + '</span>';
+    }
+    return '<span class="px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">' + catName + '</span>';
+  },
   currentRoute: { name: 'home', params: {} },
   activeCategory: 'all',
   activeTag: null,
@@ -252,7 +259,7 @@ window.BlogApp = {
         html += '      <article class="group bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-5 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-slate-600 transition-all flex flex-col justify-between">';
         html += '        <div>';
         html += '          <div class="flex items-center justify-between text-xs mb-3">';
-        html += '            <span class="px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">' + post.categoryName + '</span>';
+        html += '            ' + window.BlogApp.getCategoryBadgeHtml(post.category, post.categoryName);
         html += '            <span class="text-slate-400 font-mono">' + post.date + '</span>';
         html += '          </div>';
         html += '          <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-2 line-clamp-2 leading-snug">';
@@ -417,7 +424,7 @@ window.BlogApp = {
           }
 
     html += '  <div class="flex flex-wrap items-center gap-2 text-xs mb-4">';
-    html += '    <span class="px-3 py-1 rounded-full font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">' + post.categoryName + '</span>';
+    html += '    ' + window.BlogApp.getCategoryBadgeHtml(post.category, post.categoryName);
     html += '    <span class="text-slate-400 font-mono">发布于 ' + post.date + '</span>';
     html += '    <span class="text-slate-400">·</span><span class="text-slate-400">' + post.readTime + '</span>';
     html += '    <span class="text-slate-400">·</span><span class="text-slate-400">' + (post.words || 0) + ' 字</span>';

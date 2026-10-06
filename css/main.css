@@ -92,3 +92,70 @@ body {
 .animate-modal { animation: modalIn 0.18s ease-out forwards; }
 @keyframes heartPulse { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
 .animate-heart { animation: heartPulse 0.3s ease-in-out; }
+
+/* Quantum & Hardcore Sci-Tech Aesthetics */
+.glow-cyan {
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.35);
+}
+.glow-purple {
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.35);
+}
+.cyber-border {
+  position: relative;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
+}
+.dark .cyber-border {
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 4px 20px -2px rgba(6, 182, 212, 0.15);
+}
+
+.quantum-math-block {
+  margin: 1.75rem 0;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-left: 4px solid #06b6d4;
+  overflow-x: auto;
+  position: relative;
+  transition: all 0.25s ease;
+}
+.dark .quantum-math-block {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-left: 4px solid #38bdf8;
+  box-shadow: 0 4px 24px rgba(6, 182, 212, 0.1);
+}
+.quantum-math-block:hover {
+  border-left-color: #818cf8;
+  box-shadow: 0 6px 28px rgba(99, 102, 241, 0.2);
+}
+
+.badge-quantum {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(99, 102, 241, 0.15));
+  color: #0284c7;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+.dark .badge-quantum {
+  color: #38bdf8;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.18), rgba(99, 102, 241, 0.22));
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+@keyframes atom-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.88; }
+}
+.animate-atom-pulse {
+  animation: atom-pulse 3s ease-in-out infinite;
+}
