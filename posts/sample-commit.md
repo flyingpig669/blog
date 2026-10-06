@@ -1,8 +1,11 @@
 ---
-title: 本地提交 Markdown 文章示例：自动化同步机制
+title: "本地提交 Markdown 文章示例：自动化同步机制"
 date: 2026-10-06
 category: backend
 tags: [Markdown, 自动化, 脚本工具]
+pinned: false
+coverGradient: "from-pink-600 to-rose-500"
+excerpt: "概述  这是一篇通过本地 Markdown 文件手动提交（Commit）至博客系统的示例文章。  你可以在 outputs/blog/posts/ 目录中随时添加任意 .md 格式的文档，系统支持以下两种方式引入：  1. Web 界面拖拽与导入：在博客顶部的“写文章”页面中，..."
 ---
 
 ## 概述
