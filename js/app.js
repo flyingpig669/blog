@@ -16,6 +16,10 @@ window.BlogApp = {
   searchQuery: '',
 
   init: function() {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
     window.BlogStore.init();
     this.setupEventListeners();
     this.handleRoute();
@@ -61,6 +65,7 @@ window.BlogApp = {
   },
 
   handleRoute: function() {
+    window.scrollTo(0, 0);
     var hash = window.location.hash.slice(1) || '/';
     var path = hash.split('?')[0];
 
@@ -169,20 +174,27 @@ window.BlogApp = {
     var featuredPost = window.BlogStore.posts.find(function(p) { return p.pinned; }) || window.BlogStore.posts[0];
 
     var html = '';
-    html += '<section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-8 md:p-12 mb-10 shadow-xl border border-slate-800">';
-    html += '  <div class="absolute -right-20 -top-20 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>';
-    html += '  <div class="absolute -left-20 -bottom-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>';
-    html += '  <div class="relative z-10 max-w-3xl">';
-    html += '    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs text-blue-300 mb-4 font-mono">';
-    html += '      ' + (window.BlogIcons ? window.BlogIcons.get('sparkles', 'w-3.5 h-3.5 text-blue-400') : '') + '<span>AURORA NOTES · 极光随笔</span>';
+    html += '<section class="relative overflow-hidden rounded-3xl quantum-panel hud-bracket p-8 md:p-12 mb-10 shadow-2xl">';
+    html += '  <div class="absolute -right-24 -top-24 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"></div>';
+    html += '  <div class="absolute -left-24 -bottom-24 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>';
+    html += '  <div class="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-200 dark:border-cyan-500/20 text-xs font-mono">';
+    html += '    <div class="flex items-center gap-2.5 text-cyan-600 dark:text-cyan-400 font-bold">';
+    html += '      <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span></span>';
+    html += '      <span class="tracking-wider">SYS_CORE // QUANTUM FRONTIERS & COMPUTATIONAL REASONING</span>';
     html += '    </div>';
-    html += '    <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight">探索技术前沿 <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-300 to-pink-400">· 沉淀思考与生活</span></h1>';
-    html += '    <p class="text-slate-300 text-base md:text-lg mb-8 leading-relaxed max-w-2xl font-normal">全栈架构设计、大语言模型工程、现代 Web 前端演进与数字游民实践。保持好奇，用严谨的代码与文字记录每一次探索。</p>';
-    html += '    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/10">';
-    html += '      <div><div class="text-2xl font-bold font-mono text-white">' + stats.postsCount + '</div><div class="text-xs text-slate-400">精选博文</div></div>';
-    html += '      <div><div class="text-2xl font-bold font-mono text-blue-400">' + (stats.wordsCount / 1000).toFixed(1) + 'k</div><div class="text-xs text-slate-400">累计字数</div></div>';
-    html += '      <div><div class="text-2xl font-bold font-mono text-purple-400">' + stats.likesCount + '</div><div class="text-xs text-slate-400">获赞认可</div></div>';
-    html += '      <div><div class="text-2xl font-bold font-mono text-pink-400">' + stats.viewsCount + '</div><div class="text-xs text-slate-400">总阅读量</div></div>';
+    html += '    <div class="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-[11px] font-mono">';
+    html += '      <span>ENTANGLEMENT: <span class="text-emerald-500 dark:text-emerald-400 font-bold">COHERENT 99.8%</span></span>';
+    html += '      <span class="hidden sm:inline">STATE: <span class="text-indigo-600 dark:text-indigo-400 font-bold">|Ψ⟩ = α|0⟩ + β|1⟩</span></span>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '  <div class="relative z-10 max-w-3xl">';
+    html += '    <h1 class="text-3xl md:text-5xl font-black tracking-tight mb-4 leading-tight font-mono text-slate-900 dark:text-white">探索计算前沿 <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 text-glow-cyan">· 解码量子宇宙</span></h1>';
+    html += '    <p class="text-slate-600 dark:text-slate-300 text-sm md:text-base mb-8 leading-relaxed max-w-2xl font-normal font-sans">融汇复希尔伯特空间、哈密顿量演化、变分量子线路(VQC)、统计力学与深度自注意力同构。以严密数学推导与全栈工程源码构建新一代认知体系。</p>';
+    html += '    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">';
+    html += '      <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-cyan-500/20"><div class="text-xl md:text-2xl font-black font-mono text-cyan-600 dark:text-cyan-400">' + stats.postsCount + '</div><div class="text-[11px] text-slate-500 font-mono">前沿论著 / PAPERS</div></div>';
+    html += '      <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-cyan-500/20"><div class="text-xl md:text-2xl font-black font-mono text-blue-600 dark:text-blue-400">' + (stats.wordsCount / 1000).toFixed(1) + 'k</div><div class="text-[11px] text-slate-500 font-mono">字数推导 / TOKENS</div></div>';
+    html += '      <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-cyan-500/20"><div class="text-xl md:text-2xl font-black font-mono text-purple-600 dark:text-purple-400">4</div><div class="text-[11px] text-slate-500 font-mono">专题专栏 / SERIES</div></div>';
+    html += '      <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-cyan-500/20"><div class="text-xl md:text-2xl font-black font-mono text-pink-600 dark:text-pink-400">' + stats.viewsCount + '</div><div class="text-[11px] text-slate-500 font-mono">量子读取 / READS</div></div>';
     html += '    </div>';
     html += '  </div>';
     html += '</section>';
@@ -191,7 +203,7 @@ window.BlogApp = {
     html += '  <div class="lg:col-span-8 space-y-6">';
 
     // Filter pills
-    html += '    <div class="flex flex-wrap items-center justify-between gap-4 p-2 bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm">';
+    html += '    <div class="flex flex-wrap items-center justify-between gap-4 p-2 quantum-panel rounded-2xl shadow-sm">';
     html += '      <div class="flex flex-wrap items-center gap-1.5">';
     html += '        <button onclick="window.BlogApp.setCategory(\'all\')" class="px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ' + (this.activeCategory === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700') + '">全部文章</button>';
     categories.forEach(function(c) {
@@ -216,7 +228,7 @@ window.BlogApp = {
 
     // Featured post
     if (this.activeCategory === 'all' && !this.activeTag && !this.searchQuery && featuredPost) {
-      html += '    <div class="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 shadow-sm hover:shadow-md transition-all duration-300">';
+      html += '    <div class="group relative rounded-2xl overflow-hidden quantum-panel hud-bracket shadow-xl mb-6">';
       html += '      <div class="h-44 md:h-52 bg-gradient-to-r ' + featuredPost.coverGradient + ' p-6 md:p-8 flex flex-col justify-between text-white relative">';
       html += '        <div class="flex items-center justify-between">';
       html += '          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold uppercase tracking-wider">';
@@ -256,7 +268,7 @@ window.BlogApp = {
       html += '    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">';
       posts.forEach(function(post) {
         var commentCount = (window.BlogStore.getComments(post.id) || []).length;
-        html += '      <article class="group bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 p-5 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-slate-600 transition-all flex flex-col justify-between">';
+        html += '      <article class="quantum-panel hud-bracket p-5 shadow-sm flex flex-col justify-between group">';
         html += '        <div>';
         html += '          <div class="flex items-center justify-between text-xs mb-3">';
         html += '            ' + window.BlogApp.getCategoryBadgeHtml(post.category, post.categoryName);
@@ -414,7 +426,7 @@ window.BlogApp = {
 
           // Column banner if applicable
           if (columnInfo) {
-            html += '<div class="mb-4 p-3 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/50 flex flex-wrap items-center justify-between gap-2 text-xs">';
+            html += '<div class="mb-6 p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 shadow-lg shadow-cyan-500/10 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">';
             html += '  <div class="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 font-medium">';
             html += '    <span class="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono text-[10px]">专栏连载</span>';
             html += '    <span>收录于专栏《' + columnInfo.name + '》· 第 ' + (post.order || 1) + ' 讲</span>';
@@ -646,7 +658,7 @@ window.BlogApp = {
         var totalMinutes = Math.max(1, Math.ceil(totalWords / 400));
         var posts = col.posts || [];
 
-        html += '    <div class="bg-white dark:bg-slate-800/90 rounded-3xl border border-slate-200/90 dark:border-slate-700/80 shadow-sm overflow-hidden">';
+        html += '    <div class="quantum-panel hud-bracket rounded-3xl overflow-hidden shadow-xl mb-8">';
         
         // Column Hero Header
         html += '      <div class="p-6 md:p-8 bg-gradient-to-r ' + (col.color || 'from-indigo-600 to-purple-600') + ' text-white flex flex-col md:flex-row md:items-center justify-between gap-6">';

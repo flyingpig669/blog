@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
   
 
@@ -38,7 +38,11 @@
   <script src="vendor/prism-components/prism-typescript.min.js"></script>
   <script src="vendor/katex/katex.min.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200 relative">
+
+  <!-- Interactive Quantum Particle Canvas & Cyber Grid -->
+  <canvas id="quantum-bg-canvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+  <div class="fixed inset-0 pointer-events-none z-0 cyber-grid-bg opacity-35 dark:opacity-25"></div>
 
   <!-- Reading Progress Bar (Fixed at top) -->
   <div id="reading-progress-container" class="fixed top-0 left-0 w-full h-1 bg-transparent z-50 hidden">
@@ -49,17 +53,25 @@
   <header class="sticky top-0 z-40 w-full glass border-b border-slate-200/80 dark:border-slate-800/80 transition-colors">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       
-      <!-- Brand Logo -->
+      <!-- Brand Logo (Quantum Cyber Reactor) -->
       <a href="#/" class="flex items-center gap-2.5 group">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-pink-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>
+        <div class="relative w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 border border-cyan-400/40 group-hover:scale-105 transition-all">
+          <svg class="w-5 h-5 text-cyan-200 animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+            <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(30 12 12)"></ellipse>
+            <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(90 12 12)"></ellipse>
+            <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(150 12 12)"></ellipse>
+          </svg>
         </div>
         <div>
-          <div class="font-extrabold text-base tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+          <div class="font-extrabold text-base tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5 font-mono">
             <span>极光随笔</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded font-mono font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">DEV</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-cyan-950 text-cyan-400 border border-cyan-500/50">QPU · CORE</span>
           </div>
-          <div class="text-[10px] text-slate-400 font-mono tracking-wider">AURORA NOTES</div>
+          <div class="text-[9px] text-cyan-600 dark:text-cyan-400 font-mono tracking-widest flex items-center gap-1.5">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>COHERENT // 99.8%</span>
+          </div>
         </div>
       </a>
 
@@ -115,7 +127,7 @@
   </header>
 
   <!-- Main Application Body Container -->
-  <main id="app-main" class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+  <main id="app-main" class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 relative z-10">
     <!-- Views injected dynamically by BlogApp -->
   </main>
 
@@ -166,6 +178,7 @@
   <script src="js/sample-data.js"></script>
   <script src="js/store.js"></script>
   <script src="js/markdown.js"></script>
+  <script src="js/quantum-bg.js"></script>
   <script src="js/app.js"></script>
     <script>
     document.addEventListener("DOMContentLoaded", function() {

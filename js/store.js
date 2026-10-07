@@ -82,9 +82,9 @@ window.BlogStore = {
     } catch (e) {}
 
     // Apply Theme
-    var savedTheme = 'auto';
+    var savedTheme = 'dark';
     try {
-      savedTheme = localStorage.getItem(this.STATE_KEY_THEME) || 'auto';
+      savedTheme = localStorage.getItem(this.STATE_KEY_THEME) || 'dark';
     } catch (e) {}
     this.applyTheme(savedTheme);
   },
