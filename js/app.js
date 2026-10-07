@@ -24,6 +24,7 @@ window.BlogApp = {
       }
       if (e.key === 'Escape') {
         self.closeSearchModal();
+        self.closeMobileToc();
       }
     });
 
@@ -42,18 +43,45 @@ window.BlogApp = {
       }
     });
 
-    // Window scroll handler for reading progress bar
+    // Window scroll handler for reading progress bar & scrollspy
     window.addEventListener('scroll', function() {
+      // 1. Reading progress bar
       var progressBar = document.getElementById('reading-progress-bar');
       var container = document.getElementById('reading-progress-container');
-      if (!progressBar || !container) return;
       var total = document.documentElement.scrollHeight - window.innerHeight;
-      if (total > 200 && self.currentRoute.name === 'post') {
-        container.classList.remove('hidden');
-        var progress = Math.min(100, Math.max(0, (window.scrollY / total) * 100));
-        progressBar.style.width = progress + '%';
-      } else {
-        container.classList.add('hidden');
+      if (progressBar && container) {
+        if (total > 200 && self.currentRoute.name === 'post') {
+          container.classList.remove('hidden');
+          var progress = Math.min(100, Math.max(0, (window.scrollY / total) * 100));
+          progressBar.style.width = progress + '%';
+        } else {
+          container.classList.add('hidden');
+        }
+      }
+
+      // 2. Active TOC Scrollspy (highlight heading in right floating sidebar)
+      if (self.currentRoute.name === 'post') {
+        var headings = document.querySelectorAll('.markdown-body h1, .markdown-body h2, .markdown-body h3');
+        if (headings && headings.length > 0) {
+          var scrollPos = window.scrollY + 100;
+          var currentId = '';
+          headings.forEach(function(h) {
+            if (h.offsetTop <= scrollPos) {
+              currentId = h.id;
+            }
+          });
+          if (currentId) {
+            document.querySelectorAll('#desktop-toc-nav button').forEach(function(btn) {
+              if (btn.getAttribute('data-target') === currentId) {
+                btn.classList.add('text-[#3B82F6]', 'font-semibold');
+                btn.classList.remove('text-[#8B8B8E]', 'text-[#5A5A5E]');
+              } else {
+                btn.classList.remove('text-[#3B82F6]', 'font-semibold');
+                btn.classList.add(btn.getAttribute('data-level') === '3' ? 'text-[#5A5A5E]' : 'text-[#8B8B8E]');
+              }
+            });
+          }
+        }
       }
     });
   },
@@ -66,12 +94,35 @@ window.BlogApp = {
       var topPos = el.getBoundingClientRect().top + window.pageYOffset - navOffset;
       window.scrollTo({ top: topPos, behavior: 'smooth' });
     }
+    this.closeMobileToc();
+  },
+
+  toggleMobileToc: function() {
+    var drawer = document.getElementById('mobile-toc-drawer');
+    if (drawer) {
+      if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        setTimeout(function() { drawer.classList.remove('translate-x-full'); }, 10);
+      } else {
+        drawer.classList.add('translate-x-full');
+        setTimeout(function() { drawer.classList.add('hidden'); }, 200);
+      }
+    }
+  },
+
+  closeMobileToc: function() {
+    var drawer = document.getElementById('mobile-toc-drawer');
+    if (drawer && !drawer.classList.contains('hidden')) {
+      drawer.classList.add('translate-x-full');
+      setTimeout(function() { drawer.classList.add('hidden'); }, 200);
+    }
   },
 
   handleRoute: function() {
     window.scrollTo(0, 0);
     var drawer = document.getElementById('mobile-drawer');
     if (drawer) drawer.classList.add('hidden');
+    this.closeMobileToc();
 
     var hash = window.location.hash.slice(1) || '/';
     var path = hash.split('?')[0];
@@ -127,7 +178,7 @@ window.BlogApp = {
       });
     }
 
-    var html = '';
+    var html = '<div class="max-w-[720px] mx-auto">';
 
     // Hero Section
     html += '<section class="pt-20 md:pt-24 pb-12 border-b border-white/[0.06]">';
@@ -184,11 +235,12 @@ window.BlogApp = {
       });
     }
     html += '</section>';
+    html += '</div>';
 
     container.innerHTML = html;
   },
 
-  // 2. Post Detail View (Max width 680px, Robust Button-based TOC without Hash Corruption)
+  // 2. Post Detail View (Max width 680px Content, ALWAYS FLOATING TOC ON THE RIGHT)
   renderPostView: function(postId) {
     var container = document.getElementById('app-main');
     var post = window.BlogStore.getPostById(postId);
@@ -211,24 +263,11 @@ window.BlogApp = {
     var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
     var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
 
-    var html = '<div class="relative max-w-[680px] mx-auto pt-14 md:pt-20 pb-20">';
+    // Outer Container: Flex dual column, 960px max width centered
+    var html = '<div class="max-w-[960px] mx-auto pt-14 md:pt-20 pb-20 flex justify-between items-start gap-8 lg:gap-12 relative">';
 
-    // Desktop Floating TOC Sidebar on the Right (Visible on xl screens >= 1140px)
-    if (toc.length > 0) {
-      html += '<aside class="hidden xl:block absolute left-[710px] top-28 w-[220px] shrink-0 font-mono text-[12px]">';
-      html += '  <div class="sticky top-20">';
-      html += '    <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">On this page</div>';
-      html += '    <nav class="space-y-1.5 border-l border-white/[0.08] pl-3 max-h-[70vh] overflow-y-auto">';
-      toc.forEach(function(item) {
-        var indentClass = item.level === 3 ? 'pl-2 text-[11px] text-[#5A5A5E]' : 'text-[12px] text-[#8B8B8E]';
-        html += '      <button type="button" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0" title="' + item.text + '">';
-        html += item.text;
-        html += '      </button>';
-      });
-      html += '    </nav>';
-      html += '  </div>';
-      html += '</aside>';
-    }
+    // Left Column: 680px Reading Body
+    html += '<div class="w-full max-w-[680px] shrink-0 min-w-0">';
 
     // Back link
     html += '<div class="mb-8">';
@@ -270,22 +309,6 @@ window.BlogApp = {
     html += '  </div>';
     html += '</header>';
 
-    // Compact Inline TOC (Always safe & useful, button click prevents route change)
-    if (toc.length > 0) {
-      html += '<details class="my-6 p-4 rounded-[8px] bg-[#111113] border border-white/[0.08] text-[13px] font-mono group" open>';
-      html += '  <summary class="cursor-pointer text-[#EDEDED] font-medium flex items-center justify-between select-none">';
-      html += '    <span class="text-[12px] tracking-wide uppercase text-[#8B8B8E]">On this page (' + toc.length + ')</span>';
-      html += '    <span class="text-[#5A5A5E] group-open:rotate-180 transition-transform">▾</span>';
-      html += '  </summary>';
-      html += '  <nav class="mt-3 pt-3 border-t border-white/[0.04] space-y-2">';
-      toc.forEach(function(item) {
-        var indent = item.level === 3 ? 'pl-3 text-[12px] text-[#5A5A5E]' : 'text-[13px] text-[#8B8B8E]';
-        html += '    <button type="button" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 leading-relaxed" title="' + item.text + '">' + item.text + '</button>';
-      });
-      html += '  </nav>';
-      html += '</details>';
-    }
-
     // Markdown Article Content
     html += '<article class="markdown-body mb-16">';
     html += renderedHtml;
@@ -310,7 +333,47 @@ window.BlogApp = {
     }
     html += '</div>';
 
-    html += '</div>';
+    html += '</div>'; // End left column
+
+    // Right Column: ALWAYS FLOATING STICKY TOC (Visible from lg:block >= 1024px)
+    if (toc.length > 0) {
+      html += '<aside class="toc-floating-sidebar w-[200px] lg:w-[230px] shrink-0 sticky top-20 font-mono text-[12px]">';
+      html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">On this page</div>';
+      html += '  <nav id="desktop-toc-nav" class="space-y-1 border-l border-white/[0.08] pl-3 max-h-[calc(100vh-140px)] overflow-y-auto">';
+      toc.forEach(function(item) {
+        var indentClass = item.level === 3 ? 'pl-2.5 text-[11px] text-[#5A5A5E]' : 'text-[12.5px] text-[#8B8B8E]';
+        html += '    <button type="button" data-target="' + item.id + '" data-level="' + item.level + '" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0 py-0.5" title="' + item.text + '">';
+        html += item.text;
+        html += '    </button>';
+      });
+      html += '  </nav>';
+      html += '</aside>';
+    }
+
+    html += '</div>'; // End outer container
+
+    // Floating Action Button + Slide-over Drawer for Tablet / Mobile (<1024px)
+    if (toc.length > 0) {
+      html += '<div class="toc-floating-fab">';
+      html += '  <button type="button" onclick="window.BlogApp.toggleMobileToc()" class="fixed right-5 bottom-20 z-40 px-3 py-2 rounded-full bg-[#111113]/90 backdrop-blur-md border border-white/[0.12] text-[12px] font-mono text-[#EDEDED] shadow-xl hover:border-[#3B82F6] flex items-center gap-1.5 cursor-pointer">';
+      html += '    <span class="text-[#3B82F6]">#</span>';
+      html += '    <span>TOC</span>';
+      html += '  </button>';
+      html += '  <div id="mobile-toc-drawer" class="fixed inset-y-0 right-0 w-[280px] max-w-[85vw] bg-[#0A0A0B]/95 backdrop-blur-xl border-l border-white/[0.08] z-50 p-6 transform translate-x-full transition-transform duration-200 overflow-y-auto hidden">';
+      html += '    <div class="flex items-center justify-between pb-4 border-b border-white/[0.06] mb-4">';
+      html += '      <span class="text-[12px] font-mono uppercase tracking-wider text-[#5A5A5E]">On this page</span>';
+      html += '      <button type="button" onclick="window.BlogApp.toggleMobileToc()" class="text-[#8B8B8E] hover:text-[#EDEDED] text-[16px] cursor-pointer">✕</button>';
+      html += '    </div>';
+      html += '    <nav class="space-y-2 font-mono text-[13px]">';
+      toc.forEach(function(item) {
+        var indent = item.level === 3 ? 'pl-3 text-[12px] text-[#5A5A5E]' : 'text-[13px] text-[#8B8B8E]';
+        html += '      <button type="button" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-1 leading-relaxed" title="' + item.text + '">' + item.text + '</button>';
+      });
+      html += '    </nav>';
+      html += '  </div>';
+      html += '</div>';
+    }
+
     container.innerHTML = html;
   },
 

@@ -302,3 +302,21 @@ html, body {
 .token.operator, .token.entity, .token.url { color: #3B82F6; }
 .token.keyword { color: #93C5FD; }
 .token.function, .token.class-name { color: #60A5FA; }
+
+/* Responsive Floating TOC Rules */
+@media (min-width: 860px) {
+  .toc-floating-sidebar {
+    display: block !important;
+  }
+  .toc-floating-fab {
+    display: none !important;
+  }
+}
+@media (max-width: 859px) {
+  .toc-floating-sidebar {
+    display: none !important;
+  }
+  .toc-floating-fab {
+    display: flex !important;
+  }
+}
