@@ -58,9 +58,14 @@ window.BlogApp = {
     });
   },
 
+  // Safe smooth scroll that NEVER modifies location.hash and accounts for header offset
   scrollToHeading: function(id) {
     var el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    if (el) {
+      var navOffset = 76; // 56px sticky nav + 20px buffer
+      var topPos = el.getBoundingClientRect().top + window.pageYOffset - navOffset;
+      window.scrollTo({ top: topPos, behavior: 'smooth' });
+    }
   },
 
   handleRoute: function() {
@@ -150,7 +155,7 @@ window.BlogApp = {
         var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
 
         html += '<article class="post-item group">';
-        // Row 1: Date + English Series Badge
+        // Row 1: Date + Pure English Series Badge
         html += '  <div class="flex items-center gap-2.5 text-[12px] font-mono text-[#5A5A5E] mb-2">';
         html += '    <span>' + post.date + '</span>';
         if (post.columnName) {
@@ -183,7 +188,7 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 2. Post Detail View (Max width 680px, Floating Right-side TOC + Collapsible Mobile TOC)
+  // 2. Post Detail View (Max width 680px, Robust Button-based TOC without Hash Corruption)
   renderPostView: function(postId) {
     var container = document.getElementById('app-main');
     var post = window.BlogStore.getPostById(postId);
@@ -210,15 +215,15 @@ window.BlogApp = {
 
     // Desktop Floating TOC Sidebar on the Right (Visible on xl screens >= 1140px)
     if (toc.length > 0) {
-      html += '<aside class="hidden xl:block absolute left-[710px] top-28 w-[210px] shrink-0 font-mono text-[12px]">';
+      html += '<aside class="hidden xl:block absolute left-[710px] top-28 w-[220px] shrink-0 font-mono text-[12px]">';
       html += '  <div class="sticky top-20">';
       html += '    <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">On this page</div>';
       html += '    <nav class="space-y-1.5 border-l border-white/[0.08] pl-3 max-h-[70vh] overflow-y-auto">';
       toc.forEach(function(item) {
         var indentClass = item.level === 3 ? 'pl-2 text-[11px] text-[#5A5A5E]' : 'text-[12px] text-[#8B8B8E]';
-        html += '      <a href="#' + item.id + '" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + '); return false;" class="block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed" title="' + item.text + '">';
+        html += '      <button type="button" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0" title="' + item.text + '">';
         html += item.text;
-        html += '      </a>';
+        html += '      </button>';
       });
       html += '    </nav>';
       html += '  </div>';
@@ -233,8 +238,8 @@ window.BlogApp = {
     // Unified English Series Banner (No messy Chinese)
     if (columnInfo) {
       html += '<div class="mb-6 py-2 px-3.5 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
-      html += '  <div class="flex items-center gap-2">';
-      html += '    <span class="px-1.5 py-0.5 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[11px] font-medium">PART ' + partNumber + '</span>';
+      html += '  <div class="flex items-center gap-2 min-w-0">';
+      html += '    <span class="px-1.5 py-0.5 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[11px] font-medium shrink-0">PART ' + partNumber + '</span>';
       html += '    <span class="text-[#EDEDED] font-sans truncate">' + columnInfo.name + '</span>';
       html += '  </div>';
       html += '  <a href="#/columns" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3">Series Index →</a>';
@@ -265,17 +270,17 @@ window.BlogApp = {
     html += '  </div>';
     html += '</header>';
 
-    // Mobile / Tablet Collapsible Inline TOC
+    // Compact Inline TOC (Always safe & useful, button click prevents route change)
     if (toc.length > 0) {
-      html += '<details class="xl:hidden my-6 p-3.5 rounded-[8px] bg-[#111113] border border-white/[0.06] text-[13px] font-mono group">';
-      html += '  <summary class="cursor-pointer text-[#8B8B8E] hover:text-[#EDEDED] font-medium flex items-center justify-between">';
-      html += '    <span>On this page (' + toc.length + ')</span>';
+      html += '<details class="my-6 p-4 rounded-[8px] bg-[#111113] border border-white/[0.08] text-[13px] font-mono group" open>';
+      html += '  <summary class="cursor-pointer text-[#EDEDED] font-medium flex items-center justify-between select-none">';
+      html += '    <span class="text-[12px] tracking-wide uppercase text-[#8B8B8E]">On this page (' + toc.length + ')</span>';
       html += '    <span class="text-[#5A5A5E] group-open:rotate-180 transition-transform">▾</span>';
       html += '  </summary>';
       html += '  <nav class="mt-3 pt-3 border-t border-white/[0.04] space-y-2">';
       toc.forEach(function(item) {
         var indent = item.level === 3 ? 'pl-3 text-[12px] text-[#5A5A5E]' : 'text-[13px] text-[#8B8B8E]';
-        html += '    <a href="#' + item.id + '" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + '); return false;" class="block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed">' + item.text + '</a>';
+        html += '    <button type="button" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 leading-relaxed" title="' + item.text + '">' + item.text + '</button>';
       });
       html += '  </nav>';
       html += '</details>';
@@ -309,7 +314,7 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 3. Series & Columns View (Minimal List Aesthetic, perfectly aligned with Home & Archive)
+  // 3. Series View (Unified Minimalist List, perfectly aligned with Home & Archive)
   renderColumnsView: function() {
     var container = document.getElementById('app-main');
     var columns = window.BlogStore.getColumns() || [];
@@ -396,7 +401,7 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 5. Archive View (Timeline by Year)
+  // 5. Archive View
   renderArchivesView: function() {
     var container = document.getElementById('app-main');
     var posts = window.BlogStore.posts || [];

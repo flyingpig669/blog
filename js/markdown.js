@@ -1,4 +1,4 @@
-// Markdown Parser with KaTeX, Prism Syntax Highlighting, Callouts, and TOC
+// Markdown Parser with KaTeX, Prism Highlighting, Callouts, and Robust TOC
 window.BlogMarkdown = {
   render: function(markdownText) {
     if (!markdownText) return { html: '', toc: [] };
@@ -38,7 +38,7 @@ window.BlogMarkdown = {
     // 2. Pre-process Callout blocks
     var calloutRegex = new RegExp('::: *(tip|warning|note|danger) *([^\\n]*)[\\r\\n]+([\\s\\S]*?):::', 'g');
     text = text.replace(calloutRegex, function(match, type, title, content) {
-      var titles = { tip: '提示 (Tip)', warning: '注意 (Warning)', note: '笔记 (Note)', danger: '危险 (Danger)' };
+      var titles = { tip: '提示 (Tip)', warning: '注意 (Warning)', note: '笔记 (Note)', danger: '警示 (Danger)' };
       var displayTitle = (title || '').trim() || titles[type] || '提示';
       var icons = { tip: 'check-circle-2', warning: 'alert-triangle', note: 'info', danger: 'alert-triangle' };
       var iconName = icons[type] || 'info';
@@ -55,33 +55,40 @@ window.BlogMarkdown = {
     // 3. Marked.js parsing
     var markedParser = (typeof marked !== 'undefined') ? marked : (window.marked || null);
     if (markedParser && markedParser.setOptions) {
-      markedParser.setOptions({ gfm: true, breaks: true, headerIds: true, mangle: false });
+      markedParser.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
     }
     var rawHtml = markedParser ? markedParser.parse(text) : text;
 
-    // 4. Restore and Render KaTeX Math
+    // 4. Restore and Render KaTeX Math using safe split/join
     var katexRenderer = (typeof katex !== 'undefined') ? katex : (window.katex || null);
     if (katexRenderer) {
       mathBlocks.forEach(function(formula, i) {
         try {
           var rendered = katexRenderer.renderToString(formula, { displayMode: true, throwOnError: false });
-          rawHtml = rawHtml.replace('%%MATH_BLOCK_' + i + '%%', '<div class="quantum-math-block">' + rendered + '</div>');
+          rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<div class="quantum-math-block">' + rendered + '</div>');
         } catch (e) {
-          rawHtml = rawHtml.replace('%%MATH_BLOCK_' + i + '%%', '<pre class="text-red-500 font-mono text-xs">' + formula + '</pre>');
+          rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<pre class="text-red-400 font-mono text-xs">' + formula + '</pre>');
         }
       });
 
       mathInlines.forEach(function(formula, i) {
         try {
           var rendered = katexRenderer.renderToString(formula, { displayMode: false, throwOnError: false });
-          rawHtml = rawHtml.replace('%%MATH_INLINE_' + i + '%%', rendered);
+          rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join(rendered);
         } catch (e) {
-          rawHtml = rawHtml.replace('%%MATH_INLINE_' + i + '%%', '<code class="text-red-500 font-mono text-xs">' + formula + '</code>');
+          rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="text-red-400 font-mono text-xs">' + formula + '</code>');
         }
+      });
+    } else {
+      mathBlocks.forEach(function(formula, i) {
+        rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<div class="quantum-math-block"><pre class="font-mono text-xs">' + formula + '</pre></div>');
+      });
+      mathInlines.forEach(function(formula, i) {
+        rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="font-mono text-xs">' + formula + '</code>');
       });
     }
 
-    // 5. Post-process HTML for TOC and Code containers
+    // 5. Post-process HTML for Stable Section IDs, Clean TOC, and Code Blocks
     if (typeof document !== 'undefined') {
       var tempDiv = document.createElement('div');
       tempDiv.innerHTML = rawHtml;
@@ -90,8 +97,10 @@ window.BlogMarkdown = {
       var headings = tempDiv.querySelectorAll('h1, h2, h3');
       headings.forEach(function(h, index) {
         var headingText = h.textContent.trim();
-        var id = 'heading-' + index + '-' + headingText.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').slice(0, 30);
+        // Clean and reliable alphanumeric ID that never fails
+        var id = 'section-' + (index + 1);
         h.setAttribute('id', id);
+        h.classList.add('scroll-mt-20');
         var level = parseInt(h.tagName.substring(1), 10);
         toc.push({ id: id, text: headingText, level: level });
       });
@@ -116,14 +125,13 @@ window.BlogMarkdown = {
         }
 
         var container = document.createElement('div');
-        container.className = 'code-container my-5 shadow-sm';
+        container.className = 'code-container my-6 shadow-sm';
 
         var header = document.createElement('div');
         header.className = 'code-header flex justify-between items-center';
-        header.innerHTML = '<span class="font-mono text-xs text-slate-400 uppercase tracking-wider">' + language + '</span>' +
+        header.innerHTML = '<span class="font-mono text-xs uppercase tracking-wider text-[#5A5A5E]">' + language + '</span>' +
           '<button type="button" class="code-copy-btn" data-code="' + encodeURIComponent(rawCodeText) + '">' +
-            (window.BlogIcons ? window.BlogIcons.get('copy', 'w-3.5 h-3.5') : '') +
-            '<span>复制</span>' +
+            '<span>Copy</span>' +
           '</button>';
 
         pre.parentNode.insertBefore(container, pre);
