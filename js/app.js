@@ -58,10 +58,16 @@ window.BlogApp = {
     });
   },
 
+  scrollToHeading: function(id) {
+    var el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  },
+
   handleRoute: function() {
     window.scrollTo(0, 0);
     var drawer = document.getElementById('mobile-drawer');
     if (drawer) drawer.classList.add('hidden');
+
     var hash = window.location.hash.slice(1) || '/';
     var path = hash.split('?')[0];
 
@@ -74,6 +80,11 @@ window.BlogApp = {
       var id = path.replace('/post/', '');
       this.currentRoute = { name: 'post', params: { id: id } };
       this.renderPostView(id);
+    } else if (path === '/columns') {
+      this.currentRoute = { name: 'columns', params: {} };
+      var link = document.querySelector('[data-nav-link="columns"]');
+      if (link) link.classList.add('active');
+      this.renderColumnsView();
     } else if (path === '/archives') {
       this.currentRoute = { name: 'archives', params: {} };
       var link = document.querySelector('[data-nav-link="archives"]');
@@ -84,11 +95,6 @@ window.BlogApp = {
       var link = document.querySelector('[data-nav-link="categories"]');
       if (link) link.classList.add('active');
       this.renderTagsView();
-    } else if (path === '/columns') {
-      this.currentRoute = { name: 'columns', params: {} };
-      var link = document.querySelector('[data-nav-link="columns"]');
-      if (link) link.classList.add('active');
-      this.renderColumnsView();
     } else if (path === '/editor') {
       this.currentRoute = { name: 'editor', params: {} };
       this.renderEditorView();
@@ -105,11 +111,10 @@ window.BlogApp = {
     }
   },
 
-  // 1. Home View
+  // 1. Home View (Linear Grade Minimalist Stream)
   renderHomeView: function() {
     var container = document.getElementById('app-main');
     var posts = window.BlogStore.posts || [];
-    var author = window.BlogStore.author || {};
 
     if (this.activeTag) {
       posts = posts.filter(function(p) {
@@ -119,9 +124,9 @@ window.BlogApp = {
 
     var html = '';
 
-    // Hero Section (Top padding 80~96px, 40-48px headline, -0.02em tracking, 18px subtitle)
+    // Hero Section
     html += '<section class="pt-20 md:pt-24 pb-12 border-b border-white/[0.06]">';
-    html += '  <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4">';
+    html += '  <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">';
     html += '    极光随笔';
     html += '  </h1>';
     html += '  <p class="text-[17px] sm:text-[18px] text-[#8B8B8E] leading-relaxed max-w-[620px] font-normal">';
@@ -142,26 +147,29 @@ window.BlogApp = {
       html += '<div class="py-20 text-center text-[#5A5A5E] font-mono text-[14px]">No articles found.</div>';
     } else {
       posts.forEach(function(post) {
+        var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
+
         html += '<article class="post-item group">';
-        // Row 1: Date + Column Badge
+        // Row 1: Date + English Series Badge
         html += '  <div class="flex items-center gap-2.5 text-[12px] font-mono text-[#5A5A5E] mb-2">';
         html += '    <span>' + post.date + '</span>';
         if (post.columnName) {
-          html += '    <span>·</span><span class="text-[#3B82F6] bg-[#3B82F6]/10 px-1.5 py-0.5 rounded-[4px] text-[11px]">' + post.columnName + ' · 第 ' + (post.order || 1) + ' 讲</span>';
+          html += '    <span>·</span>';
+          html += '    <span class="text-[#3B82F6] bg-[#3B82F6]/10 px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium">' + post.columnName + ' / Part ' + partNumber + '</span>';
         }
         html += '  </div>';
         
-        // Row 2: Title (18px, 600 weight, #EDEDED, hover to #3B82F6)
+        // Row 2: Title
         html += '  <h2 class="mb-2.5">';
         html += '    <a href="#/post/' + post.id + '" class="post-item-title block leading-snug">' + post.title + '</a>';
         html += '  </h2>';
 
-        // Row 3: Excerpt (14px, #8B8B8E, line-clamp-2)
+        // Row 3: Excerpt
         html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">';
         html += post.excerpt || '';
         html += '  </p>';
 
-        // Row 4: Tag Pills (Bordered, Not filled, 12px monospace)
+        // Row 4: Tag Pills
         html += '  <div class="flex flex-wrap items-center gap-2">';
         (post.tags || []).forEach(function(tag) {
           html += '    <a href="#/" onclick="window.BlogApp.setTag(' + JSON.stringify(tag) + ')" class="tag-pill">#' + tag + '</a>';
@@ -175,7 +183,7 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 2. Post Detail View (Max width 680px, Centered)
+  // 2. Post Detail View (Max width 680px, Floating Right-side TOC + Collapsible Mobile TOC)
   renderPostView: function(postId) {
     var container = document.getElementById('app-main');
     var post = window.BlogStore.getPostById(postId);
@@ -188,36 +196,56 @@ window.BlogApp = {
     window.BlogStore.incrementView(post.id);
     var mdResult = window.BlogMarkdown.render(post.content);
     var renderedHtml = mdResult.html;
+    var toc = mdResult.toc || [];
 
     var allPosts = window.BlogStore.posts;
     var currentIndex = allPosts.findIndex(function(p) { return p.id === post.id; });
     var prevPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
     var nextPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
 
-    var html = '<div class="max-w-[680px] mx-auto pt-14 md:pt-20 pb-20">';
+    var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
+    var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
+
+    var html = '<div class="relative max-w-[680px] mx-auto pt-14 md:pt-20 pb-20">';
+
+    // Desktop Floating TOC Sidebar on the Right (Visible on xl screens >= 1140px)
+    if (toc.length > 0) {
+      html += '<aside class="hidden xl:block absolute left-[710px] top-28 w-[210px] shrink-0 font-mono text-[12px]">';
+      html += '  <div class="sticky top-20">';
+      html += '    <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">On this page</div>';
+      html += '    <nav class="space-y-1.5 border-l border-white/[0.08] pl-3 max-h-[70vh] overflow-y-auto">';
+      toc.forEach(function(item) {
+        var indentClass = item.level === 3 ? 'pl-2 text-[11px] text-[#5A5A5E]' : 'text-[12px] text-[#8B8B8E]';
+        html += '      <a href="#' + item.id + '" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + '); return false;" class="block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed" title="' + item.text + '">';
+        html += item.text;
+        html += '      </a>';
+      });
+      html += '    </nav>';
+      html += '  </div>';
+      html += '</aside>';
+    }
 
     // Back link
     html += '<div class="mb-8">';
     html += '  <a href="#/" class="text-[13px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors inline-flex items-center gap-1.5">← Back to writing</a>';
     html += '</div>';
 
-    // Column Series Guide Banner if applicable
-    var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
+    // Unified English Series Banner (No messy Chinese)
     if (columnInfo) {
-      html += '<div class="mb-6 p-3.5 rounded-[8px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[13px] font-mono">';
-      html += '  <div class="flex items-center gap-2 text-[#EDEDED]">';
-      html += '    <span class="px-1.5 py-0.5 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[11px] font-semibold">SERIES</span>';
-      html += '    <span>收录于《' + columnInfo.name + '》· 第 ' + (post.order || 1) + ' 讲</span>';
+      html += '<div class="mb-6 py-2 px-3.5 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
+      html += '  <div class="flex items-center gap-2">';
+      html += '    <span class="px-1.5 py-0.5 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[11px] font-medium">PART ' + partNumber + '</span>';
+      html += '    <span class="text-[#EDEDED] font-sans truncate">' + columnInfo.name + '</span>';
       html += '  </div>';
-      html += '  <a href="#/columns" class="text-[#3B82F6] hover:underline flex items-center gap-1">专栏目录 →</a>';
+      html += '  <a href="#/columns" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3">Series Index →</a>';
       html += '</div>';
     }
 
-    // Header
-    html += '<header class="mb-10 pb-8 border-b border-white/[0.06]">';
-    html += '  <h1 class="text-[30px] sm:text-[34px] md:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-4">' + post.title + '</h1>';
+    // Article Header
+    html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
+    html += '  <h1 class="text-[30px] sm:text-[34px] md:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-4 font-sans">' + post.title + '</h1>';
     
-    // Metadata row: Date · Read time · Tags (12px monospace, #5A5A5E)
+    // Metadata row: Date · Read time · Words · Tags
     html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
     html += '    <span>' + post.date + '</span>';
     html += '    <span>·</span>';
@@ -237,12 +265,28 @@ window.BlogApp = {
     html += '  </div>';
     html += '</header>';
 
+    // Mobile / Tablet Collapsible Inline TOC
+    if (toc.length > 0) {
+      html += '<details class="xl:hidden my-6 p-3.5 rounded-[8px] bg-[#111113] border border-white/[0.06] text-[13px] font-mono group">';
+      html += '  <summary class="cursor-pointer text-[#8B8B8E] hover:text-[#EDEDED] font-medium flex items-center justify-between">';
+      html += '    <span>On this page (' + toc.length + ')</span>';
+      html += '    <span class="text-[#5A5A5E] group-open:rotate-180 transition-transform">▾</span>';
+      html += '  </summary>';
+      html += '  <nav class="mt-3 pt-3 border-t border-white/[0.04] space-y-2">';
+      toc.forEach(function(item) {
+        var indent = item.level === 3 ? 'pl-3 text-[12px] text-[#5A5A5E]' : 'text-[13px] text-[#8B8B8E]';
+        html += '    <a href="#' + item.id + '" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + '); return false;" class="block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed">' + item.text + '</a>';
+      });
+      html += '  </nav>';
+      html += '</details>';
+    }
+
     // Markdown Article Content
     html += '<article class="markdown-body mb-16">';
     html += renderedHtml;
     html += '</article>';
 
-    // Prev / Next Navigation Cards (Side-by-side, 12px radius, subtle border)
+    // Prev / Next Navigation Cards
     html += '<div class="pt-8 border-t border-white/[0.06] grid grid-cols-1 sm:grid-cols-2 gap-4">';
     if (prevPost) {
       html += '<a href="#/post/' + prevPost.id + '" class="linear-card p-4 text-left group block">';
@@ -265,77 +309,83 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-
-  // 3. Columns View (Series & Columns - Linear Grade Design)
+  // 3. Series & Columns View (Minimal List Aesthetic, perfectly aligned with Home & Archive)
   renderColumnsView: function() {
     var container = document.getElementById('app-main');
     var columns = window.BlogStore.getColumns() || [];
 
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
-    html += '  <header class="mb-12 pb-6 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Series & Columns</h1>';
-    html += '    <p class="text-[16px] text-[#8B8B8E]">系统化专题长文。基于 posts/columns/ 目录深度解析技术脉络与科学基石。</p>';
+    
+    // Header
+    html += '  <header class="mb-8 pb-8 border-b border-white/[0.06]">';
+    html += '    <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">Series</h1>';
+    html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">系统化专题长文。基于 posts/columns/ 目录深度解析技术脉络与科学基石。</p>';
     html += '  </header>';
 
+    // Series List: Clean list items with 1px divider, NO bloated cards!
     if (columns.length === 0) {
-      html += '<div class="py-20 text-center text-[#5A5A5E] font-mono text-[14px]">暂无专栏数据</div>';
+      html += '<div class="py-20 text-center text-[#5A5A5E] font-mono text-[14px]">No series found.</div>';
     } else {
+      html += '<section class="divide-y divide-white/[0.06]">';
       columns.forEach(function(col, idx) {
         var posts = col.posts || [];
         var totalWords = col.totalWords || posts.reduce(function(acc, p) { return acc + (p.words || 0); }, 0);
         var totalMin = Math.max(1, Math.ceil(totalWords / 400));
+        var seriesIndex = (idx + 1 < 10) ? '0' + (idx + 1) : (idx + 1);
 
-        html += '  <div class="linear-card p-6 mb-8 group">';
-        // Series Meta
+        html += '  <div class="py-8 group">';
+        
+        // Metadata Line
         html += '    <div class="flex items-center justify-between text-[12px] font-mono text-[#5A5A5E] mb-2">';
-        html += '      <span class="text-[#3B82F6] font-semibold">SERIES 0' + (idx + 1) + '</span>';
-        html += '      <span>' + col.postsCount + ' 章节 · ' + (totalWords > 0 ? Math.round(totalWords / 1000) + 'k 字 · ' : '') + totalMin + ' 分钟阅读</span>';
+        html += '      <span class="text-[#3B82F6] font-semibold">SERIES ' + seriesIndex + '</span>';
+        html += '      <span>' + col.postsCount + ' Parts · ' + (totalWords > 0 ? Math.round(totalWords / 1000) + 'k words · ' : '') + totalMin + ' min read</span>';
         html += '    </div>';
         
-        // Series Title
-        html += '    <h2 class="text-[20px] font-semibold text-[#EDEDED] tracking-tight mb-2.5">' + col.name + '</h2>';
-        // Series Description
-        html += '    <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-6">' + col.desc + '</p>';
+        // Title
+        html += '    <h2 class="text-[18px] sm:text-[20px] font-semibold text-[#EDEDED] tracking-tight mb-2 leading-snug font-sans">' + col.name + '</h2>';
         
-        // Chapters List
-        html += '    <div class="border-t border-white/[0.06] pt-4 divide-y divide-white/[0.04]">';
+        // Description
+        html += '    <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-4">' + col.desc + '</p>';
+        
+        // Compact Chapters Timeline
+        html += '    <div class="pt-2 divide-y divide-white/[0.03]">';
         posts.forEach(function(p, pIdx) {
           var chNum = (p.order !== undefined && p.order !== 999) ? (p.order < 10 ? '0' + p.order : p.order) : (pIdx + 1 < 10 ? '0' + (pIdx + 1) : (pIdx + 1));
-          html += '      <div class="py-2.5 flex items-baseline justify-between gap-3 group/item">';
-          html += '        <div class="flex items-baseline gap-3 min-w-0">';
-          html += '          <span class="text-[12px] font-mono text-[#3B82F6]/80 shrink-0 font-medium">' + chNum + '</span>';
-          html += '          <a href="#/post/' + p.id + '" class="text-[15px] font-medium text-[#EDEDED] hover:text-[#3B82F6] transition-colors truncate block">' + p.title + '</a>';
+          html += '      <a href="#/post/' + p.id + '" class="py-2 flex items-baseline justify-between gap-3 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-all group/item hover:translate-x-0.5">';
+          html += '        <div class="flex items-baseline gap-2.5 min-w-0">';
+          html += '          <span class="font-mono text-[11px] text-[#5A5A5E] group-hover/item:text-[#3B82F6] shrink-0 font-medium">' + chNum + '</span>';
+          html += '          <span class="text-[#EDEDED] group-hover/item:text-[#3B82F6] transition-colors truncate leading-relaxed">' + p.title + '</span>';
           html += '        </div>';
-          html += '        <span class="text-[12px] font-mono text-[#5A5A5E] shrink-0 hidden sm:inline">' + (p.readTime || '') + '</span>';
-          html += '      </div>';
+          html += '        <span class="font-mono text-[11px] text-[#5A5A5E] shrink-0 ml-2 hidden sm:inline">' + (p.readTime || '') + '</span>';
+          html += '      </a>';
         });
         html += '    </div>';
 
         html += '  </div>';
       });
+      html += '</section>';
     }
 
     html += '</div>';
     container.innerHTML = html;
   },
 
-  // 4. Tags View (Bordered pills, count alongside)
+  // 4. Tags View
   renderTagsView: function() {
     var container = document.getElementById('app-main');
     var allTags = window.BlogStore.getAllTags();
-    var posts = window.BlogStore.posts || [];
 
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2">Tags</h1>';
+    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Tags</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E]">按主题领域与核心知识标签检索全部博文。</p>';
     html += '  </header>';
 
-    html += '  <div class="flex flex-wrap gap-3">';
+    html += '  <div class="flex flex-wrap gap-2.5">';
     allTags.forEach(function(item) {
       var tagName = item.name || item;
       var count = item.count || 1;
-      html += '    <a href="#/" onclick="window.BlogApp.setTag(' + JSON.stringify(tagName) + ')" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/[0.12] hover:border-[#3B82F6] hover:text-[#3B82F6] text-[#EDEDED] text-[13px] font-mono transition-all hover:-translate-y-[2px] bg-[#111113]">';
+      html += '    <a href="#/" onclick="window.BlogApp.setTag(' + JSON.stringify(tagName) + ')" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.12] hover:border-[#3B82F6] hover:text-[#3B82F6] text-[#EDEDED] text-[13px] font-mono transition-all hover:-translate-y-[1px] bg-[#111113]">';
       html += '      <span>#' + tagName + '</span>';
       html += '      <span class="text-[11px] text-[#5A5A5E]">' + count + '</span>';
       html += '    </a>';
@@ -346,12 +396,11 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 4. Archive View (Timeline by Year)
+  // 5. Archive View (Timeline by Year)
   renderArchivesView: function() {
     var container = document.getElementById('app-main');
     var posts = window.BlogStore.posts || [];
 
-    // Group by year
     var groups = {};
     posts.forEach(function(p) {
       var year = (p.date || '2026').slice(0, 4);
@@ -363,7 +412,7 @@ window.BlogApp = {
 
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-12 pb-6 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2">Archive</h1>';
+    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Archive</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E]">按时间轴收录的所有文章沉淀与版本更迭。</p>';
     html += '  </header>';
 
@@ -372,7 +421,7 @@ window.BlogApp = {
       html += '    <div class="text-[24px] font-mono font-semibold text-[#5A5A5E] mb-6">' + yr + '</div>';
       html += '    <div class="divide-y divide-white/[0.04]">';
       groups[yr].forEach(function(p) {
-        html += '      <div class="py-3 flex items-baseline gap-4 group">';
+        html += '      <div class="py-3 flex items-baseline gap-4 group hover:translate-x-0.5 transition-transform">';
         html += '        <span class="text-[13px] font-mono text-[#5A5A5E] shrink-0">' + (p.date || '').slice(5) + '</span>';
         html += '        <a href="#/post/' + p.id + '" class="text-[16px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors leading-snug">' + p.title + '</a>';
         html += '      </div>';
@@ -385,28 +434,24 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 5. About View (Max width 600px, 80px avatar, social links)
+  // 6. About View
   renderAboutView: function() {
     var container = document.getElementById('app-main');
     var author = window.BlogStore.author || {};
 
     var html = '<div class="max-w-[600px] mx-auto pt-16 md:pt-20 pb-20">';
-    
-    // Avatar: 80px, rounded-12px
     html += '  <div class="mb-8">';
     html += '    <img src="' + (author.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80') + '" class="w-20 h-20 rounded-[12px] object-cover border border-white/[0.08]">';
     html += '  </div>';
 
-    // Intro
-    html += '  <h1 class="text-[28px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2">' + (author.name || 'Alex Chen') + '</h1>';
+    html += '  <h1 class="text-[28px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">' + (author.name || 'Alex Chen') + '</h1>';
     html += '  <p class="text-[14px] font-mono text-[#8B8B8E] mb-8">' + (author.title || 'Full-Stack Architect · Quantum & AI Researcher') + '</p>';
 
-    html += '  <div class="text-[16px] text-[#EDEDED] leading-[1.8] space-y-4 mb-10 pb-8 border-b border-white/[0.06]">';
+    html += '  <div class="text-[16px] text-[#EDEDED] leading-[1.8] space-y-4 mb-10 pb-8 border-b border-white/[0.06] font-sans">';
     html += '    <p>热爱理论物理与计算机科学的交叉前沿。致力于从高维希尔伯特空间、哈密顿量演化与统计力学的物理视角，理解并构建现代大语言模型和复杂分布式系统。</p>';
     html += '    <p>坚持极简主义与深度心流开发，崇尚用严谨的数学推导与干净的代码建立秩序。</p>';
     html += '  </div>';
 
-    // Social Links
     html += '  <div>';
     html += '    <h3 class="text-[12px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-4">Connect</h3>';
     html += '    <div class="space-y-3 font-mono text-[14px]">';
@@ -426,18 +471,18 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 6. Editor View (Clean Dark Dual Column)
+  // 7. Editor View
   renderEditorView: function() {
     var container = document.getElementById('app-main');
     var html = '<div class="max-w-[720px] mx-auto pt-12 pb-20">';
     html += '  <header class="mb-6 pb-4 border-b border-white/[0.06] flex items-center justify-between">';
-    html += '    <h1 class="text-[20px] font-semibold text-[#EDEDED] tracking-tight">Write Article</h1>';
+    html += '    <h1 class="text-[20px] font-semibold text-[#EDEDED] tracking-tight font-sans">Write Article</h1>';
     html += '    <button onclick="window.BlogApp.publishArticle()" class="linear-btn linear-btn-primary">Publish</button>';
     html += '  </header>';
 
     html += '  <div class="space-y-4">';
     html += '    <input id="editor-title" type="text" placeholder="Title" class="w-full bg-[#111113] border border-white/[0.08] rounded-[8px] p-3 text-[18px] font-semibold text-[#EDEDED] placeholder-[#5A5A5E] focus:outline-none focus:border-[#3B82F6] transition-colors">';
-    html += '    <input id="editor-tags" type="text" placeholder="Tags (separated by comma, e.g. Quantum, Math)" class="w-full bg-[#111113] border border-white/[0.08] rounded-[8px] p-2.5 text-[13px] font-mono text-[#EDEDED] placeholder-[#5A5A5E] focus:outline-none focus:border-[#3B82F6] transition-colors">';
+    html += '    <input id="editor-tags" type="text" placeholder="Tags (comma-separated, e.g. Quantum, Math)" class="w-full bg-[#111113] border border-white/[0.08] rounded-[8px] p-2.5 text-[13px] font-mono text-[#EDEDED] placeholder-[#5A5A5E] focus:outline-none focus:border-[#3B82F6] transition-colors">';
     html += '    <textarea id="editor-content" rows="18" placeholder="Write markdown content with LaTeX formulas... $$\\left|\\psi\\right\\rangle$$" class="w-full bg-[#111113] border border-white/[0.08] rounded-[8px] p-4 text-[14px] font-mono text-[#EDEDED] placeholder-[#5A5A5E] focus:outline-none focus:border-[#3B82F6] transition-colors leading-relaxed"></textarea>';
     html += '  </div>';
     html += '</div>';

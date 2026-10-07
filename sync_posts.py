@@ -85,10 +85,10 @@ def parse_md_file(filepath):
     }
 
     col_names = {
-        "quantum-computing-ai": "量子物理与深度智能前沿专栏",
-        "llm-in-action": "大模型系统化实战专栏",
-        "frontend-architecture": "现代前端架构演进专栏",
-        "distributed-systems": "分布式共识与系统工程专栏"
+        "quantum-computing-ai": "Quantum Physics & Computing Frontiers",
+        "llm-in-action": "Large Language Models in Production",
+        "frontend-architecture": "Modern Frontend Architecture",
+        "distributed-systems": "Distributed Systems & Consensus"
     }
     column_name = col_names.get(column, column) if column else ""
 
@@ -155,10 +155,10 @@ def sync():
     columns_map = {}
 
     col_meta = {
-        "quantum-computing-ai": {"name": "量子物理与深度智能前沿专栏", "desc": "以严密数学为基石，深入量子态叠加、哈密顿量演化与变分量子神经网络(VQC)。", "icon": "atom", "color": "from-cyan-400 via-blue-500 to-indigo-600"},
-        "llm-in-action": {"name": "大模型系统化实战专栏", "desc": "涵盖 Prompt 工程、RAG 向量检索与多代理协作落地。", "icon": "sparkles", "color": "from-purple-500 to-indigo-600"},
-        "frontend-architecture": {"name": "现代前端架构演进专栏", "desc": "从虚拟 DOM、细粒度响应性到 RSC 服务端组件演变。", "icon": "code", "color": "from-blue-500 to-cyan-500"},
-        "distributed-systems": {"name": "分布式共识与系统工程专栏", "desc": "Paxos、Raft 机制、网络分区容灾与生产级高可用实践。", "icon": "terminal", "color": "from-emerald-500 to-teal-600"}
+        "quantum-computing-ai": {"name": "Quantum Physics & Computing Frontiers", "desc": "Mathematical foundations of Hilbert spaces, unitary operators, variational quantum circuits (VQC), and statistical mechanics.", "icon": "atom", "color": "from-cyan-400 via-blue-500 to-indigo-600"},
+        "llm-in-action": {"name": "Large Language Models in Production", "desc": "Engineering systematic prompt pipelines, production RAG vector search, and agentic workflows.", "icon": "sparkles", "color": "from-purple-500 to-indigo-600"},
+        "frontend-architecture": {"name": "Modern Frontend Architecture", "desc": "Evolution of rendering engines from Virtual DOM diffing to fine-grained reactivity and Server Components.", "icon": "code", "color": "from-blue-500 to-cyan-500"},
+        "distributed-systems": {"name": "Distributed Systems & Consensus", "desc": "Consensus primitives, Paxos, Raft invariants, and fault-tolerant distributed system engineering.", "icon": "terminal", "color": "from-emerald-500 to-teal-600"}
     }
 
     for filepath in sorted(md_files):
