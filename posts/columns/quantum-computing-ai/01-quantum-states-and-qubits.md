@@ -19,38 +19,38 @@ tags: ["量子物理", "希尔伯特空间", "狄拉克符号", "量子计算"]
 在量子力学哥本哈根诠释下，孤立量子系统的纯态由某个复内积空间——**希尔伯特空间（Hilbert Space）**中的单位射线来描述。对于单个两能级系统（量子比特 Qubit），其状态空间对应于二维复希尔伯特空间：
 
 $$
-mathcal{H}_2 cong mathbb{C}^2
+\mathcal{H}_2 \cong \mathbb{C}^2
 $$
 
 采用狄拉克（Dirac）符号，我们选取一组标准计算正交基：
 
 $$
-left| 0 ightangle = egin{pmatrix} 1 \ 0 end{pmatrix}, quad left| 1 ightangle = egin{pmatrix} 0 \ 1 end{pmatrix}
+\left| 0 \right\rangle = \begin{pmatrix} 1 \\ 0 \end{pmatrix}, \quad \left| 1 \right\rangle = \begin{pmatrix} 0 \\ 1 \end{pmatrix}
 $$
 
 :::note 态叠加原理公理
 任意单量子比特的物理状态都可以表示为计算基态的线性叠加：
 $$
-left| psi ightangle = alpha left| 0 ightangle + eta left| 1 ightangle, quad alpha, eta in mathbb{C}
+\left| \psi \right\rangle = \alpha \left| 0 \right\rangle + \beta \left| 1 \right\rangle, \quad \alpha, \beta \in \mathbb{C}
 $$
 其中，复概率幅满足正交归一化完备性条件：
 $$
-leftlangle psi middle| psi ightangle = |alpha|^2 + |eta|^2 = 1
+\left\langle \psi \middle| \psi \right\rangle = |\alpha|^2 + |\beta|^2 = 1
 $$
 :::
 
 根据玻恩定则（Born's Rule），当我们以计算基对状态 $$\left| \psi \right\rangle$$ 进行强投影测量时：
-- 系统以几率 $$P(0) = |alpha|^2$$ 坍缩到基态 $$\left| 0 \right\rangle$$；
-- 系统以几率 $$P(1) = |eta|^2$$ 坍缩到基态 $$\left| 1 \right\rangle$$。
+- 系统以几率 $$P(0) = |\alpha|^2$$ 坍缩到基态 $$\left| 0 \right\rangle$$；
+- 系统以几率 $$P(1) = |\beta|^2$$ 坍缩到基态 $$\left| 1 \right\rangle$$。
 
 ---
 
 ## 2. Bloch 球面的几何参数化
 
-由于全局相位因子对可观测量（期望值）不产生任何物理干涉效应，即状态 $$\left| \psi \right\rangle$$ 与 $$e^{igamma} \left| \psi \right\rangle$$ 在物理上不可区分。我们可以消去一个多余的自由度，将态矢量参数化为两球坐标角：
+由于全局相位因子对可观测量（期望值）不产生任何物理干涉效应，即状态 $$\left| \psi \right\rangle$$ 与 $$e^{i\gamma} \left| \psi \right\rangle$$ 在物理上不可区分。我们可以消去一个多余的自由度，将态矢量参数化为两球坐标角：
 
 $$
-left| psi ightangle = cosrac{	heta}{2} left| 0 ightangle + e^{iphi} sinrac{	heta}{2} left| 1 ightangle
+\left| \psi \right\rangle = \cos\frac{\theta}{2} \left| 0 \right\rangle + e^{i\phi} \sin\frac{\theta}{2} \left| 1 \right\rangle
 $$
 
 其中天顶角 $$\theta \in [0, \pi]$$，方位角 $$\phi \in [0, 2\pi)$$。
@@ -63,11 +63,11 @@ $$
 Bloch 矢量的实空间笛卡尔坐标可以写为：
 
 $$
-egin{aligned}
-x &= sin	heta cosphi \
-y &= sin	heta sinphi \
-z &= cos	heta
-end{aligned}
+\begin{aligned}
+x &= \sin\theta \cos\phi \\
+y &= \sin\theta \sin\phi \\
+z &= \cos\theta
+\end{aligned}
 $$
 
 这一几何图像让量子态的演化直观化为单位球面上的连续三维旋转。
@@ -79,13 +79,13 @@ $$
 量子力学第二公理指出：封闭量子系统在时空中的演化由幺正变换（Unitary Transformation）所支配。根据时间依赖的薛定谔方程：
 
 $$
-ihbar rac{partial}{partial t}left| psi(t) ightangle = H(t) left| psi(t) ightangle
+i\hbar \frac{\partial}{\partial t}\left| \psi(t) \right\rangle = H(t) \left| \psi(t) \right\rangle
 $$
 
 其解可表达为演化算符 $$\left| \psi(t) \right\rangle = U(t) \left| \psi(0) \right\rangle$$。算符 $$U$$ 必须满足幺正性：
 
 $$
-U^dagger U = U U^dagger = I
+U^\dagger U = U U^\dagger = I
 $$
 
 幺正性保证了态矢量的内积保持不变，进而确保了测量几率守恒：$$\left\langle \psi(t) \middle| \psi(t) \right\rangle = 1$$。
@@ -95,9 +95,9 @@ $$
 泡利矩阵是描述自旋 1/2 系统和量子门运算的基石：
 
 $$
-sigma_x = X = egin{pmatrix} 0 & 1 \ 1 & 0 end{pmatrix}, quad
-sigma_y = Y = egin{pmatrix} 0 & -i \ i & 0 end{pmatrix}, quad
-sigma_z = Z = egin{pmatrix} 1 & 0 \ 0 & -1 end{pmatrix}
+\sigma_x = X = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}, \quad
+\sigma_y = Y = \begin{pmatrix} 0 & -i \\ i & 0 \end{pmatrix}, \quad
+\sigma_z = Z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}
 $$
 
 - **Pauli-X 门**：相当于量子非门（NOT），实现基态翻转：$$X\left| 0 \right\rangle = \left| 1 \right\rangle$$, $$X\left| 1 \right\rangle = \left| 0 \right\rangle$$；
@@ -108,16 +108,16 @@ $$
 Hadamard 门 $$H$$ 是量子计算中最重要的门之一，它将确定的基态映射为等权重的相干叠加态：
 
 $$
-H = rac{1}{sqrt{2}} egin{pmatrix} 1 & 1 \ 1 & -1 end{pmatrix}
+H = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}
 $$
 
 作用在计算基态上的效果：
 
 $$
-egin{aligned}
-Hleft| 0 ightangle &= rac{left| 0 ightangle + left| 1 ightangle}{sqrt{2}} = left| + ightangle \
-Hleft| 1 ightangle &= rac{left| 0 ightangle - left| 1 ightangle}{sqrt{2}} = left| - ightangle
-end{aligned}
+\begin{aligned}
+H\left| 0 \right\rangle &= \frac{\left| 0 \right\rangle + \left| 1 \right\rangle}{\sqrt{2}} = \left| + \right\rangle \\
+H\left| 1 \right\rangle &= \frac{\left| 0 \right\rangle - \left| 1 \right\rangle}{\sqrt{2}} = \left| - \right\rangle
+\end{aligned}
 $$
 
 ---
@@ -127,7 +127,7 @@ $$
 当两个量子比特组成复合系统时，其状态空间为各自希尔伯特空间的张量积（Tensor Product）：
 
 $$
-mathcal{H} = mathcal{H}_A otimes mathcal{H}_B cong mathbb{C}^4
+\mathcal{H} = \mathcal{H}_A \otimes \mathcal{H}_B \cong \mathbb{C}^4
 $$
 
 其计算基为 4 个四维列向量：$$\left| 00 \right\rangle, \left| 01 \right\rangle, \left| 10 \right\rangle, \left| 11 \right\rangle$$。
@@ -135,8 +135,7 @@ $$
 :::tip 什么是量子纠缠？
 若复合系统的量子态 $$\left| \Psi_{AB} \right\rangle$$ **无法**分解为两个子系统状态的张量直积态：
 $$
-left| Psi_{AB} ightangle 
-eq left| psi_A ightangle otimes left| psi_B ightangle
+\left| \Psi_{AB} \right\rangle \neq \left| \psi_A \right\rangle \otimes \left| \psi_B \right\rangle
 $$
 则称该复合态处于**量子纠缠（Quantum Entanglement）**。
 :::
@@ -146,7 +145,7 @@ $$
 利用一个 Hadamard 门与一个受控非门（CNOT），我们可以从 $$\left| 00 \right\rangle$$ 构造出最大纠缠态——第一贝尔态：
 
 $$
-left| Phi^+ ightangle = rac{left| 00 ightangle + left| 11 ightangle}{sqrt{2}}
+\left| \Phi^+ \right\rangle = \frac{\left| 00 \right\rangle + \left| 11 \right\rangle}{\sqrt{2}}
 $$
 
 对其中任意一个粒子进行局部测量，另一个粒子将在超距空间上即时确定其状态，爱因斯坦曾称之为“幽灵般的超距作用（Spooky action at a distance）”。
@@ -157,16 +156,16 @@ $$
 
 **定理**：不存在任何物理幺正算符 $$U$$，能无条件复制任意未知量子态 $$\left| \psi \right\rangle$$。
 
-假设存在此类算符，使得对于任意未知态 $$\left| \psi \right\rangle$$ 和 $$\left| phi \right\rangle$$：
+假设存在此类算符，使得对于任意未知态 $$\left| \psi \right\rangle$$ 和 $$\left| \phi \right\rangle$$：
 $$
-egin{aligned}
-U(left| psi ightangle otimes left| 0 ightangle) &= left| psi ightangle otimes left| psi ightangle \
-U(left| phi ightangle otimes left| 0 ightangle) &= left| phi ightangle otimes left| phi ightangle
-end{aligned}
+\begin{aligned}
+U(\left| \psi \right\rangle \otimes \left| 0 \right\rangle) &= \left| \psi \right\rangle \otimes \left| \psi \right\rangle \\
+U(\left| \phi \right\rangle \otimes \left| 0 \right\rangle) &= \left| \phi \right\rangle \otimes \left| \phi \right\rangle
+\end{aligned}
 $$
 由于幺正算符保持内积，计算两式的内积：
 $$
-leftlangle psi middle| phi ightangle = (leftlangle psi middle| phi ightangle)^2
+\left\langle \psi \middle| \phi \right\rangle = (\left\langle \psi \middle| \phi \right\rangle)^2
 $$
 这要求 $$\left\langle \psi \middle| \phi \right\rangle$$ 只能为 0 或 1。这意味着只有正交态才可能被复制，通用的未知量子态克隆在物理法则上被彻底封死。这一特性成为了量子密码学（QKD）坚不可摧的安全基石。
 
