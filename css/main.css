@@ -21,6 +21,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   background-color: var(--bg-page);
   color: var(--text-primary);
@@ -303,36 +307,47 @@ html, body {
 .token.keyword { color: #93C5FD; }
 .token.function, .token.class-name { color: #60A5FA; }
 
-/* Permanent Floating TOC Sidebar on the Right (Active Scrollspy & Responsive Dock) */
+/* Permanent Floating Outline Sidebar on the Right (Active Scrollspy & Responsive Dock) */
+.outline-floating-sidebar,
 .toc-floating-sidebar {
   display: none;
 }
-@media (min-width: 768px) {
+@media (min-width: 600px) {
+  .outline-floating-sidebar,
   .toc-floating-sidebar {
     display: block !important;
   }
+  .outline-floating-fab,
   .toc-floating-fab {
     display: none !important;
   }
 }
-@media (max-width: 767px) {
+@media (max-width: 599px) {
+  .outline-floating-sidebar,
   .toc-floating-sidebar {
     display: none !important;
   }
+  .outline-floating-fab,
   .toc-floating-fab {
     display: flex !important;
   }
 }
 
-/* Active Heading Highlight Line in TOC */
+/* Active Heading Highlight Line in Outline */
+#desktop-outline-nav button,
 #desktop-toc-nav button {
   position: relative;
   transition: all 150ms ease-out;
 }
+#desktop-outline-nav button.active,
 #desktop-toc-nav button.active {
   color: #3B82F6 !important;
   font-weight: 500 !important;
   border-left: 2px solid #3B82F6 !important;
   padding-left: 10px !important;
   margin-left: -13px !important;
+}
+#desktop-outline-nav button:hover,
+#desktop-toc-nav button:hover {
+  color: #3B82F6 !important;
 }

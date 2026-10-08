@@ -28,6 +28,19 @@ window.BlogApp = {
       }
     });
 
+    // Delegated Outline heading navigation click handler
+    document.addEventListener('click', function(e) {
+      var outlineBtn = e.target.closest('[data-outline-target]');
+      if (outlineBtn) {
+        var targetId = outlineBtn.getAttribute('data-outline-target');
+        if (targetId && self && typeof self.scrollToHeading === 'function') {
+          e.preventDefault();
+          e.stopPropagation();
+          self.scrollToHeading(targetId);
+        }
+      }
+    });
+
     // Delegated copy button handler
     document.addEventListener('click', function(e) {
       var copyBtn = e.target.closest('.code-copy-btn');
@@ -59,20 +72,24 @@ window.BlogApp = {
         }
       }
 
-      // 2. Active TOC Scrollspy (highlight heading in right floating sidebar)
+      // 2. Active Outline Scrollspy (highlight heading in right floating sidebar)
       if (self.currentRoute.name === 'post') {
         var headings = document.querySelectorAll('.markdown-body h1, .markdown-body h2, .markdown-body h3');
         if (headings && headings.length > 0) {
-          var scrollPos = window.scrollY + 100;
           var currentId = '';
           headings.forEach(function(h) {
-            if (h.offsetTop <= scrollPos) {
+            var top = h.getBoundingClientRect().top;
+            if (top <= 120) {
               currentId = h.id;
             }
           });
+          if ((window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 60)) {
+            currentId = headings[headings.length - 1].id;
+          }
           if (currentId) {
-            document.querySelectorAll('#desktop-toc-nav button').forEach(function(btn) {
-              if (btn.getAttribute('data-target') === currentId) {
+            document.querySelectorAll('#desktop-outline-nav button, #desktop-toc-nav button').forEach(function(btn) {
+              var t = btn.getAttribute('data-outline-target') || btn.getAttribute('data-target');
+              if (t === currentId) {
                 btn.classList.add('active');
               } else {
                 btn.classList.remove('active');
@@ -84,19 +101,35 @@ window.BlogApp = {
     });
   },
 
-  // Safe smooth scroll that NEVER modifies location.hash and accounts for header offset
+  // Flawless heading scroll navigation with smooth scroll and navbar compensation
   scrollToHeading: function(id) {
+    if (!id) return;
     var el = document.getElementById(id);
     if (el) {
-      var navOffset = 76; // 56px sticky nav + 20px buffer
-      var topPos = el.getBoundingClientRect().top + window.pageYOffset - navOffset;
-      window.scrollTo({ top: topPos, behavior: 'smooth' });
+      var navHeight = 76; // 56px sticky header + 20px breathing room
+      var rect = el.getBoundingClientRect();
+      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      var targetY = rect.top + scrollTop - navHeight;
+      window.scrollTo({
+        top: Math.max(0, targetY),
+        behavior: 'smooth'
+      });
+
+      // Highlight active button immediately for instantaneous user feedback
+      document.querySelectorAll('#desktop-outline-nav button, #desktop-toc-nav button, #mobile-outline-drawer button, #mobile-toc-drawer button').forEach(function(btn) {
+        var t = btn.getAttribute('data-outline-target') || btn.getAttribute('data-target');
+        if (t === id) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
     }
-    this.closeMobileToc();
+    this.closeMobileOutline();
   },
 
-  toggleMobileToc: function() {
-    var drawer = document.getElementById('mobile-toc-drawer');
+  toggleMobileOutline: function() {
+    var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
     if (drawer) {
       if (drawer.classList.contains('hidden')) {
         drawer.classList.remove('hidden');
@@ -108,13 +141,16 @@ window.BlogApp = {
     }
   },
 
-  closeMobileToc: function() {
-    var drawer = document.getElementById('mobile-toc-drawer');
+  closeMobileOutline: function() {
+    var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
     if (drawer && !drawer.classList.contains('hidden')) {
       drawer.classList.add('translate-x-full');
       setTimeout(function() { drawer.classList.add('hidden'); }, 200);
     }
   },
+
+  toggleMobileToc: function() { this.toggleMobileOutline(); },
+  closeMobileToc: function() { this.closeMobileOutline(); },
 
   handleRoute: function() {
     window.scrollTo(0, 0);
@@ -165,7 +201,7 @@ window.BlogApp = {
     }
   },
 
-  // 1. Home View (Linear Grade Minimalist Stream)
+  // 1. Home View
   renderHomeView: function() {
     var container = document.getElementById('app-main');
     var posts = window.BlogStore.posts || [];
@@ -195,7 +231,7 @@ window.BlogApp = {
     }
     html += '</section>';
 
-    // Article List: Vertical list, 1px divider, hover translateX(2px)
+    // Article List
     html += '<section class="divide-y divide-white/[0.06]">';
     if (posts.length === 0) {
       html += '<div class="py-20 text-center text-[#5A5A5E] font-mono text-[14px]">No articles found.</div>';
@@ -226,7 +262,7 @@ window.BlogApp = {
         // Row 4: Tag Pills
         html += '  <div class="flex flex-wrap items-center gap-2">';
         (post.tags || []).forEach(function(tag) {
-          html += '    <a href="#/" onclick="window.BlogApp.setTag(' + JSON.stringify(tag) + ')" class="tag-pill">#' + tag + '</a>';
+          html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encodeURIComponent(tag) + '\'))" class="tag-pill">#' + tag + '</a>';
         });
         html += '  </div>';
         html += '</article>';
@@ -238,13 +274,13 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 2. Post Detail View (Max width 680px Content, ALWAYS FLOATING TOC ON THE RIGHT)
+  // 2. Post Detail View (Max width 680px Content, ALWAYS FLOATING OUTLINE ON THE RIGHT)
   renderPostView: function(postId) {
     var container = document.getElementById('app-main');
     var post = window.BlogStore.getPostById(postId);
 
     if (!post) {
-      container.innerHTML = '<div class="py-32 text-center text-[#8B8B8E]"><h2 class="text-[20px] font-semibold text-[#EDEDED] mb-3">文章未找到</h2><a href="#/" class="text-[#3B82F6] text-[14px]">返回首页 →</a></div>';
+      container.innerHTML = '<div class="py-32 text-center text-[#8B8B8E]"><h2 class="text-[20px] font-semibold text-[#EDEDED] mb-3">Article Not Found</h2><a href="#/" class="text-[#3B82F6] text-[14px]">← Back to home</a></div>';
       return;
     }
 
@@ -262,10 +298,10 @@ window.BlogApp = {
     var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
 
     // Outer Container: Flex dual column, 960px max width centered
-    var html = '<div class="max-w-[960px] mx-auto pt-14 md:pt-20 pb-20 flex justify-between items-start gap-8 lg:gap-12 relative">';
+    var html = '<div class="max-w-[1000px] mx-auto pt-12 md:pt-16 pb-20 flex justify-between items-start gap-6 lg:gap-10 relative">';
 
     // Left Column: 680px Reading Body
-    html += '<div class="w-full max-w-[680px] shrink-0 min-w-0">';
+    html += '<div class="flex-1 max-w-[680px] min-w-0">';
 
     // Back link
     html += '<div class="mb-8">';
@@ -332,17 +368,19 @@ window.BlogApp = {
     html += '</div>';
 
     html += '</div>'; // End left column
-
-    // Right Column: ALWAYS FLOATING STICKY TOC (Visible from lg:block >= 1024px)
+    // Right Column: ALWAYS FLOATING STICKY OUTLINE (Visible from 600px+)
     if (toc.length > 0) {
-      html += '<aside class="toc-floating-sidebar w-[200px] lg:w-[230px] shrink-0 sticky top-20 font-mono text-[12px]">';
-      html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">On this page</div>';
-      html += '  <nav id="desktop-toc-nav" class="space-y-1 border-l border-white/[0.08] pl-3 max-h-[calc(100vh-140px)] overflow-y-auto">';
+      html += '<aside class="outline-floating-sidebar toc-floating-sidebar w-[180px] lg:w-[220px] shrink-0 sticky top-20 font-mono text-[12px]">';
+      html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">Outline</div>';
+      html += '  <nav id="desktop-outline-nav" class="space-y-1 border-l border-white/[0.08] pl-3 max-h-[calc(100vh-140px)] overflow-y-auto">';
       toc.forEach(function(item) {
         var indentClass = item.level === 3 ? 'pl-2.5 text-[11px] text-[#5A5A5E]' : 'text-[12.5px] text-[#8B8B8E]';
-        html += '    <button type="button" data-target="' + item.id + '" data-level="' + item.level + '" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0 py-0.5" title="' + item.text + '">';
+        var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
+        html += '  <div class="toc-item">';
+        html += '    <button type="button" data-outline-target="' + item.id + '" data-target="' + item.id + '" data-level="' + item.level + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0 py-0.5" title="' + escapedTitle + '">';
         html += item.text;
         html += '    </button>';
+        html += '  </div>';
       });
       html += '  </nav>';
       html += '</aside>';
@@ -350,22 +388,23 @@ window.BlogApp = {
 
     html += '</div>'; // End outer container
 
-    // Floating Action Button + Slide-over Drawer for Tablet / Mobile (<1024px)
+    // Floating Action Button + Slide-over Drawer for Small Screens (<600px)
     if (toc.length > 0) {
-      html += '<div class="toc-floating-fab">';
-      html += '  <button type="button" onclick="window.BlogApp.toggleMobileToc()" class="fixed right-5 bottom-20 z-40 px-3 py-2 rounded-full bg-[#111113]/90 backdrop-blur-md border border-white/[0.12] text-[12px] font-mono text-[#EDEDED] shadow-xl hover:border-[#3B82F6] flex items-center gap-1.5 cursor-pointer">';
+      html += '<div class="outline-floating-fab toc-floating-fab">';
+      html += '  <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="fixed right-5 bottom-20 z-40 px-3 py-2 rounded-full bg-[#111113]/90 backdrop-blur-md border border-white/[0.12] text-[12px] font-mono text-[#EDEDED] shadow-xl hover:border-[#3B82F6] flex items-center gap-1.5 cursor-pointer" title="Outline">';
       html += '    <span class="text-[#3B82F6]">#</span>';
-      html += '    <span>TOC</span>';
+      html += '    <span>Outline</span>';
       html += '  </button>';
-      html += '  <div id="mobile-toc-drawer" class="fixed inset-y-0 right-0 w-[280px] max-w-[85vw] bg-[#0A0A0B]/95 backdrop-blur-xl border-l border-white/[0.08] z-50 p-6 transform translate-x-full transition-transform duration-200 overflow-y-auto hidden">';
+      html += '  <div id="mobile-outline-drawer" class="fixed inset-y-0 right-0 w-[280px] max-w-[85vw] bg-[#0A0A0B]/95 backdrop-blur-xl border-l border-white/[0.08] z-50 p-6 transform translate-x-full transition-transform duration-200 overflow-y-auto hidden">';
       html += '    <div class="flex items-center justify-between pb-4 border-b border-white/[0.06] mb-4">';
-      html += '      <span class="text-[12px] font-mono uppercase tracking-wider text-[#5A5A5E]">On this page</span>';
-      html += '      <button type="button" onclick="window.BlogApp.toggleMobileToc()" class="text-[#8B8B8E] hover:text-[#EDEDED] text-[16px] cursor-pointer">✕</button>';
+      html += '      <span class="text-[12px] font-mono uppercase tracking-wider text-[#5A5A5E]">Outline</span>';
+      html += '      <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="text-[#8B8B8E] hover:text-[#EDEDED] text-[16px] cursor-pointer">✕</button>';
       html += '    </div>';
       html += '    <nav class="space-y-2 font-mono text-[13px]">';
       toc.forEach(function(item) {
         var indent = item.level === 3 ? 'pl-3 text-[12px] text-[#5A5A5E]' : 'text-[13px] text-[#8B8B8E]';
-        html += '      <button type="button" onclick="window.BlogApp.scrollToHeading(' + JSON.stringify(item.id) + ')" class="text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-1 leading-relaxed" title="' + item.text + '">' + item.text + '</button>';
+        var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
+        html += '      <button type="button" data-outline-target="' + item.id + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-1 leading-relaxed" title="' + escapedTitle + '">' + item.text + '</button>';
       });
       html += '    </nav>';
       html += '  </div>';
@@ -385,7 +424,7 @@ window.BlogApp = {
     // Header
     html += '  <header class="mb-8 pb-8 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">Series</h1>';
-    html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">系统化专题长文。基于 posts/columns/ 目录深度解析技术脉络与科学基石。</p>';
+    html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">Curated technical collections and deep dives into computing fundamentals.</p>';
     html += '  </header>';
 
     // Series List: Clean list items with 1px divider, NO bloated cards!
@@ -444,14 +483,14 @@ window.BlogApp = {
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Tags</h1>';
-    html += '    <p class="text-[16px] text-[#8B8B8E]">按主题领域与核心知识标签检索全部博文。</p>';
+    html += '    <p class="text-[16px] text-[#8B8B8E]">Curated topics and domain tags across computer science and mathematical physics.</p>';
     html += '  </header>';
 
     html += '  <div class="flex flex-wrap gap-2.5">';
     allTags.forEach(function(item) {
       var tagName = item.name || item;
       var count = item.count || 1;
-      html += '    <a href="#/" onclick="window.BlogApp.setTag(' + JSON.stringify(tagName) + ')" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.12] hover:border-[#3B82F6] hover:text-[#3B82F6] text-[#EDEDED] text-[13px] font-mono transition-all hover:-translate-y-[1px] bg-[#111113]">';
+      html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encodeURIComponent(tagName) + '\'))" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.12] hover:border-[#3B82F6] hover:text-[#3B82F6] text-[#EDEDED] text-[13px] font-mono transition-all hover:-translate-y-[1px] bg-[#111113]">';
       html += '      <span>#' + tagName + '</span>';
       html += '      <span class="text-[11px] text-[#5A5A5E]">' + count + '</span>';
       html += '    </a>';
@@ -479,7 +518,7 @@ window.BlogApp = {
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-12 pb-6 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Archive</h1>';
-    html += '    <p class="text-[16px] text-[#8B8B8E]">按时间轴收录的所有文章沉淀与版本更迭。</p>';
+    html += '    <p class="text-[16px] text-[#8B8B8E]">Chronological timeline of research essays, architecture notes, and publications.</p>';
     html += '  </header>';
 
     years.forEach(function(yr) {
