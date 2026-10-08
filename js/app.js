@@ -73,11 +73,9 @@ window.BlogApp = {
           if (currentId) {
             document.querySelectorAll('#desktop-toc-nav button').forEach(function(btn) {
               if (btn.getAttribute('data-target') === currentId) {
-                btn.classList.add('text-[#3B82F6]', 'font-semibold');
-                btn.classList.remove('text-[#8B8B8E]', 'text-[#5A5A5E]');
+                btn.classList.add('active');
               } else {
-                btn.classList.remove('text-[#3B82F6]', 'font-semibold');
-                btn.classList.add(btn.getAttribute('data-level') === '3' ? 'text-[#5A5A5E]' : 'text-[#8B8B8E]');
+                btn.classList.remove('active');
               }
             });
           }

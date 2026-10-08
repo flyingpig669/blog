@@ -303,8 +303,11 @@ html, body {
 .token.keyword { color: #93C5FD; }
 .token.function, .token.class-name { color: #60A5FA; }
 
-/* Responsive Floating TOC Rules */
-@media (min-width: 860px) {
+/* Permanent Floating TOC Sidebar on the Right (Active Scrollspy & Responsive Dock) */
+.toc-floating-sidebar {
+  display: none;
+}
+@media (min-width: 768px) {
   .toc-floating-sidebar {
     display: block !important;
   }
@@ -312,11 +315,24 @@ html, body {
     display: none !important;
   }
 }
-@media (max-width: 859px) {
+@media (max-width: 767px) {
   .toc-floating-sidebar {
     display: none !important;
   }
   .toc-floating-fab {
     display: flex !important;
   }
+}
+
+/* Active Heading Highlight Line in TOC */
+#desktop-toc-nav button {
+  position: relative;
+  transition: all 150ms ease-out;
+}
+#desktop-toc-nav button.active {
+  color: #3B82F6 !important;
+  font-weight: 500 !important;
+  border-left: 2px solid #3B82F6 !important;
+  padding-left: 10px !important;
+  margin-left: -13px !important;
 }
