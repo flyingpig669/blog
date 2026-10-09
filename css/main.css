@@ -158,7 +158,7 @@ html, body {
 
 /* Article List Item */
 .post-item {
-  padding: 24px 0;
+  padding: 18px 0;
   border-bottom: 1px solid var(--divider);
   transition: transform 180ms ease-out;
 }

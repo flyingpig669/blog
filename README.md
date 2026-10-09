@@ -105,6 +105,7 @@ window.BlogConfig = {
   features: {
     readingProgress: true,  // 顶部平滑阅读进度条
     outlineSidebar: true,   // 文章详情页常驻右侧悬浮 Outline 目录导航与实时高亮
+    tocLevels: [2, 3, 4],   // 目录大纲追踪层级 (如 [2, 3] 仅追踪 h2/h3，亦可在文章头部用 toc: [2, 3] 单篇覆盖)
     searchModal: true,      // 快捷键 Cmd+K / Ctrl+K 全文即时检索
     mathKaTeX: true,        // 学术级数学公式 KaTeX 解析引擎
     codeHighlight: true     // 代码块语法高亮与悬浮一键复制代码

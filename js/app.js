@@ -376,11 +376,11 @@ window.BlogApp = {
     var html = '<div class="max-w-[720px] mx-auto">';
 
     // Hero Section
-    html += '<section class="pt-20 md:pt-24 pb-12 border-b border-white/[0.06]">';
-    html += '  <h1 class="text-[40px] sm:text-[46px] md:text-[50px] font-bold text-[#EDEDED] tracking-[-0.03em] leading-[1.15] mb-4 font-sans">';
+    html += '<section class="pt-10 md:pt-14 pb-8 border-b border-white/[0.06] mb-2">';
+    html += '  <h1 class="text-[34px] sm:text-[38px] md:text-[42px] font-bold text-[#EDEDED] tracking-[-0.03em] leading-[1.15] mb-2.5 font-sans">';
     html += site.title || 'Aurora Notes';
     html += '  </h1>';
-    html += '  <p class="text-[17px] sm:text-[18px] text-[#8B8B8E] leading-relaxed max-w-[620px]">';
+    html += '  <p class="text-[15px] sm:text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px]">';
     html += site.tagline || 'Curated technical writings, system architecture notes, and computing fundamentals.';
     html += '  </p>';
 
@@ -402,6 +402,12 @@ window.BlogApp = {
         if (post.readTime) {
           html += '    <span>·</span>';
           html += '    <span>' + post.readTime + '</span>';
+        }
+        if (post.columnName || post.column) {
+          var colTitle = post.columnName || post.column;
+          var partText = post.order ? ('PART ' + (post.order < 10 ? '0' + post.order : post.order)) : 'SERIES';
+          html += '    <span>·</span>';
+          html += '    <a href="#/columns/' + encodeURIComponent(post.column) + '" class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20 transition-colors font-medium shrink-0 font-mono">' + partText + ' · ' + colTitle + '</a>';
         }
         if (post.pinned) {
           html += '    <span class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/15 text-[#3B82F6] font-medium">PINNED</span>';
@@ -440,13 +446,13 @@ window.BlogApp = {
 
   },
 
-  // 5.2 文章详情视图 (Post Detail View - 附带常驻右侧 Outline 浮动导航)
+  // 5.2 文章详情视图 (Post Detail View - 高信息密度排版与专栏内聚导航)
   renderPostView: function(postId) {
     var container = document.getElementById('app-main');
     var post = window.BlogStore.getPostById(postId);
 
     if (!post) {
-      container.innerHTML = '<div class="py-32 text-center text-[#8B8B8E]"><h2 class="text-[20px] font-semibold text-[#EDEDED] mb-3">Article Not Found</h2><a href="#/" class="text-[#3B82F6] text-[14px]">← Back to home</a></div>';
+      container.innerHTML = '<div class="py-24 text-center text-[#8B8B8E]"><h2 class="text-[20px] font-semibold text-[#EDEDED] mb-3 font-sans">Article Not Found</h2><a href="#/" class="text-[#3B82F6] text-[13px] font-mono hover:underline">← Back to home</a></div>';
       return;
     }
 
@@ -455,53 +461,92 @@ window.BlogApp = {
     var renderedHtml = mdResult.html;
     var toc = mdResult.toc || [];
 
-    var allPosts = window.BlogStore.posts;
-    var currentIndex = allPosts.findIndex(function(p) { return p.id === post.id; });
-    var prevPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
-    var nextPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
-
+    // 专栏内部上下一篇与章节解析
     var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
-    var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
+    var colPosts = [];
+    var prevPost = null;
+    var nextPost = null;
+    var prevLabel = '← PREVIOUS';
+    var nextLabel = 'NEXT →';
+    var colIndex = -1;
 
-    // 双栏布局容器: 最大宽度 1000px 居中
-    var html = '<div class="max-w-[1000px] mx-auto pt-12 md:pt-16 pb-20 flex justify-between items-start gap-6 lg:gap-10 relative">';
+    if (columnInfo && Array.isArray(columnInfo.posts) && columnInfo.posts.length > 0) {
+      // 专栏内部定向导航 (严格按章节 order 升序排布)
+      colPosts = columnInfo.posts.slice().sort(function(a, b) {
+        return (a.order || 999) - (b.order || 999);
+      });
+      colIndex = colPosts.findIndex(function(p) {
+        return p.id === post.id || p.slug === post.slug;
+      });
+      if (colIndex !== -1) {
+        prevPost = colIndex > 0 ? colPosts[colIndex - 1] : null;
+        nextPost = colIndex < colPosts.length - 1 ? colPosts[colIndex + 1] : null;
+        if (prevPost) {
+          var pOrder = prevPost.order ? (prevPost.order < 10 ? '0' + prevPost.order : prevPost.order) : (colIndex);
+          prevLabel = '← PART ' + pOrder;
+        }
+        if (nextPost) {
+          var nOrder = nextPost.order ? (nextPost.order < 10 ? '0' + nextPost.order : nextPost.order) : (colIndex + 2);
+          nextLabel = 'PART ' + nOrder + ' →';
+        }
+      }
+    } else {
+      // 普通独立博文：按全局发布列表获取前后相邻文章
+      var allPosts = window.BlogStore.getPosts();
+      var currentIndex = allPosts.findIndex(function(p) { return p.id === post.id; });
+      prevPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
+      nextPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
+    }
+
+    var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
+    var totalParts = colPosts.length || (columnInfo ? columnInfo.postsCount : 1);
+
+    // 双栏布局容器: 紧凑高信息密度版心 (pt-8 md:pt-10 pb-16)
+    var html = '<div class="max-w-[1000px] mx-auto pt-8 md:pt-10 pb-16 flex justify-between items-start gap-6 lg:gap-10 relative">';
 
     // 左侧正文列: 自适应 680px 宽度
     html += '<div class="flex-1 max-w-[680px] min-w-0">';
 
-    // 返回按钮
-    html += '<div class="mb-8">';
-    html += '  <a href="#/" class="text-[13px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors inline-flex items-center gap-1.5">← Back to writing</a>';
-    html += '</div>';
-
-    // 专栏系列横幅 (若属于某个专栏)
+    // 紧凑一体式面包屑导航
+    html += '<nav class="mb-4 flex items-center gap-1.5 text-[12px] font-mono text-[#5A5A5E] overflow-x-auto no-scrollbar">';
+    html += '  <a href="#/" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0">Writing</a>';
     if (columnInfo) {
-      html += '<div class="mb-6 py-2 px-3.5 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
+      html += '  <span>/</span>';
+      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors truncate max-w-[220px]" title="' + columnInfo.name.replace(/"/g, '&quot;') + '">' + columnInfo.name + '</a>';
+      html += '  <span>/</span>';
+      html += '  <span class="text-[#3B82F6] shrink-0 font-semibold">Part ' + partNumber + '</span>';
+    } else {
+      html += '  <span>/</span>';
+      html += '  <span class="text-[#8B8B8E] shrink-0">Article</span>';
+    }
+    html += '</nav>';
+
+    // 专栏系列横幅 (高信息密度紧凑型导引条)
+    if (columnInfo) {
+      html += '<div class="mb-5 py-2 px-3 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
       html += '  <div class="flex items-center gap-2 min-w-0">';
-      html += '    <span class="px-1.5 py-0.5 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[11px] font-medium shrink-0">PART ' + partNumber + '</span>';
+      html += '    <span class="px-1.5 py-0.2 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[10.5px] font-semibold shrink-0">PART ' + partNumber + ' / ' + (totalParts < 10 ? '0' + totalParts : totalParts) + '</span>';
       html += '    <span class="text-[#EDEDED] font-sans truncate">' + columnInfo.name + '</span>';
       html += '  </div>';
-      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3">Series Index →</a>';
+      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3 text-[11px]">Series Index →</a>';
       html += '</div>';
     }
 
     // 项目系列横幅 (若属于某个项目)
     var projectInfo = post.project ? window.BlogStore.getProjectById(post.project) : null;
     if (projectInfo) {
-      html += '<div class="mb-6 py-2 px-3.5 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
+      html += '<div class="mb-5 py-2 px-3 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
       html += '  <div class="flex items-center gap-2 min-w-0">';
-      html += '    <span class="px-1.5 py-0.5 rounded bg-[#22D3EE]/15 text-[#22D3EE] text-[11px] font-medium shrink-0">PROJECT</span>';
+      html += '    <span class="px-1.5 py-0.2 rounded bg-[#22D3EE]/15 text-[#22D3EE] text-[10.5px] font-medium shrink-0">PROJECT</span>';
       html += '    <span class="text-[#EDEDED] font-sans truncate">' + projectInfo.name + '</span>';
       html += '  </div>';
-      html += '  <a href="#/projects/' + encodeURIComponent(projectInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3">Project Index →</a>';
+      html += '  <a href="#/projects/' + encodeURIComponent(projectInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3 text-[11px]">Project Index →</a>';
       html += '</div>';
     }
 
-    
-
-    // 文章头部
-    html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
-    html += '  <h1 class="text-[30px] sm:text-[34px] md:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-4 font-sans">' + post.title + '</h1>';
+    // 文章头部 (标题紧凑沉稳，信息聚集)
+    html += '<header class="mb-6 pb-4 border-b border-white/[0.06]">';
+    html += '  <h1 class="text-[26px] sm:text-[30px] md:text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-2.5 font-sans">' + post.title + '</h1>';
     
     // 元信息行: 日期 · 阅读时长 · 字数 · 标签
     html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
@@ -523,71 +568,142 @@ window.BlogApp = {
     html += '  </div>';
     html += '</header>';
 
-    // Markdown 正文
-    html += '<article class="markdown-body mb-16">';
+    // Markdown 正文 (正文内部可能包含一处或多处 ::: slide 演示文稿)
+    html += '<article class="markdown-body mb-12">';
     html += renderedHtml;
     html += '</article>';
 
-    // 上一篇 / 下一篇导航
-    html += '<div class="pt-8 border-t border-white/[0.06] grid grid-cols-1 sm:grid-cols-2 gap-4">';
+    // 上一篇 / 下一篇导航 (专栏内严格按专栏章节排布，普通文章按时间流)
+    html += '<div class="pt-6 border-t border-white/[0.06] space-y-3">';
+    if (columnInfo && colPosts.length > 0) {
+      var currentDisplayPart = colIndex !== -1 ? (colIndex + 1) : (post.order || 1);
+      html += '<div class="flex items-center justify-between text-[11px] font-mono text-[#5A5A5E]">';
+      html += '  <span class="text-[#3B82F6] font-medium">SERIES · Chapter ' + currentDisplayPart + ' of ' + colPosts.length + ' in ' + columnInfo.name + '</span>';
+      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="hover:text-[#3B82F6] transition-colors">All ' + colPosts.length + ' Chapters →</a>';
+      html += '</div>';
+    }
+    html += '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">';
     if (prevPost) {
-      html += '<a href="#/post/' + prevPost.id + '" class="linear-card p-4 text-left group block">';
-      html += '  <div class="text-[11px] font-mono text-[#5A5A5E] mb-1">← PREVIOUS</div>';
-      html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + prevPost.title + '</div>';
+      html += '<a href="#/post/' + (prevPost.slug || prevPost.id) + '" class="linear-card p-3.5 text-left group block">';
+      html += '  <div class="text-[10px] font-mono text-[#5A5A5E] mb-1 flex items-center gap-1.5">';
+      html += '    <span>' + prevLabel + '</span>';
+      if (columnInfo) html += '<span class="text-[#3B82F6]">IN SERIES</span>';
+      html += '  </div>';
+      html += '  <div class="text-[13.5px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + prevPost.title + '</div>';
       html += '</a>';
     } else {
-      html += '<div></div>';
+      html += '<div class="linear-card p-3.5 text-left opacity-35 border-dashed border-white/[0.04]">';
+      html += '  <div class="text-[10px] font-mono text-[#5A5A5E] mb-1">' + (columnInfo ? 'SERIES START' : 'FIRST ARTICLE') + '</div>';
+      html += '  <div class="text-[12px] text-[#5A5A5E]">No earlier chapters.</div>';
+      html += '</div>';
     }
 
     if (nextPost) {
-      html += '<a href="#/post/' + nextPost.id + '" class="linear-card p-4 text-right group block">';
-      html += '  <div class="text-[11px] font-mono text-[#5A5A5E] mb-1">NEXT →</div>';
-      html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + nextPost.title + '</div>';
+      html += '<a href="#/post/' + (nextPost.slug || nextPost.id) + '" class="linear-card p-3.5 text-right group block">';
+      html += '  <div class="text-[10px] font-mono text-[#5A5A5E] mb-1 flex items-center justify-end gap-1.5">';
+      if (columnInfo) html += '<span class="text-[#3B82F6]">IN SERIES</span>';
+      html += '    <span>' + nextLabel + '</span>';
+      html += '  </div>';
+      html += '  <div class="text-[13.5px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + nextPost.title + '</div>';
       html += '</a>';
+    } else {
+      html += '<div class="linear-card p-3.5 text-right opacity-35 border-dashed border-white/[0.04]">';
+      html += '  <div class="text-[10px] font-mono text-[#5A5A5E] mb-1">' + (columnInfo ? 'SERIES COMPLETED' : 'LATEST ARTICLE') + '</div>';
+      html += '  <div class="text-[12px] text-[#5A5A5E]">Reached the final chapter.</div>';
+      html += '</div>';
     }
+    html += '</div>';
     html += '</div>';
 
     html += '</div>'; // 结束左侧列
 
     // 右侧列: 常驻悬浮 Outline 侧边栏 (屏幕宽度 >= 600px 自动展开)
-    if (toc.length > 0) {
-      html += '<aside class="outline-floating-sidebar toc-floating-sidebar w-[180px] lg:w-[220px] shrink-0 sticky top-20 font-mono text-[12px]">';
-      html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">Outline</div>';
-      html += '  <nav id="desktop-outline-nav" class="space-y-1 border-l border-white/[0.08] pl-3 max-h-[calc(100vh-140px)] overflow-y-auto">';
-      toc.forEach(function(item) {
-        var indentClass = item.level === 3 ? 'pl-2.5 text-[11px] text-[#5A5A5E]' : 'text-[12.5px] text-[#8B8B8E]';
-        var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
-        html += '  <div class="toc-item">';
-        html += '    <button type="button" data-outline-target="' + item.id + '" data-target="' + item.id + '" data-level="' + item.level + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0 py-0.5" title="' + escapedTitle + '">';
-        html += item.text;
-        html += '    </button>';
+    // 包含系列专栏全景章节 (如有) 与当前文章大纲，大幅提升信息密度
+    var hasSidebar = (columnInfo && colPosts.length > 1) || toc.length > 0;
+    if (hasSidebar) {
+      html += '<aside class="outline-floating-sidebar toc-floating-sidebar w-[200px] lg:w-[230px] shrink-0 sticky top-20 font-mono text-[12px]">';
+      
+      // 如果属于专栏：呈现本专栏的完整章节速览
+      if (columnInfo && colPosts.length > 1) {
+        html += '<div class="mb-5 pb-4 border-b border-white/[0.06]">';
+        html += '  <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#3B82F6] font-semibold mb-2">';
+        html += '    <span>Series Chapters</span>';
+        html += '    <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#5A5A5E] hover:text-[#3B82F6] transition-colors">Index →</a>';
         html += '  </div>';
-      });
-      html += '  </nav>';
+        html += '  <div class="space-y-1 max-h-[190px] overflow-y-auto no-scrollbar pr-1">';
+        colPosts.forEach(function(cp, cidx) {
+          var isCurrent = cp.id === post.id || cp.slug === post.slug;
+          var cOrder = cp.order ? (cp.order < 10 ? '0' + cp.order : cp.order) : ('0' + (cidx + 1));
+          var linkClass = isCurrent 
+            ? 'bg-[#3B82F6]/10 text-[#3B82F6] font-medium border-l-2 border-[#3B82F6] pl-2 py-1' 
+            : 'text-[#8B8B8E] hover:text-[#EDEDED] pl-2.5 py-1 border-l border-white/[0.06] hover:border-white/[0.2]';
+          html += '  <a href="#/post/' + (cp.slug || cp.id) + '" class="flex items-baseline gap-2 text-[11.5px] transition-all block truncate ' + linkClass + '" title="' + cp.title.replace(/"/g, '&quot;') + '">';
+          html += '    <span class="text-[10px] shrink-0 font-mono opacity-80">' + cOrder + '</span>';
+          html += '    <span class="truncate">' + cp.title + '</span>';
+          html += '  </a>';
+        });
+        html += '  </div>';
+        html += '</div>';
+      }
+
+      // 本文内部大纲 (On this page)
+      if (toc.length > 0) {
+        html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-2">On this page</div>';
+        html += '  <nav id="desktop-outline-nav" class="space-y-0.5 border-l border-white/[0.08] pl-2.5 max-h-[calc(100vh-280px)] overflow-y-auto">';
+        toc.forEach(function(item) {
+          var indentClass = item.level === 3 ? 'pl-2 text-[11px] text-[#5A5A5E]' : 'text-[12px] text-[#8B8B8E]';
+          var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
+          html += '  <div class="toc-item">';
+          html += '    <button type="button" data-outline-target="' + item.id + '" data-target="' + item.id + '" data-level="' + item.level + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0 py-0.5" title="' + escapedTitle + '">';
+          html += item.text;
+          html += '    </button>';
+          html += '  </div>';
+        });
+        html += '  </nav>';
+      }
       html += '</aside>';
     }
 
     html += '</div>'; // 结束外层双栏
 
     // 小屏浮动胶囊 (# Outline) 与侧滑抽屉 (< 600px)
-    if (toc.length > 0) {
+    if (hasSidebar) {
       html += '<div class="outline-floating-fab toc-floating-fab">';
-      html += '  <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="fixed right-5 bottom-20 z-40 px-3 py-2 rounded-full bg-[#111113]/90 backdrop-blur-md border border-white/[0.12] text-[12px] font-mono text-[#EDEDED] shadow-xl hover:border-[#3B82F6] flex items-center gap-1.5 cursor-pointer" title="Outline">';
+      html += '  <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="fixed right-5 bottom-20 z-40 px-3 py-2 rounded-full bg-[#111113]/90 backdrop-blur-md border border-white/[0.12] text-[12px] font-mono text-[#EDEDED] shadow-xl hover:border-[#3B82F6] flex items-center gap-1.5 cursor-pointer" title="Outline & Chapters">';
       html += '    <span class="text-[#3B82F6]">#</span>';
       html += '    <span>Outline</span>';
       html += '  </button>';
-      html += '  <div id="mobile-outline-drawer" class="fixed inset-y-0 right-0 w-[280px] max-w-[85vw] bg-[#0A0A0B]/95 backdrop-blur-xl border-l border-white/[0.08] z-50 p-6 transform translate-x-full transition-transform duration-200 overflow-y-auto hidden">';
-      html += '    <div class="flex items-center justify-between pb-4 border-b border-white/[0.06] mb-4">';
-      html += '      <span class="text-[12px] font-mono uppercase tracking-wider text-[#5A5A5E]">Outline</span>';
+      html += '  <div id="mobile-outline-drawer" class="fixed inset-y-0 right-0 w-[280px] max-w-[85vw] bg-[#0A0A0B]/95 backdrop-blur-xl border-l border-white/[0.08] z-50 p-5 transform translate-x-full transition-transform duration-200 overflow-y-auto hidden">';
+      html += '    <div class="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">';
+      html += '      <span class="text-[12px] font-mono uppercase tracking-wider text-[#5A5A5E]">Outline & Chapters</span>';
       html += '      <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="text-[#8B8B8E] hover:text-[#EDEDED] text-[16px] cursor-pointer">✕</button>';
       html += '    </div>';
-      html += '    <nav class="space-y-2 font-mono text-[13px]">';
-      toc.forEach(function(item) {
-        var indent = item.level === 3 ? 'pl-3 text-[12px] text-[#5A5A5E]' : 'text-[13px] text-[#8B8B8E]';
-        var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
-        html += '      <button type="button" data-outline-target="' + item.id + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-1 leading-relaxed" title="' + escapedTitle + '">' + item.text + '</button>';
-      });
-      html += '    </nav>';
+
+      if (columnInfo && colPosts.length > 1) {
+        html += '<div class="mb-4 pb-3 border-b border-white/[0.06]">';
+        html += '  <div class="text-[11px] font-mono text-[#3B82F6] mb-2 uppercase tracking-wider font-semibold">Series Chapters</div>';
+        html += '  <div class="space-y-1 font-mono text-[12px]">';
+        colPosts.forEach(function(cp, cidx) {
+          var isCur = cp.id === post.id || cp.slug === post.slug;
+          var ord = cp.order ? (cp.order < 10 ? '0' + cp.order : cp.order) : ('0' + (cidx + 1));
+          html += '<a href="#/post/' + (cp.slug || cp.id) + '" onclick="window.BlogApp.toggleMobileOutline()" class="block py-1 truncate ' + (isCur ? 'text-[#3B82F6] font-semibold' : 'text-[#8B8B8E]') + '">';
+          html += '  <span class="opacity-60 mr-1.5">' + ord + '</span>' + cp.title;
+          html += '</a>';
+        });
+        html += '  </div>';
+        html += '</div>';
+      }
+
+      if (toc.length > 0) {
+        html += '    <div class="text-[11px] font-mono text-[#5A5A5E] mb-2 uppercase tracking-wider">Page Outline</div>';
+        html += '    <nav class="space-y-1.5 font-mono text-[13px]">';
+        toc.forEach(function(item) {
+          var indent = item.level === 3 ? 'pl-2 text-[12px] text-[#5A5A5E]' : 'text-[12.5px] text-[#8B8B8E]';
+          var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
+          html += '      <button type="button" data-outline-target="' + item.id + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-0.5 leading-relaxed" title="' + escapedTitle + '">' + item.text + '</button>';
+        });
+        html += '    </nav>';
+      }
       html += '  </div>';
       html += '</div>';
     }

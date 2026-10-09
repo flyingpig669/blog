@@ -1,6 +1,7 @@
 // Markdown Parser with KaTeX, Prism Highlighting, Callouts, and Robust TOC
 window.BlogMarkdown = {
-  render: function(markdownText) {
+  render: function(markdownText, options) {
+    options = options || {};
     if (!markdownText) return { html: '', toc: [] };
 
     var mathBlocks = [];
@@ -53,7 +54,7 @@ window.BlogMarkdown = {
     });
 
     // 2.1 Pre-process Slide Deck / PDF Presentation blocks (挂载至专属高保真播放器)
-    var slideRegex = new RegExp('::: *(slide|pdf|deck) *([^\s\r\n]+) *([^\n]*)[\r\n]+([\s\S]*?):::', 'g');
+    var slideRegex = /:::\s*(slide|pdf|deck)\s+([^\s\r\n]+)(?:[^\S\r\n]+([^\r\n]*))?[\r\n]+([\s\S]*?):::/gi;
     text = text.replace(slideRegex, function(match, type, url, title, desc) {
       var slideTitle = (title || '').trim() || (desc || '').trim() || 'Presentation Deck (PPT / PDF)';
       var slideDesc = (desc || '').trim();
@@ -104,17 +105,31 @@ window.BlogMarkdown = {
       var tempDiv = document.createElement('div');
       tempDiv.innerHTML = rawHtml;
 
+      // 统一标题层级追踪配置 (优先级: 单篇 FrontMatter tocLevels > 全局 BlogConfig.tocLevels > 默认 [2, 3, 4])
+      var targetLevels = (options && options.tocLevels !== undefined && options.tocLevels !== null) 
+        ? options.tocLevels 
+        : ((window.BlogConfig && window.BlogConfig.tocLevels) || [2, 3, 4]);
+
+      if (typeof targetLevels === 'string') {
+        targetLevels = targetLevels.replace(/[\[\]]/g, '').split(',').map(function(s) { return parseInt(s.trim(), 10); }).filter(Boolean);
+      }
+      if (!Array.isArray(targetLevels)) {
+        targetLevels = [2, 3, 4];
+      }
+
       var toc = [];
-      var headings = tempDiv.querySelectorAll('h1, h2, h3');
-      headings.forEach(function(h, index) {
-        var headingText = h.textContent.trim();
-        // Clean and reliable alphanumeric ID that never fails
-        var id = 'section-' + (index + 1);
-        h.setAttribute('id', id);
-        h.classList.add('scroll-mt-20');
-        var level = parseInt(h.tagName.substring(1), 10);
-        toc.push({ id: id, text: headingText, level: level });
-      });
+      if (targetLevels.length > 0) {
+        var headingSelector = targetLevels.map(function(lvl) { return 'h' + lvl; }).join(', ');
+        var headings = tempDiv.querySelectorAll(headingSelector);
+        headings.forEach(function(h, index) {
+          var headingText = h.textContent.trim();
+          var id = 'section-' + (index + 1);
+          h.setAttribute('id', id);
+          h.classList.add('scroll-mt-20');
+          var level = parseInt(h.tagName.substring(1), 10);
+          toc.push({ id: id, text: headingText, level: level });
+        });
+      }
 
       var pres = tempDiv.querySelectorAll('pre');
       pres.forEach(function(pre) {

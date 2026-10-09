@@ -71,6 +71,7 @@ def parse_md_file(filepath):
     attachments = []
     is_test = False
     doc_type = "post"
+    toc_levels = None
     content = raw
 
     if len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
@@ -120,6 +121,12 @@ def parse_md_file(filepath):
                 attachments = [t.strip().strip("'\"") for t in clean_att.split(",") if t.strip()]
             elif key in ["order", "chapter"]:
                 if val.isdigit(): order = int(val)
+            elif key in ["toclevels", "toc_levels", "toc"]:
+                if val.lower() in ["false", "off", "none", "0"]:
+                    toc_levels = []
+                else:
+                    clean_toc = val.strip("[]")
+                    toc_levels = [int(t.strip().strip(chr(39) + chr(34))) for t in clean_toc.split(",") if t.strip() and t.strip().strip(chr(39) + chr(34)).isdigit()]
             elif key == "pinned":
                 pinned = (val.lower() == "true")
             elif key == "excerpt":
@@ -202,6 +209,7 @@ def parse_md_file(filepath):
         "isTest": is_test,
         "slide": slide,
         "attachments": attachments,
+        "tocLevels": toc_levels,
         "excerpt": excerpt,
         "tags": tags or [category],
         "content": content

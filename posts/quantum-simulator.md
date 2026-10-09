@@ -15,7 +15,8 @@ excerpt: "基于高维复希尔伯特空间演化的轻量级量子计算仿真�
 
 以下是该项目的学术汇报 PPT 演示幻灯片：
 
-::: slide attachments/slides/quantum-computing-slides.pdf 量子计算与态矢量演化汇报 PPT 演示
+::: slide attachments/slides/quantum-computing-slides.pdf
+量子计算与态矢量演化汇报 PPT 演示
 :::
 
 ## 态矢量数学表示

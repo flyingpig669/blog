@@ -79,6 +79,8 @@ window.BlogConfig = {
     readingProgress: true,
     // 文章详情页常驻右侧悬浮 Outline (目录导航与自动 Scrollspy 高亮)
     outlineSidebar: true,
+    // Outline 目录标题追踪层级 (统一单选数组，如 [2, 3] 仅追踪 h2 和 h3，[2, 3, 4] 追踪至 h4)
+    tocLevels: [2, 3, 4],
     // 启用 Cmd+K / Ctrl+K 全文即时检索
     searchModal: true,
     // 启用数学公式 KaTeX 解析渲染
