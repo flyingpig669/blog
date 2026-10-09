@@ -1,77 +1,65 @@
-// Reactive Store and LocalStorage Persistence Engine
+/**
+ * ==============================================================================
+ * Aurora Blog - 数据中心与持久化存储模块 (Blog Reactive Store)
+ * ==============================================================================
+ * 1. 自动同步 blog.config.js 全局配置 (作者、站点、社交媒体)。
+ * 2. 自动载入 js/posts-data.js 编译后的真实 Markdown 博文索引 (源自 posts/)。
+ * 3. LocalStorage 仅用于轻量存储用户交互状态 (点赞、书签、浏览量、在线草稿)。
+ * 4. 彻底杜绝本地缓存残留已删除的示例文档。
+ */
+
 window.BlogStore = {
-  STATE_KEY_POSTS: 'aurora_blog_posts_v2',
-  STATE_KEY_COMMENTS: 'aurora_blog_comments_v2',
-  STATE_KEY_LIKES: 'aurora_blog_likes_v2',
-  STATE_KEY_BOOKMARKS: 'aurora_blog_bookmarks_v2',
-  STATE_KEY_THEME: 'aurora_blog_theme_v2',
-  STATE_KEY_DRAFT: 'aurora_blog_draft_v2',
+  STATE_KEY_USER_POSTS: 'aurora_local_user_posts_v3',
+  STATE_KEY_VIEWS: 'aurora_blog_views_v3',
+  STATE_KEY_LIKES: 'aurora_blog_likes_v3',
+  STATE_KEY_BOOKMARKS: 'aurora_blog_bookmarks_v3',
+  STATE_KEY_THEME: 'aurora_blog_theme_v3',
+  STATE_KEY_DRAFT: 'aurora_blog_draft_v3',
 
   init: function() {
-    var sample = window.BlogSampleData || {};
-    this.author = sample.author || {
-      name: "极光客 (Alex Chen)",
-      title: "全栈架构师 · 开源爱好者 · 终身学习者",
-      bio: "专注于现代前端、云原生后端与大模型应用落地。崇尚极简主义与心流开发，用代码记录思考与创造。",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
-      location: "杭州 / 远程游民",
-      email: "flyingpig06@outlook.com",
-      github: "https://github.com/flyingpig669",
-      twitter: "https://twitter.com",
-      postsCount: 5,
-      likesCount: 384,
-      wordsCount: 16800,
-      daysLive: 365
+    // 1. 清理旧版本遗留的硬编码样本缓存
+    try {
+      localStorage.removeItem('aurora_blog_posts_v2');
+      localStorage.removeItem('aurora_blog_comments_v2');
+    } catch (e) {}
+
+    // 2. 加载配置 (优先读取全局 BlogConfig)
+    var config = window.BlogConfig || {};
+    this.config = config;
+    this.site = config.site || {
+      title: "Aurora Notes",
+      brand: "aurora.notes",
+      tagline: "Curated research essays and computing fundamentals.",
+      description: "Personal technical blog.",
+      footerText: "© 2026 Alex Chen · All rights reserved."
     };
 
-    this.columns = sample.columns || [];
-    this.categories = (sample.categories && sample.categories.length > 0) ? sample.categories : [
-      { id: "ai", name: "人工智能", desc: "LLM、Agent、RAG 向量检索与算法工程", color: "from-purple-500 to-indigo-600", icon: "sparkles" },
-      { id: "frontend", name: "前端技术", desc: "现代 Web 框架、响应式渲染与工程化实践", color: "from-blue-500 to-cyan-500", icon: "code" },
-      { id: "backend", name: "后端架构", desc: "分布式系统、高可用架构与微服务实战", color: "from-emerald-500 to-teal-600", icon: "terminal" },
-      { id: "design", name: "设计美学", desc: "设计系统、排版律动、微交互与体验设计", color: "from-pink-500 to-rose-500", icon: "layers" },
-      { id: "life", name: "思考随笔", desc: "数字游民、心流思考、认知升级与阅读记录", color: "from-amber-500 to-orange-500", icon: "book-open" }
-    ];
+    this.author = config.author || {
+      name: "Alex Chen",
+      title: "Software Architect",
+      bio: "Turning complexity into clean order through rigorous logic and craft.",
+      avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=AlexChen",
+      location: "Shanghai / Remote",
+      email: "flyingpig06@outlook.com",
+      github: "https://github.com/flyingpig669"
+    };
 
-    // Load Posts with fallback
-    var loadedPosts = [];
+    this.social = config.social || [];
+    this.nav = config.nav || [];
+
+    // 3. 载入编译生成的博文索引 (来自 posts/ 目录)
+    var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [] };
+    var compiledPosts = Array.isArray(postsData.posts) ? JSON.parse(JSON.stringify(postsData.posts)) : [];
+    this.columns = Array.isArray(postsData.columns) ? JSON.parse(JSON.stringify(postsData.columns)) : [];
+
+    // 4. 载入本地交互统计 (浏览量、点赞、书签)
+    var viewsMap = {};
     try {
-      var rawPosts = localStorage.getItem(this.STATE_KEY_POSTS);
-      if (rawPosts) loadedPosts = JSON.parse(rawPosts);
+      var rawViews = localStorage.getItem(this.STATE_KEY_VIEWS);
+      if (rawViews) viewsMap = JSON.parse(rawViews);
     } catch (e) {}
+    this.viewsMap = viewsMap;
 
-    var samplePosts = (sample.posts && sample.posts.length > 0) ? JSON.parse(JSON.stringify(sample.posts)) : [];
-    var postMap = {};
-    samplePosts.forEach(function(p) { postMap[p.id] = p; });
-    if (Array.isArray(loadedPosts)) {
-      loadedPosts.forEach(function(p) {
-        // preserve likes and views from localStorage
-        if (postMap[p.id]) {
-          postMap[p.id].views = Math.max(postMap[p.id].views || 0, p.views || 0);
-          postMap[p.id].likes = Math.max(postMap[p.id].likes || 0, p.likes || 0);
-        } else {
-          postMap[p.id] = p;
-        }
-      });
-    }
-    this.posts = Object.values(postMap);
-    this.savePosts();
-
-    // Load Comments with fallback
-    var loadedComments = {};
-    try {
-      var rawComments = localStorage.getItem(this.STATE_KEY_COMMENTS);
-      if (rawComments) loadedComments = JSON.parse(rawComments);
-    } catch (e) {}
-
-    if (loadedComments && Object.keys(loadedComments).length > 0) {
-      this.comments = loadedComments;
-    } else {
-      this.comments = sample.comments ? JSON.parse(JSON.stringify(sample.comments)) : {};
-      this.saveComments();
-    }
-
-    // Load Likes & Bookmarks
     this.likedPosts = new Set();
     this.bookmarkedPosts = new Set();
     try {
@@ -81,7 +69,37 @@ window.BlogStore = {
       if (rawBm) this.bookmarkedPosts = new Set(JSON.parse(rawBm));
     } catch (e) {}
 
-    // Apply Theme
+    // 5. 载入用户在网页编辑器中创作的本地文章
+    var localUserPosts = [];
+    try {
+      var rawUserPosts = localStorage.getItem(this.STATE_KEY_USER_POSTS);
+      if (rawUserPosts) localUserPosts = JSON.parse(rawUserPosts);
+    } catch (e) {}
+
+    // 合并浏览量与点赞统计
+    var self = this;
+    compiledPosts.forEach(function(p) {
+      if (self.viewsMap[p.id]) {
+        p.views = Math.max(p.views || 0, self.viewsMap[p.id]);
+      }
+      if (self.likedPosts.has(p.id)) {
+        p.likes = (p.likes || 0) + 1;
+      }
+    });
+
+    localUserPosts.forEach(function(p) {
+      if (self.viewsMap[p.id]) {
+        p.views = Math.max(p.views || 0, self.viewsMap[p.id]);
+      }
+      if (self.likedPosts.has(p.id)) {
+        p.likes = (p.likes || 0) + 1;
+      }
+    });
+
+    // 最终博文列表: 本地创作在前，编译文章随后
+    this.posts = localUserPosts.concat(compiledPosts);
+
+    // 6. 应用主题偏好
     var savedTheme = 'dark';
     try {
       savedTheme = localStorage.getItem(this.STATE_KEY_THEME) || 'dark';
@@ -89,30 +107,7 @@ window.BlogStore = {
     this.applyTheme(savedTheme);
   },
 
-  savePosts: function() {
-    try {
-      localStorage.setItem(this.STATE_KEY_POSTS, JSON.stringify(this.posts));
-    } catch (e) {}
-  },
-
-  saveComments: function() {
-    try {
-      localStorage.setItem(this.STATE_KEY_COMMENTS, JSON.stringify(this.comments));
-    } catch (e) {}
-  },
-
-  saveLikes: function() {
-    try {
-      localStorage.setItem(this.STATE_KEY_LIKES, JSON.stringify(Array.from(this.likedPosts)));
-    } catch (e) {}
-  },
-
-  saveBookmarks: function() {
-    try {
-      localStorage.setItem(this.STATE_KEY_BOOKMARKS, JSON.stringify(Array.from(this.bookmarkedPosts)));
-    } catch (e) {}
-  },
-
+  // 获取全部博文 (支持多维筛选与排序)
   getPosts: function(filter) {
     filter = filter || {};
     var list = this.posts.slice();
@@ -122,7 +117,9 @@ window.BlogStore = {
     }
 
     if (filter.tag) {
-      list = list.filter(function(p) { return p.tags && p.tags.indexOf(filter.tag) !== -1; });
+      list = list.filter(function(p) {
+        return p.tags && p.tags.indexOf(filter.tag) !== -1;
+      });
     }
 
     if (filter.query) {
@@ -137,9 +134,7 @@ window.BlogStore = {
       });
     }
 
-    if (filter.sort === 'likes') {
-      list.sort(function(a, b) { return (b.likes || 0) - (a.likes || 0); });
-    } else if (filter.sort === 'views') {
+    if (filter.sort === 'views') {
       list.sort(function(a, b) { return (b.views || 0) - (a.views || 0); });
     } else {
       list.sort(function(a, b) {
@@ -156,40 +151,53 @@ window.BlogStore = {
     return this.posts.find(function(p) { return p.id === id || p.slug === id; });
   },
 
+  // 在线编辑器保存本地新文章
   addPost: function(postData) {
+    var slug = (postData.slug || postData.title).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').slice(0, 40);
     var newPost = {
-      id: 'post-' + Date.now(),
-      slug: (postData.slug || postData.title).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').slice(0, 40),
+      id: 'local-' + Date.now(),
+      slug: slug,
       title: postData.title,
-      category: postData.category || 'frontend',
-      categoryName: this.getCategoryName(postData.category || 'frontend'),
-      coverGradient: postData.coverGradient || 'from-indigo-600 to-purple-500',
+      category: postData.category || 'general',
+      column: postData.column || '',
+      columnName: postData.columnName || '',
       date: new Date().toISOString().split('T')[0],
-      readTime: Math.max(1, Math.ceil((postData.content || '').length / 400)) + ' 分钟',
+      readTime: Math.max(1, Math.ceil((postData.content || '').length / 300)) + ' min read',
       words: (postData.content || '').length,
       views: 1,
       likes: 0,
       pinned: !!postData.pinned,
-      excerpt: postData.excerpt || (postData.content || '').replace(/[#*>\[\]]/g, '').slice(0, 150) + '...',
-      tags: postData.tags || [],
-      content: postData.content || ''
+      excerpt: postData.excerpt || (postData.content || '').replace(/[#*>`\[\]]/g, '').slice(0, 140) + '...',
+      tags: postData.tags || ['general'],
+      content: postData.content || '',
+      isLocal: true
     };
 
     this.posts.unshift(newPost);
-    this.savePosts();
+    this.saveUserPosts();
     return newPost;
   },
 
   deletePost: function(id) {
     this.posts = this.posts.filter(function(p) { return p.id !== id; });
-    this.savePosts();
+    this.saveUserPosts();
+  },
+
+  saveUserPosts: function() {
+    var localOnly = this.posts.filter(function(p) { return p.isLocal; });
+    try {
+      localStorage.setItem(this.STATE_KEY_USER_POSTS, JSON.stringify(localOnly));
+    } catch (e) {}
   },
 
   incrementView: function(id) {
     var post = this.getPostById(id);
     if (post) {
       post.views = (post.views || 0) + 1;
-      this.savePosts();
+      this.viewsMap[id] = post.views;
+      try {
+        localStorage.setItem(this.STATE_KEY_VIEWS, JSON.stringify(this.viewsMap));
+      } catch (e) {}
     }
   },
 
@@ -208,8 +216,9 @@ window.BlogStore = {
       liked = true;
     }
 
-    this.saveLikes();
-    this.savePosts();
+    try {
+      localStorage.setItem(this.STATE_KEY_LIKES, JSON.stringify(Array.from(this.likedPosts)));
+    } catch (e) {}
     return { liked: liked, count: post.likes };
   },
 
@@ -226,7 +235,9 @@ window.BlogStore = {
       this.bookmarkedPosts.add(id);
       bookmarked = true;
     }
-    this.saveBookmarks();
+    try {
+      localStorage.setItem(this.STATE_KEY_BOOKMARKS, JSON.stringify(Array.from(this.bookmarkedPosts)));
+    } catch (e) {}
     return bookmarked;
   },
 
@@ -234,46 +245,16 @@ window.BlogStore = {
     return this.bookmarkedPosts.has(id);
   },
 
-  getComments: function(postId) {
-    return this.comments[postId] || [];
+  // 专栏获取
+  getColumns: function() {
+    return this.columns || [];
   },
 
-  addComment: function(postId, commentData) {
-    if (!this.comments[postId]) {
-      this.comments[postId] = [];
-    }
-
-    var newComment = {
-      id: 'c-' + Date.now(),
-      author: commentData.author || '热心读者',
-      avatar: commentData.avatar || ('https://api.dicebear.com/7.x/identicon/svg?seed=' + encodeURIComponent(commentData.author || 'User')),
-      date: '刚刚',
-      content: commentData.content,
-      likes: 0
-    };
-
-    this.comments[postId].unshift(newComment);
-    this.saveComments();
-    return newComment;
+  getColumnById: function(colId) {
+    return this.columns.find(function(c) { return c.id === colId; });
   },
 
-  likeComment: function(postId, commentId) {
-    var list = this.comments[postId];
-    if (!list) return 0;
-    var item = list.find(function(c) { return c.id === commentId; });
-    if (item) {
-      item.likes = (item.likes || 0) + 1;
-      this.saveComments();
-      return item.likes;
-    }
-    return 0;
-  },
-
-  getCategoryName: function(catId) {
-    var found = this.categories.find(function(c) { return c.id === catId; });
-    return found ? found.name : catId;
-  },
-
+  // 聚合全站标签
   getAllTags: function() {
     var tagCount = {};
     this.posts.forEach(function(p) {
@@ -288,28 +269,17 @@ window.BlogStore = {
       .sort(function(a, b) { return b.count - a.count; });
   },
 
-  
-  getColumns: function() {
-    return this.columns || (window.BlogSampleData && window.BlogSampleData.columns) || [];
-  },
-
-  getColumnById: function(colId) {
-    var cols = this.getColumns();
-    return cols.find(function(c) { return c.id === colId; });
-  },
+  // 全站统计指标
   getStats: function() {
     var totalWords = this.posts.reduce(function(sum, p) { return sum + (p.words || 0); }, 0);
-    var totalLikes = this.posts.reduce(function(sum, p) { return sum + (p.likes || 0); }, 0);
     var totalViews = this.posts.reduce(function(sum, p) { return sum + (p.views || 0); }, 0);
 
     return {
       postsCount: this.posts.length,
-      categoriesCount: this.categories.length,
+      columnsCount: this.columns.length,
       tagsCount: this.getAllTags().length,
       wordsCount: totalWords,
-      likesCount: totalLikes,
-      viewsCount: totalViews,
-      daysLive: 365
+      viewsCount: totalViews
     };
   },
 
@@ -318,25 +288,8 @@ window.BlogStore = {
     try {
       localStorage.setItem(this.STATE_KEY_THEME, theme);
     } catch (e) {}
-
     var root = document.documentElement;
-    var isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  },
-
-  toggleTheme: function() {
-    var current = this.theme;
-    var next = 'dark';
-    if (current === 'light') next = 'dark';
-    else if (current === 'dark') next = 'auto';
-    else next = 'light';
-    this.applyTheme(next);
-    return next;
+    root.classList.add('dark');
   },
 
   saveDraft: function(draft) {
@@ -358,15 +311,5 @@ window.BlogStore = {
     try {
       localStorage.removeItem(this.STATE_KEY_DRAFT);
     } catch (e) {}
-  },
-
-  resetToDefault: function() {
-    try {
-      localStorage.removeItem(this.STATE_KEY_POSTS);
-      localStorage.removeItem(this.STATE_KEY_COMMENTS);
-      localStorage.removeItem(this.STATE_KEY_LIKES);
-      localStorage.removeItem(this.STATE_KEY_BOOKMARKS);
-    } catch (e) {}
-    this.init();
   }
 };

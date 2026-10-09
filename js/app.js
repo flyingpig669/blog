@@ -1,22 +1,108 @@
-// Aurora Blog - Ultra-Modern Cyber Minimalism (Linear / Vercel Aesthetic)
+/**
+ * ==============================================================================
+ * Aurora Blog - 核心应用控制器 (Core Application & Modular Views)
+ * ==============================================================================
+ * 设计美学：Linear / Vercel / Raycast 冷静克制深色科技风。
+ * 遵循 8px 间距系统，极细边框，充足呼吸感与留白。
+ */
+
 window.BlogApp = {
   currentRoute: { name: 'home', params: {} },
   activeTag: null,
   searchQuery: '',
 
+  // ----------------------------------------------------------------------------
+  // 1. 初始化与全局 Chrome 渲染
+  // ----------------------------------------------------------------------------
   init: function() {
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
+
+    // 初始化数据层
     window.BlogStore.init();
+
+    // 动态渲染导航栏、页脚与站点基础配置
+    this.renderGlobalChrome();
+
+    // 挂载事件监听器
     this.setupEventListeners();
+
+    // 执行当前路由分发
     this.handleRoute();
+
     var self = this;
-    window.addEventListener('hashchange', function() { self.handleRoute(); });
+    window.addEventListener('hashchange', function() {
+      self.handleRoute();
+    });
   },
 
+  // 渲染全局导航、页脚与品牌标识 (数据源自 blog.config.js)
+  renderGlobalChrome: function() {
+    var config = window.BlogStore.config || window.BlogConfig || {};
+    var site = config.site || {};
+    var nav = config.nav || [];
+    var social = config.social || [];
+
+    // 1. 设置网页标题
+    if (site.title) {
+      document.title = site.title;
+    }
+
+    // 2. 顶部 Brand 标识
+    var brandLogoEl = document.querySelector('header a[href="#/"] span:last-child');
+    if (brandLogoEl && site.brand) {
+      brandLogoEl.textContent = site.brand;
+    }
+
+    // 3. 桌面端导航菜单
+    var desktopNavEl = document.querySelector('header nav');
+    if (desktopNavEl && nav.length > 0) {
+      var navHtml = '';
+      nav.forEach(function(item) {
+        navHtml += '<a href="' + item.href + '" data-nav-link="' + item.id + '" class="nav-link">' + item.label + '</a>';
+      });
+      desktopNavEl.innerHTML = navHtml;
+    }
+
+    // 4. 移动端抽屉菜单
+    var mobileDrawerEl = document.getElementById('mobile-drawer');
+    if (mobileDrawerEl && nav.length > 0) {
+      var drawerHtml = '';
+      nav.forEach(function(item) {
+        drawerHtml += '<a href="' + item.href + '" onclick="document.getElementById(\'mobile-drawer\').classList.add(\'hidden\')" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
+      });
+      drawerHtml += '<a href="#/editor" onclick="document.getElementById(\'mobile-drawer\').classList.add(\'hidden\')" class="block py-1.5 text-[14px] text-[#3B82F6] font-mono">Write Article</a>';
+      mobileDrawerEl.innerHTML = drawerHtml;
+    }
+
+    // 5. 页脚版权与社交媒体
+    var footerEl = document.querySelector('footer');
+    if (footerEl) {
+      var copyEl = footerEl.querySelector('div:first-child');
+      if (copyEl && site.footerText) {
+        copyEl.textContent = site.footerText;
+      }
+
+      var socialContainer = footerEl.querySelector('div.flex');
+      if (socialContainer && social.length > 0) {
+        var socialHtml = '';
+        social.forEach(function(item) {
+          var isExternal = item.url.indexOf('http') === 0;
+          socialHtml += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="hover:text-[#3B82F6] transition-all hover:-translate-y-[2px]" title="' + item.name + '">' + item.name + '</a>';
+        });
+        socialContainer.innerHTML = socialHtml;
+      }
+    }
+  },
+
+  // ----------------------------------------------------------------------------
+  // 2. 全局事件监听 (快捷键、滚动侦听、代码复制、目录导航)
+  // ----------------------------------------------------------------------------
   setupEventListeners: function() {
     var self = this;
+
+    // 键盘快捷键 (Cmd+K / Ctrl+K 搜索, ESC 关闭)
     window.addEventListener('keydown', function(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
@@ -24,11 +110,11 @@ window.BlogApp = {
       }
       if (e.key === 'Escape') {
         self.closeSearchModal();
-        self.closeMobileToc();
+        self.closeMobileOutline();
       }
     });
 
-    // Delegated Outline heading navigation click handler
+    // Delegated Outline 标题跳转点击拦截器
     document.addEventListener('click', function(e) {
       var outlineBtn = e.target.closest('[data-outline-target]');
       if (outlineBtn) {
@@ -41,7 +127,7 @@ window.BlogApp = {
       }
     });
 
-    // Delegated copy button handler
+    // Delegated 代码块一键复制处理器
     document.addEventListener('click', function(e) {
       var copyBtn = e.target.closest('.code-copy-btn');
       if (copyBtn) {
@@ -56,9 +142,9 @@ window.BlogApp = {
       }
     });
 
-    // Window scroll handler for reading progress bar & scrollspy
+    // 滚动事件监听器: 进度条 + Active Outline Scrollspy 高亮
     window.addEventListener('scroll', function() {
-      // 1. Reading progress bar
+      // 1. 阅读进度条
       var progressBar = document.getElementById('reading-progress-bar');
       var container = document.getElementById('reading-progress-container');
       var total = document.documentElement.scrollHeight - window.innerHeight;
@@ -72,7 +158,7 @@ window.BlogApp = {
         }
       }
 
-      // 2. Active Outline Scrollspy (highlight heading in right floating sidebar)
+      // 2. Active Outline Scrollspy (右侧悬浮目录高亮指示)
       if (self.currentRoute.name === 'post') {
         var headings = document.querySelectorAll('.markdown-body h1, .markdown-body h2, .markdown-body h3');
         if (headings && headings.length > 0) {
@@ -83,6 +169,7 @@ window.BlogApp = {
               currentId = h.id;
             }
           });
+          // 滚动至文档底部时激活最后一个标题
           if ((window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 60)) {
             currentId = headings[headings.length - 1].id;
           }
@@ -101,12 +188,14 @@ window.BlogApp = {
     });
   },
 
-  // Flawless heading scroll navigation with smooth scroll and navbar compensation
+  // ----------------------------------------------------------------------------
+  // 3. 目录跳转与移动端抽屉动画
+  // ----------------------------------------------------------------------------
   scrollToHeading: function(id) {
     if (!id) return;
     var el = document.getElementById(id);
     if (el) {
-      var navHeight = 76; // 56px sticky header + 20px breathing room
+      var navHeight = 76; // 56px sticky header + 20px padding buffer
       var rect = el.getBoundingClientRect();
       var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       var targetY = rect.top + scrollTop - navHeight;
@@ -115,7 +204,7 @@ window.BlogApp = {
         behavior: 'smooth'
       });
 
-      // Highlight active button immediately for instantaneous user feedback
+      // 立即触发高亮状态反馈
       document.querySelectorAll('#desktop-outline-nav button, #desktop-toc-nav button, #mobile-outline-drawer button, #mobile-toc-drawer button').forEach(function(btn) {
         var t = btn.getAttribute('data-outline-target') || btn.getAttribute('data-target');
         if (t === id) {
@@ -152,16 +241,19 @@ window.BlogApp = {
   toggleMobileToc: function() { this.toggleMobileOutline(); },
   closeMobileToc: function() { this.closeMobileOutline(); },
 
+  // ----------------------------------------------------------------------------
+  // 4. 路由分发系统 (Hash Router)
+  // ----------------------------------------------------------------------------
   handleRoute: function() {
     window.scrollTo(0, 0);
     var drawer = document.getElementById('mobile-drawer');
     if (drawer) drawer.classList.add('hidden');
-    this.closeMobileToc();
+    this.closeMobileOutline();
 
     var hash = window.location.hash.slice(1) || '/';
     var path = hash.split('?')[0];
 
-    // Update nav active link
+    // 更新导航高亮状态
     document.querySelectorAll('.nav-link').forEach(function(link) {
       link.classList.remove('active');
     });
@@ -201,10 +293,15 @@ window.BlogApp = {
     }
   },
 
-  // 1. Home View
+  // ----------------------------------------------------------------------------
+  // 5. 模块化视图渲染层 (Modular Views)
+  // ----------------------------------------------------------------------------
+
+  // 5.1 首页视图 (Home View)
   renderHomeView: function() {
     var container = document.getElementById('app-main');
-    var posts = window.BlogStore.posts || [];
+    var site = (window.BlogStore.config && window.BlogStore.config.site) || {};
+    var posts = window.BlogStore.getPosts();
 
     if (this.activeTag) {
       posts = posts.filter(function(p) {
@@ -216,17 +313,17 @@ window.BlogApp = {
 
     // Hero Section
     html += '<section class="pt-20 md:pt-24 pb-12 border-b border-white/[0.06]">';
-    html += '  <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">';
-    html += '    极光随笔';
+    html += '  <h1 class="text-[40px] sm:text-[46px] md:text-[50px] font-bold text-[#EDEDED] tracking-[-0.03em] leading-[1.15] mb-4 font-sans">';
+    html += site.title || 'Aurora Notes';
     html += '  </h1>';
-    html += '  <p class="text-[17px] sm:text-[18px] text-[#8B8B8E] leading-relaxed max-w-[620px] font-normal">';
-    html += '    探索量子前沿计算、理论物理、系统架构与统计认知模型。冷静、克制、严谨。';
+    html += '  <p class="text-[17px] sm:text-[18px] text-[#8B8B8E] leading-relaxed max-w-[620px]">';
+    html += site.tagline || 'Curated technical writings, system architecture notes, and computing fundamentals.';
     html += '  </p>';
+
     if (this.activeTag) {
       html += '  <div class="mt-6 flex items-center gap-2 text-[13px] font-mono text-[#8B8B8E]">';
-      html += '    <span>Filtering by tag:</span>';
-      html += '    <span class="text-[#3B82F6]">#' + this.activeTag + '</span>';
-      html += '    <button onclick="window.BlogApp.clearTag()" class="text-[#5A5A5E] hover:text-[#EDEDED] ml-2">✕ clear</button>';
+      html += '    <span>Filtering by: <span class="text-[#3B82F6]">#' + this.activeTag + '</span></span>';
+      html += '    <button type="button" onclick="window.BlogApp.clearTag()" class="text-[#5A5A5E] hover:text-[#EDEDED] ml-2 cursor-pointer">✕ clear</button>';
       html += '  </div>';
     }
     html += '</section>';
@@ -234,37 +331,47 @@ window.BlogApp = {
     // Article List
     html += '<section class="divide-y divide-white/[0.06]">';
     if (posts.length === 0) {
-      html += '<div class="py-20 text-center text-[#5A5A5E] font-mono text-[14px]">No articles found.</div>';
+      html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
+      html += '  <p class="mb-3 text-[#8B8B8E]">No articles found.</p>';
+      html += '  <p class="text-[12px]">Add a Markdown file to <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/</code> or click <a href="#/editor" class="text-[#3B82F6] hover:underline">Write</a> to publish your first post.</p>';
+      html += '</div>';
     } else {
       posts.forEach(function(post) {
-        var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
-
         html += '<article class="post-item group">';
-        // Row 1: Date + Pure English Series Badge
-        html += '  <div class="flex items-center gap-2.5 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+        // Row 1: Date & Metadata
+        html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
         html += '    <span>' + post.date + '</span>';
-        if (post.columnName) {
+        if (post.readTime) {
           html += '    <span>·</span>';
-          html += '    <span class="text-[#3B82F6] bg-[#3B82F6]/10 px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium">' + post.columnName + ' / Part ' + partNumber + '</span>';
+          html += '    <span>' + post.readTime + '</span>';
+        }
+        if (post.pinned) {
+          html += '    <span class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/15 text-[#3B82F6] font-medium">PINNED</span>';
         }
         html += '  </div>';
-        
+
         // Row 2: Title
-        html += '  <h2 class="mb-2.5">';
-        html += '    <a href="#/post/' + post.id + '" class="post-item-title block leading-snug">' + post.title + '</a>';
+        html += '  <h2 class="mb-2">';
+        html += '    <a href="#/post/' + post.id + '" class="post-item-title block leading-snug">';
+        html += post.title;
+        html += '    </a>';
         html += '  </h2>';
 
         // Row 3: Excerpt
-        html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">';
-        html += post.excerpt || '';
-        html += '  </p>';
+        if (post.excerpt) {
+          html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">';
+          html += post.excerpt;
+          html += '  </p>';
+        }
 
         // Row 4: Tag Pills
-        html += '  <div class="flex flex-wrap items-center gap-2">';
-        (post.tags || []).forEach(function(tag) {
-          html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encodeURIComponent(tag) + '\'))" class="tag-pill">#' + tag + '</a>';
-        });
-        html += '  </div>';
+        if ((post.tags || []).length > 0) {
+          html += '  <div class="flex flex-wrap items-center gap-2">';
+          post.tags.forEach(function(tag) {
+            html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encodeURIComponent(tag) + '\'))" class="tag-pill">#' + tag + '</a>';
+          });
+          html += '  </div>';
+        }
         html += '</article>';
       });
     }
@@ -274,7 +381,7 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 2. Post Detail View (Max width 680px Content, ALWAYS FLOATING OUTLINE ON THE RIGHT)
+  // 5.2 文章详情视图 (Post Detail View - 附带常驻右侧 Outline 浮动导航)
   renderPostView: function(postId) {
     var container = document.getElementById('app-main');
     var post = window.BlogStore.getPostById(postId);
@@ -297,18 +404,18 @@ window.BlogApp = {
     var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
     var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
 
-    // Outer Container: Flex dual column, 960px max width centered
+    // 双栏布局容器: 最大宽度 1000px 居中
     var html = '<div class="max-w-[1000px] mx-auto pt-12 md:pt-16 pb-20 flex justify-between items-start gap-6 lg:gap-10 relative">';
 
-    // Left Column: 680px Reading Body
+    // 左侧正文列: 自适应 680px 宽度
     html += '<div class="flex-1 max-w-[680px] min-w-0">';
 
-    // Back link
+    // 返回按钮
     html += '<div class="mb-8">';
     html += '  <a href="#/" class="text-[13px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors inline-flex items-center gap-1.5">← Back to writing</a>';
     html += '</div>';
 
-    // Unified English Series Banner (No messy Chinese)
+    // 专栏系列横幅 (若属于某个专栏)
     if (columnInfo) {
       html += '<div class="mb-6 py-2 px-3.5 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
       html += '  <div class="flex items-center gap-2 min-w-0">';
@@ -319,15 +426,15 @@ window.BlogApp = {
       html += '</div>';
     }
 
-    // Article Header
+    // 文章头部
     html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
     html += '  <h1 class="text-[30px] sm:text-[34px] md:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-4 font-sans">' + post.title + '</h1>';
     
-    // Metadata row: Date · Read time · Words · Tags
+    // 元信息行: 日期 · 阅读时长 · 字数 · 标签
     html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
     html += '    <span>' + post.date + '</span>';
     html += '    <span>·</span>';
-    html += '    <span>' + (post.readTime || '5 min read') + '</span>';
+    html += '    <span>' + (post.readTime || '3 min read') + '</span>';
     if (post.words) {
       html += '    <span>·</span>';
       html += '    <span>' + post.words + ' words</span>';
@@ -343,12 +450,12 @@ window.BlogApp = {
     html += '  </div>';
     html += '</header>';
 
-    // Markdown Article Content
+    // Markdown 正文
     html += '<article class="markdown-body mb-16">';
     html += renderedHtml;
     html += '</article>';
 
-    // Prev / Next Navigation Cards
+    // 上一篇 / 下一篇导航
     html += '<div class="pt-8 border-t border-white/[0.06] grid grid-cols-1 sm:grid-cols-2 gap-4">';
     if (prevPost) {
       html += '<a href="#/post/' + prevPost.id + '" class="linear-card p-4 text-left group block">';
@@ -367,8 +474,9 @@ window.BlogApp = {
     }
     html += '</div>';
 
-    html += '</div>'; // End left column
-    // Right Column: ALWAYS FLOATING STICKY OUTLINE (Visible from 600px+)
+    html += '</div>'; // 结束左侧列
+
+    // 右侧列: 常驻悬浮 Outline 侧边栏 (屏幕宽度 >= 600px 自动展开)
     if (toc.length > 0) {
       html += '<aside class="outline-floating-sidebar toc-floating-sidebar w-[180px] lg:w-[220px] shrink-0 sticky top-20 font-mono text-[12px]">';
       html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">Outline</div>';
@@ -386,9 +494,9 @@ window.BlogApp = {
       html += '</aside>';
     }
 
-    html += '</div>'; // End outer container
+    html += '</div>'; // 结束外层双栏
 
-    // Floating Action Button + Slide-over Drawer for Small Screens (<600px)
+    // 小屏浮动胶囊 (# Outline) 与侧滑抽屉 (< 600px)
     if (toc.length > 0) {
       html += '<div class="outline-floating-fab toc-floating-fab">';
       html += '  <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="fixed right-5 bottom-20 z-40 px-3 py-2 rounded-full bg-[#111113]/90 backdrop-blur-md border border-white/[0.12] text-[12px] font-mono text-[#EDEDED] shadow-xl hover:border-[#3B82F6] flex items-center gap-1.5 cursor-pointer" title="Outline">';
@@ -414,68 +522,100 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 3. Series View (Unified Minimalist List, perfectly aligned with Home & Archive)
+  // 5.3 专栏视图 (Series / Columns View)
   renderColumnsView: function() {
     var container = document.getElementById('app-main');
     var columns = window.BlogStore.getColumns() || [];
 
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
-    
-    // Header
     html += '  <header class="mb-8 pb-8 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">Series</h1>';
     html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">Curated technical collections and deep dives into computing fundamentals.</p>';
     html += '  </header>';
 
-    // Series List: Clean list items with 1px divider, NO bloated cards!
     if (columns.length === 0) {
-      html += '<div class="py-20 text-center text-[#5A5A5E] font-mono text-[14px]">No series found.</div>';
+      html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
+      html += '  <p class="mb-3 text-[#8B8B8E]">No series collections created yet.</p>';
+      html += '  <p class="text-[12px]">Add Markdown posts to <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/columns/&lt;series-name&gt;/</code> to form a series automatically.</p>';
+      html += '</div>';
     } else {
-      html += '<section class="divide-y divide-white/[0.06]">';
+      html += '<div class="space-y-12">';
       columns.forEach(function(col, idx) {
-        var posts = col.posts || [];
-        var totalWords = col.totalWords || posts.reduce(function(acc, p) { return acc + (p.words || 0); }, 0);
-        var totalMin = Math.max(1, Math.ceil(totalWords / 400));
-        var seriesIndex = (idx + 1 < 10) ? '0' + (idx + 1) : (idx + 1);
-
-        html += '  <div class="py-8 group">';
-        
-        // Metadata Line
-        html += '    <div class="flex items-center justify-between text-[12px] font-mono text-[#5A5A5E] mb-2">';
-        html += '      <span class="text-[#3B82F6] font-semibold">SERIES ' + seriesIndex + '</span>';
-        html += '      <span>' + col.postsCount + ' Parts · ' + (totalWords > 0 ? Math.round(totalWords / 1000) + 'k words · ' : '') + totalMin + ' min read</span>';
-        html += '    </div>';
-        
-        // Title
-        html += '    <h2 class="text-[18px] sm:text-[20px] font-semibold text-[#EDEDED] tracking-tight mb-2 leading-snug font-sans">' + col.name + '</h2>';
-        
-        // Description
-        html += '    <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-4">' + col.desc + '</p>';
-        
-        // Compact Chapters Timeline
-        html += '    <div class="pt-2 divide-y divide-white/[0.03]">';
-        posts.forEach(function(p, pIdx) {
-          var chNum = (p.order !== undefined && p.order !== 999) ? (p.order < 10 ? '0' + p.order : p.order) : (pIdx + 1 < 10 ? '0' + (pIdx + 1) : (pIdx + 1));
-          html += '      <a href="#/post/' + p.id + '" class="py-2 flex items-baseline justify-between gap-3 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-all group/item hover:translate-x-0.5">';
-          html += '        <div class="flex items-baseline gap-2.5 min-w-0">';
-          html += '          <span class="font-mono text-[11px] text-[#5A5A5E] group-hover/item:text-[#3B82F6] shrink-0 font-medium">' + chNum + '</span>';
-          html += '          <span class="text-[#EDEDED] group-hover/item:text-[#3B82F6] transition-colors truncate leading-relaxed">' + p.title + '</span>';
-          html += '        </div>';
-          html += '        <span class="font-mono text-[11px] text-[#5A5A5E] shrink-0 ml-2 hidden sm:inline">' + (p.readTime || '') + '</span>';
-          html += '      </a>';
-        });
-        html += '    </div>';
-
+        var num = idx + 1 < 10 ? '0' + (idx + 1) : (idx + 1);
+        html += '<section class="border-b border-white/[0.06] pb-10 last:border-b-0">';
+        html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+        html += '    <span>SERIES ' + num + '</span>';
+        html += '    <span>·</span>';
+        html += '    <span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
+        if (col.totalWords) {
+          html += '    <span>·</span>';
+          html += '    <span>' + Math.round(col.totalWords / 1000) + 'k words</span>';
+        }
         html += '  </div>';
+
+        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2">' + col.name + '</h2>';
+        if (col.desc) {
+          html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + col.desc + '</p>';
+        }
+
+        html += '  <div class="space-y-2 border-l border-white/[0.08] pl-4">';
+        (col.posts || []).forEach(function(p) {
+          var partNum = p.order < 10 ? '0' + p.order : p.order;
+          html += '    <a href="#/post/' + p.id + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+          html += '      <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
+          html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
+          html += '    </a>';
+        });
+        html += '  </div>';
+        html += '</section>';
       });
-      html += '</section>';
+      html += '</div>';
     }
 
     html += '</div>';
     container.innerHTML = html;
   },
 
-  // 4. Tags View
+  // 5.4 归档时间线视图 (Archives View)
+  renderArchivesView: function() {
+    var container = document.getElementById('app-main');
+    var posts = window.BlogStore.getPosts();
+
+    var yearMap = {};
+    posts.forEach(function(p) {
+      var yr = (p.date || '2026').slice(0, 4);
+      if (!yearMap[yr]) yearMap[yr] = [];
+      yearMap[yr].push(p);
+    });
+
+    var years = Object.keys(yearMap).sort().reverse();
+
+    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+    html += '  <header class="mb-12 pb-6 border-b border-white/[0.06]">';
+    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Archive</h1>';
+    html += '    <p class="text-[16px] text-[#8B8B8E]">Chronological timeline of research essays, architecture notes, and publications.</p>';
+    html += '  </header>';
+
+    years.forEach(function(yr) {
+      html += '<div class="mb-12">';
+      html += '  <div class="font-mono text-[22px] font-bold text-[#5A5A5E] mb-4">' + yr + '</div>';
+      html += '  <div class="space-y-3">';
+      yearMap[yr].forEach(function(p) {
+        var dateFormatted = (p.date || '').slice(5);
+        html += '<a href="#/post/' + p.id + '" class="flex items-baseline gap-4 py-1.5 group">';
+        html += '  <span class="font-mono text-[12.5px] text-[#5A5A5E] shrink-0">' + dateFormatted + '</span>';
+        html += '  <span class="text-[15px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + p.title + '</span>';
+        html += '</a>';
+      });
+      html += '  </div>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+  },
+
+  // 5.5 标签视图 (Tags View)
   renderTagsView: function() {
     var container = document.getElementById('app-main');
     var allTags = window.BlogStore.getAllTags();
@@ -501,139 +641,123 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 5. Archive View
-  renderArchivesView: function() {
-    var container = document.getElementById('app-main');
-    var posts = window.BlogStore.posts || [];
-
-    var groups = {};
-    posts.forEach(function(p) {
-      var year = (p.date || '2026').slice(0, 4);
-      if (!groups[year]) groups[year] = [];
-      groups[year].push(p);
-    });
-
-    var years = Object.keys(groups).sort().reverse();
-
-    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
-    html += '  <header class="mb-12 pb-6 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Archive</h1>';
-    html += '    <p class="text-[16px] text-[#8B8B8E]">Chronological timeline of research essays, architecture notes, and publications.</p>';
-    html += '  </header>';
-
-    years.forEach(function(yr) {
-      html += '  <div class="mb-12">';
-      html += '    <div class="text-[24px] font-mono font-semibold text-[#5A5A5E] mb-6">' + yr + '</div>';
-      html += '    <div class="divide-y divide-white/[0.04]">';
-      groups[yr].forEach(function(p) {
-        html += '      <div class="py-3 flex items-baseline gap-4 group hover:translate-x-0.5 transition-transform">';
-        html += '        <span class="text-[13px] font-mono text-[#5A5A5E] shrink-0">' + (p.date || '').slice(5) + '</span>';
-        html += '        <a href="#/post/' + p.id + '" class="text-[16px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors leading-snug">' + p.title + '</a>';
-        html += '      </div>';
-      });
-      html += '    </div>';
-      html += '  </div>';
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
-  },
-
-  // 6. About View
+  // 5.6 关于作者视图 (About View - 动态拉取配置)
   renderAboutView: function() {
     var container = document.getElementById('app-main');
-    var author = window.BlogStore.author || {};
+    var config = window.BlogStore.config || window.BlogConfig || {};
+    var author = config.author || {};
+    var social = config.social || [];
 
-    var html = '<div class="max-w-[600px] mx-auto pt-16 md:pt-20 pb-20">';
-    html += '  <div class="mb-8">';
-    html += '    <img src="' + (author.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80') + '" class="w-20 h-20 rounded-[12px] object-cover border border-white/[0.08]">';
-    html += '  </div>';
-
-    html += '  <h1 class="text-[28px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">' + (author.name || 'Alex Chen') + '</h1>';
-    html += '  <p class="text-[14px] font-mono text-[#8B8B8E] mb-8">' + (author.title || 'Full-Stack Architect · Quantum & AI Researcher') + '</p>';
-
-    html += '  <div class="text-[16px] text-[#EDEDED] leading-[1.8] space-y-4 mb-10 pb-8 border-b border-white/[0.06] font-sans">';
-    html += '    <p>热爱理论物理与计算机科学的交叉前沿。致力于从高维希尔伯特空间、哈密顿量演化与统计力学的物理视角，理解并构建现代大语言模型和复杂分布式系统。</p>';
-    html += '    <p>坚持极简主义与深度心流开发，崇尚用严谨的数学推导与干净的代码建立秩序。</p>';
-    html += '  </div>';
-
+    var html = '<div class="max-w-[620px] mx-auto pt-16 md:pt-20 pb-20">';
+    
+    // 头像与基本名衔
+    html += '<div class="flex items-center gap-5 mb-8">';
+    if (author.avatar) {
+      html += '  <img src="' + author.avatar + '" alt="' + author.name + '" class="w-20 h-20 rounded-xl border border-white/[0.12] object-cover shrink-0">';
+    }
     html += '  <div>';
-    html += '    <h3 class="text-[12px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-4">Connect</h3>';
-    html += '    <div class="space-y-3 font-mono text-[14px]">';
-    html += '      <a href="https://github.com/flyingpig669" target="_blank" class="flex items-center justify-between py-2 border-b border-white/[0.04] text-[#8B8B8E] hover:text-[#3B82F6] transition-all group">';
-    html += '        <span>GitHub</span><span class="group-hover:translate-x-1 transition-transform">github.com/flyingpig669 →</span>';
-    html += '      </a>';
-    html += '      <a href="https://twitter.com" target="_blank" class="flex items-center justify-between py-2 border-b border-white/[0.04] text-[#8B8B8E] hover:text-[#3B82F6] transition-all group">';
-    html += '        <span>Twitter / X</span><span class="group-hover:translate-x-1 transition-transform">@alexchen →</span>';
-    html += '      </a>';
-    html += '      <a href="mailto:flyingpig06@outlook.com" class="flex items-center justify-between py-2 border-b border-white/[0.04] text-[#8B8B8E] hover:text-[#3B82F6] transition-all group">';
-    html += '        <span>Email</span><span class="group-hover:translate-x-1 transition-transform">flyingpig06@outlook.com →</span>';
-    html += '      </a>';
-    html += '    </div>';
+    html += '    <h1 class="text-[26px] font-bold text-[#EDEDED] mb-1 font-sans">' + (author.name || 'Alex Chen') + '</h1>';
+    html += '    <div class="text-[13px] font-mono text-[#8B8B8E]">' + (author.title || 'Software Architect') + '</div>';
+    if (author.location) {
+      html += '    <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + author.location + '</div>';
+    }
     html += '  </div>';
+    html += '</div>';
+
+    // 个人简介
+    html += '<div class="space-y-4 text-[15px] leading-relaxed text-[#EDEDED] mb-12 border-b border-white/[0.06] pb-10">';
+    html += '  <p>' + (author.bio || 'Curious about computing fundamentals, physics models, and elegant software design.') + '</p>';
+    html += '</div>';
+
+    // 社交与通讯方式列表
+    html += '<h2 class="text-[13px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-4">Connect</h2>';
+    html += '<div class="space-y-2.5">';
+    social.forEach(function(item) {
+      var isExternal = item.url.indexOf('http') === 0;
+      html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="flex items-center justify-between p-3 rounded-lg border border-white/[0.08] hover:border-[#3B82F6] hover:bg-white/[0.02] transition-all group">';
+      html += '  <span class="text-[14px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors font-mono">' + item.name + '</span>';
+      html += '  <span class="text-[12px] text-[#5A5A5E] group-hover:text-[#EDEDED] transition-colors">↗</span>';
+      html += '</a>';
+    });
+    html += '</div>';
 
     html += '</div>';
     container.innerHTML = html;
   },
 
-  // 7. Editor View
+  // 5.7 在线 Markdown 创作器视图 (Editor View)
   renderEditorView: function() {
     var container = document.getElementById('app-main');
-    var html = '<div class="max-w-[720px] mx-auto pt-12 pb-20">';
-    html += '  <header class="mb-6 pb-4 border-b border-white/[0.06] flex items-center justify-between">';
-    html += '    <h1 class="text-[20px] font-semibold text-[#EDEDED] tracking-tight font-sans">Write Article</h1>';
-    html += '    <button onclick="window.BlogApp.publishArticle()" class="linear-btn linear-btn-primary">Publish</button>';
-    html += '  </header>';
+    var draft = window.BlogStore.getDraft() || { title: '', tags: '', content: '' };
 
-    html += '  <div class="space-y-4">';
-    html += '    <input id="editor-title" type="text" placeholder="Title" class="w-full bg-[#111113] border border-white/[0.08] rounded-[8px] p-3 text-[18px] font-semibold text-[#EDEDED] placeholder-[#5A5A5E] focus:outline-none focus:border-[#3B82F6] transition-colors">';
-    html += '    <input id="editor-tags" type="text" placeholder="Tags (comma-separated, e.g. Quantum, Math)" class="w-full bg-[#111113] border border-white/[0.08] rounded-[8px] p-2.5 text-[13px] font-mono text-[#EDEDED] placeholder-[#5A5A5E] focus:outline-none focus:border-[#3B82F6] transition-colors">';
-    html += '    <textarea id="editor-content" rows="18" placeholder="Write markdown content with LaTeX formulas... $$\\left|\\psi\\right\\rangle$$" class="w-full bg-[#111113] border border-white/[0.08] rounded-[8px] p-4 text-[14px] font-mono text-[#EDEDED] placeholder-[#5A5A5E] focus:outline-none focus:border-[#3B82F6] transition-colors leading-relaxed"></textarea>';
+    var html = '<div class="max-w-[720px] mx-auto pt-14 pb-20">';
+    html += '  <div class="flex items-center justify-between pb-6 border-b border-white/[0.06] mb-8">';
+    html += '    <h1 class="text-[24px] font-bold text-[#EDEDED]">Write Article</h1>';
+    html += '    <button onclick="window.BlogApp.publishArticle()" class="linear-btn linear-btn-primary">Publish</button>';
+    html += '  </div>';
+
+    html += '  <div class="space-y-5">';
+    html += '    <div>';
+    html += '      <label class="block text-[12px] font-mono text-[#5A5A5E] mb-2">TITLE</label>';
+    html += '      <input id="editor-title" type="text" value="' + (draft.title || '') + '" oninput="window.BlogApp.saveDraftDebounced()" placeholder="Article title..." class="w-full bg-[#111113] border border-white/[0.08] rounded-lg px-3.5 py-2.5 text-[15px] text-[#EDEDED] focus:border-[#3B82F6] focus:outline-none transition-colors">';
+    html += '    </div>';
+
+    html += '    <div>';
+    html += '      <label class="block text-[12px] font-mono text-[#5A5A5E] mb-2">TAGS (Comma separated)</label>';
+    html += '      <input id="editor-tags" type="text" value="' + (draft.tags || '') + '" oninput="window.BlogApp.saveDraftDebounced()" placeholder="Tech, Architecture, Algorithms..." class="w-full bg-[#111113] border border-white/[0.08] rounded-lg px-3.5 py-2.5 text-[14px] text-[#EDEDED] focus:border-[#3B82F6] focus:outline-none transition-colors">';
+    html += '    </div>';
+
+    html += '    <div>';
+    html += '      <label class="block text-[12px] font-mono text-[#5A5A5E] mb-2">MARKDOWN CONTENT</label>';
+    html += '      <textarea id="editor-content" rows="18" oninput="window.BlogApp.saveDraftDebounced()" placeholder="Write your thoughts in Markdown..." class="w-full bg-[#111113] border border-white/[0.08] rounded-lg p-4 text-[14px] font-mono text-[#EDEDED] focus:border-[#3B82F6] focus:outline-none transition-colors leading-relaxed">' + (draft.content || '') + '</textarea>';
+    html += '    </div>';
     html += '  </div>';
     html += '</div>';
 
     container.innerHTML = html;
+  },
+
+  // ----------------------------------------------------------------------------
+  // 6. 编辑器与本地发布逻辑
+  // ----------------------------------------------------------------------------
+  saveDraftDebounced: function() {
+    clearTimeout(this._draftTimer);
+    this._draftTimer = setTimeout(function() {
+      var title = document.getElementById('editor-title').value;
+      var tags = document.getElementById('editor-tags').value;
+      var content = document.getElementById('editor-content').value;
+      window.BlogStore.saveDraft({ title: title, tags: tags, content: content });
+    }, 400);
   },
 
   publishArticle: function() {
     var title = (document.getElementById('editor-title').value || '').trim();
+    var tagsRaw = (document.getElementById('editor-tags').value || '').trim();
     var content = (document.getElementById('editor-content').value || '').trim();
-    var tags = (document.getElementById('editor-tags').value || '').split(',').map(function(t) { return t.trim(); }).filter(Boolean);
 
-    if (!title || !content) {
-      alert('Please enter title and content.');
+    if (!title) {
+      alert('Please enter an article title.');
+      return;
+    }
+    if (!content) {
+      alert('Article content cannot be empty.');
       return;
     }
 
-    var id = 'post-' + Date.now();
-    var newPost = {
-      id: id,
+    var tags = tagsRaw ? tagsRaw.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : ['general'];
+    var newPost = window.BlogStore.addPost({
       title: title,
-      content: content,
-      date: new Date().toISOString().slice(0, 10),
       tags: tags,
-      excerpt: content.slice(0, 140) + '...',
-      readTime: Math.max(1, Math.ceil(content.length / 400)) + ' min read',
-      words: content.length
-    };
+      content: content
+    });
 
-    window.BlogStore.posts.unshift(newPost);
-    window.BlogStore.savePosts();
-    window.location.hash = '#/post/' + id;
+    window.BlogStore.clearDraft();
+    window.location.hash = '#/post/' + newPost.id;
   },
 
-  setTag: function(tag) {
-    this.activeTag = tag;
-    window.location.hash = '#/';
-    this.renderHomeView();
-  },
-
-  clearTag: function() {
-    this.activeTag = null;
-    this.renderHomeView();
-  },
-
-  // Search Modal
+  // ----------------------------------------------------------------------------
+  // 7. 搜索弹窗逻辑 (Search Modal Cmd+K)
+  // ----------------------------------------------------------------------------
   openSearchModal: function() {
     var modal = document.getElementById('search-modal');
     if (modal) {
@@ -653,30 +777,36 @@ window.BlogApp = {
   },
 
   runModalSearch: function(query) {
-    var resultsBox = document.getElementById('search-modal-results');
-    if (!resultsBox) return;
-    var posts = window.BlogStore.posts || [];
-    var q = (query || '').toLowerCase().trim();
+    var resultsEl = document.getElementById('search-modal-results');
+    if (!resultsEl) return;
 
-    var filtered = posts.filter(function(p) {
-      if (!q) return true;
-      return (p.title || '').toLowerCase().indexOf(q) !== -1 ||
-             (p.excerpt || '').toLowerCase().indexOf(q) !== -1 ||
-             (p.tags || []).some(function(t) { return t.toLowerCase().indexOf(q) !== -1; });
-    }).slice(0, 8);
-
-    if (filtered.length === 0) {
-      resultsBox.innerHTML = '<div class="py-8 text-center text-[#5A5A5E] text-[13px] font-mono">No matching records</div>';
+    var posts = window.BlogStore.getPosts({ query: query });
+    if (posts.length === 0) {
+      resultsEl.innerHTML = '<div class="py-8 text-center text-[#5A5A5E] font-mono text-[13px]">No matching articles found.</div>';
       return;
     }
 
     var html = '';
-    filtered.forEach(function(p) {
+    posts.slice(0, 8).forEach(function(p) {
       html += '<a href="#/post/' + p.id + '" onclick="window.BlogApp.closeSearchModal()" class="block p-2.5 rounded-[6px] hover:bg-white/[0.04] transition-colors group">';
-      html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + p.title + '</div>';
-      html += '  <div class="text-[11px] font-mono text-[#5A5A5E] mt-0.5">' + p.date + ' · ' + (p.readTime || '') + '</div>';
+      html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors truncate">' + p.title + '</div>';
+      html += '  <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + p.date + ' · ' + (p.readTime || '3 min read') + '</div>';
       html += '</a>';
     });
-    resultsBox.innerHTML = html;
+    resultsEl.innerHTML = html;
+  },
+
+  // ----------------------------------------------------------------------------
+  // 8. 标签过滤辅助
+  // ----------------------------------------------------------------------------
+  setTag: function(tag) {
+    this.activeTag = tag;
+    window.location.hash = '#/';
+    this.renderHomeView();
+  },
+
+  clearTag: function() {
+    this.activeTag = null;
+    this.renderHomeView();
   }
 };

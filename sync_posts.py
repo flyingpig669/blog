@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
+"""
+==============================================================================
+Aurora Blog - 博文索引构建器 (Markdown Posts Compiler & Indexer)
+==============================================================================
+自动扫描 posts/ 目录下的所有 Markdown 文档，提取元数据 (YAML Frontmatter / 标题)，
+结构化分类与专栏层级，并编译生成轻量级前端数据包 js/posts-data.js。
+"""
+
 import os
 import re
 import json
+import time
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 POSTS_DIR = os.path.join(BASE_DIR, "posts")
+POSTS_DATA_FILE = os.path.join(BASE_DIR, "js", "posts-data.js")
 SAMPLE_DATA_FILE = os.path.join(BASE_DIR, "js", "sample-data.js")
 
 def parse_md_file(filepath):
@@ -14,152 +24,114 @@ def parse_md_file(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
         raw = f.read()
 
+    filename = os.path.basename(filepath)
     title = ""
-    date = "2026-10-06"
-    category = ""
+    date = time.strftime("%Y-%m-%d")
+    category = "general"
     column = ""
     order = 999
     tags = []
-    content = raw
     pinned = False
+    excerpt = ""
+    content = raw
 
-    # Subfolder detection
+    # 1. 自动根据子文件夹推导分类或专栏
     if len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
         column = path_parts[1]
     elif len(path_parts) == 2:
         category = path_parts[0]
 
-    filename = os.path.basename(filepath)
+    # 从文件名提取编号前缀 (例如 01-xxx.md -> 1)
     m = re.match(r"^(\d+)[-_.]", filename)
-    if m: order = int(m.group(1))
+    if m:
+        order = int(m.group(1))
 
-    # YAML Frontmatter regex
+    # 2. 解析 YAML Frontmatter
     fm_pattern = re.compile(r"^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*[\r\n]+([\s\S]*)$")
     fm_match = fm_pattern.match(raw)
     if fm_match:
         fm = fm_match.group(1)
         content = fm_match.group(2).strip()
 
-        tm = re.search(r"^title:\s*['\"]?(.*?)['\"]?$", fm, re.M)
-        if tm: title = tm.group(1).strip()
-
-        dm = re.search(r"^date:\s*['\"]?(.*?)['\"]?$", fm, re.M)
-        if dm: date = dm.group(1).strip()
-
-        cm = re.search(r"^category:\s*['\"]?(.*?)['\"]?$", fm, re.M)
-        if cm: category = cm.group(1).strip()
-
-        col_m = re.search(r"^(?:column|series):\s*['\"]?(.*?)['\"]?$", fm, re.M)
-        if col_m: column = col_m.group(1).strip()
-
-        ord_m = re.search(r"^(?:order|chapter):\s*(\d+)$", fm, re.M)
-        if ord_m: order = int(ord_m.group(1))
-
-        pin_m = re.search(r"^pinned:\s*(true|false)$", fm, re.M | re.I)
-        if pin_m: pinned = (pin_m.group(1).lower() == "true")
-
-        tag_m = re.search(r"^tags:\s*\[?(.*?)\]?$", fm, re.M)
-        if tag_m:
-            tags = [t.strip().strip("'\"") for t in tag_m.group(1).split(",") if t.strip()]
+        for line in fm.splitlines():
+            line = line.strip()
+            if not line or ":" not in line:
+                continue
+            key, val = line.split(":", 1)
+            key = key.strip().lower()
+            val = val.strip().strip("'\"")
+            if key == "title":
+                title = val
+            elif key == "date":
+                date = val
+            elif key == "category":
+                category = val
+            elif key in ["column", "series"]:
+                column = val
+            elif key in ["order", "chapter"]:
+                if val.isdigit(): order = int(val)
+            elif key == "pinned":
+                pinned = (val.lower() == "true")
+            elif key == "excerpt":
+                excerpt = val
+            elif key == "tags":
+                clean_tags = val.strip("[]")
+                tags = [t.strip().strip("'\"") for t in clean_tags.split(",") if t.strip()]
     else:
+        # 回退提取首个 H1 标题
         h1_m = re.search(r"^#\s+(.+)$", content, re.M)
         if h1_m:
             title = h1_m.group(1).strip()
             content = re.sub(r"^#\s+.+[\r\n]+", "", content, count=1).strip()
 
     if not title:
-        title = os.path.splitext(filename)[0].replace("-", " ").replace("_", " ")
+        title = os.path.splitext(filename)[0].replace("-", " ").replace("_", " ").title()
 
-    if not category:
-        category = "frontend"
+    slug = os.path.splitext(filename)[0]
+    post_id = "post-" + slug.replace(".", "-")
 
-    post_id = "post-" + os.path.splitext(filename)[0].replace(".", "-")
+    if not excerpt:
+        clean_text = re.sub(r"[#*>`\[\]]", "", content)
+        excerpt = clean_text[:140].replace("\n", " ").strip()
+        if len(clean_text) > 140:
+            excerpt += "..."
 
-    cat_names = {
-        "quantum-ai": "量子计算与深度智能",
-        "ai": "量子计算与深度智能",
-        "frontend": "前端技术",
-        "backend": "后端架构",
-        "design": "设计美学",
-        "life": "思考随笔"
-    }
+    words_count = len(content)
+    read_mins = max(1, round(words_count / 300))
+    read_time = f"{read_mins} min read"
 
-    col_names = {
-        "quantum-computing-ai": "Quantum Physics & Computing Frontiers",
-        "llm-in-action": "Large Language Models in Production",
-        "frontend-architecture": "Modern Frontend Architecture",
-        "distributed-systems": "Distributed Systems & Consensus"
-    }
-    column_name = col_names.get(column, column) if column else ""
-
-    gradients = [
-        "from-blue-600 to-cyan-500",
-        "from-purple-600 to-indigo-600",
-        "from-emerald-600 to-teal-500",
-        "from-pink-600 to-rose-500",
-        "from-amber-500 to-orange-500"
-    ]
-    cover_gradient = gradients[abs(hash(post_id)) % len(gradients)]
-    excerpt = re.sub(r"[#*>\`\[\]]", "", content)[:140].replace("\n", " ").strip() + "..."
+    col_display = column.replace("-", " ").replace("_", " ").title() if column else ""
 
     return {
         "id": post_id,
-        "slug": os.path.splitext(filename)[0],
+        "slug": slug,
         "title": title,
         "category": category,
-        "categoryName": cat_names.get(category, category),
         "column": column,
-        "columnName": column_name,
+        "columnName": col_display,
         "order": order,
         "relPath": rel_path,
-        "coverGradient": cover_gradient,
         "date": date,
-        "readTime": f"{max(1, len(content) // 400)} 分钟",
-        "words": len(content),
+        "readTime": read_time,
+        "words": words_count,
         "views": 1,
         "likes": 0,
         "pinned": pinned,
         "excerpt": excerpt,
-        "tags": tags or [cat_names.get(category, "随笔")],
+        "tags": tags or [category],
         "content": content
     }
 
 def sync():
-    if not os.path.exists(SAMPLE_DATA_FILE):
-        print(f"Error: {SAMPLE_DATA_FILE} not found.")
-        return
-
-    with open(SAMPLE_DATA_FILE, "r", encoding="utf-8") as f:
-        js_text = f.read()
-
-    prefix = "window.BlogSampleData = "
-    idx = js_text.find("{")
-    last_idx = js_text.rfind("}")
-    if idx != -1 and last_idx != -1:
-        data = json.loads(js_text[idx:last_idx+1])
-    else:
-        print("Error: Could not parse sample-data.js")
-        return
-
+    os.makedirs(POSTS_DIR, exist_ok=True)
     md_files = []
     for root, dirs, files in os.walk(POSTS_DIR):
         for file in files:
             if file.endswith(".md") or file.endswith(".markdown"):
                 md_files.append(os.path.join(root, file))
 
-    if not md_files:
-        print(f"No .md files found in {POSTS_DIR}")
-        return
-
     synced_posts = []
     columns_map = {}
-
-    col_meta = {
-        "quantum-computing-ai": {"name": "Quantum Physics & Computing Frontiers", "desc": "Mathematical foundations of Hilbert spaces, unitary operators, variational quantum circuits (VQC), and statistical mechanics.", "icon": "atom", "color": "from-cyan-400 via-blue-500 to-indigo-600"},
-        "llm-in-action": {"name": "Large Language Models in Production", "desc": "Engineering systematic prompt pipelines, production RAG vector search, and agentic workflows.", "icon": "sparkles", "color": "from-purple-500 to-indigo-600"},
-        "frontend-architecture": {"name": "Modern Frontend Architecture", "desc": "Evolution of rendering engines from Virtual DOM diffing to fine-grained reactivity and Server Components.", "icon": "code", "color": "from-blue-500 to-cyan-500"},
-        "distributed-systems": {"name": "Distributed Systems & Consensus", "desc": "Consensus primitives, Paxos, Raft invariants, and fault-tolerant distributed system engineering.", "icon": "terminal", "color": "from-emerald-500 to-teal-600"}
-    }
 
     for filepath in sorted(md_files):
         p = parse_md_file(filepath)
@@ -167,47 +139,42 @@ def sync():
         col = p.get("column")
         if col:
             if col not in columns_map:
-                meta = col_meta.get(col, {"name": p.get("columnName") or col, "desc": f"涵盖 {p.get('columnName') or col} 的系统化深度技术连载。", "icon": "layers", "color": "from-indigo-500 to-purple-600"})
                 columns_map[col] = {
                     "id": col,
-                    "name": meta["name"],
-                    "desc": meta["desc"],
-                    "icon": meta["icon"],
-                    "color": meta["color"],
+                    "name": p.get("columnName") or col.title(),
+                    "desc": f"Technical series collection for {p.get('columnName') or col}.",
+                    "icon": "layers",
                     "posts": []
                 }
             columns_map[col]["posts"].append(p)
-        print(f" -> 扫描博文: {p['relPath']} (分类: {p['categoryName']}" + (f", 专栏: {p['columnName']} 第{p['order']}讲" if col else "") + ")")
+        print(f" -> 扫描博文: {p['relPath']} (分类: {p['category']}" + (f", 专栏: {p['columnName']} Part {p['order']}" if col else "") + ")")
 
     columns_list = []
-    col_priority = ["quantum-computing-ai", "llm-in-action", "frontend-architecture", "distributed-systems"]
-    sorted_cols = sorted(columns_map.items(), key=lambda item: col_priority.index(item[0]) if item[0] in col_priority else 99)
-    for col_id, col_info in sorted_cols:
+    for col_id, col_info in columns_map.items():
         col_info["posts"].sort(key=lambda x: x["order"])
         col_info["postsCount"] = len(col_info["posts"])
         col_info["totalWords"] = sum(x["words"] for x in col_info["posts"])
         columns_list.append(col_info)
 
-    # Update author & categories for quantum tech style
-    if "categories" in data and len(data["categories"]) > 0:
-        data["categories"][0] = {
-            "id": "quantum-ai",
-            "name": "量子计算与深度智能",
-            "desc": "高维希尔伯特空间、量子线路模拟、统计物理与深度自注意力同构",
-            "color": "from-cyan-400 via-blue-500 to-indigo-600",
-            "icon": "atom"
-        }
-    if "author" in data:
-        data["author"]["title"] = "全栈架构师 · 量子计算与深度智能研究者"
-        data["author"]["bio"] = "专注于现代计算架构、量子计算前沿、统计力学与大模型数学同构。崇尚严谨推导与心流开发，用代码记录思考与创造。"
+    payload = {
+        "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "posts": synced_posts,
+        "columns": columns_list
+    }
 
-    data["posts"] = synced_posts
-    data["columns"] = columns_list
+    js_output = "/** Auto-generated by sync_posts.py - Do not edit manually */\n"
+    js_output += "window.BlogPostsData = " + json.dumps(payload, ensure_ascii=False, indent=2) + ";\n"
+    js_output += "window.BlogSampleData = window.BlogPostsData; // Backwards compatibility\n"
+
+    os.makedirs(os.path.dirname(POSTS_DATA_FILE), exist_ok=True)
+    with open(POSTS_DATA_FILE, "w", encoding="utf-8") as f:
+        f.write(js_output)
 
     with open(SAMPLE_DATA_FILE, "w", encoding="utf-8") as f:
-        f.write(prefix + json.dumps(data, ensure_ascii=False, indent=2) + ";\n")
+        f.write(js_output)
 
-    print(f"\n✅ 同步完成！已成功扫描并提交 {len(synced_posts)} 篇博文，识别出 {len(columns_list)} 个独立专栏。")
+    print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏。")
+    print(f" -> 索引文件已更新: js/posts-data.js")
 
 if __name__ == "__main__":
     sync()
