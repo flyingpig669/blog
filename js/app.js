@@ -631,56 +631,158 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 5.6 关于作者视图 (About View - 基于 about.md 独立渲染 + 独占联系方式)
+    // 5.6 关于作者视图 (About View - 纯正 Linear / Vercel 极简科技风组件化呈现)
   renderAboutView: function() {
     var container = document.getElementById('app-main');
     var config = window.BlogStore.config || window.BlogConfig || {};
     var author = config.author || {};
     var social = config.social || [];
-    var aboutMarkdown = window.BlogStore.about || '';
+    var about = (window.BlogPostsData && window.BlogPostsData.about) || {};
 
-    var html = '<div class="max-w-[680px] mx-auto pt-16 md:pt-20 pb-20">';
+    var statusText = about.status || author.title || 'Physics, Math & CS';
+    var quoteText = about.quote || '';
+    var bioText = about.bio || author.bio || '';
+    var timeline = Array.isArray(about.timeline) ? about.timeline : [];
+    var focusAreas = Array.isArray(about.focusAreas) ? about.focusAreas : [];
+    var projects = Array.isArray(about.projects) ? about.projects : [];
+    var notes = about.notes || '';
 
-    // 头部名片卡
-    html += '<div class="flex items-center gap-5 mb-10 pb-8 border-b border-white/[0.06]">';
+    var html = '<div class="max-w-[680px] mx-auto pt-16 md:pt-20 pb-24">';
+
+    // 1. 顶部个人名片区 (Profile Hero)
+    html += '<div class="about-hero-card">';
     if (author.avatar) {
-      html += '  <img src="' + author.avatar + '" alt="' + (author.name || 'Author') + '" class="w-20 h-20 rounded-xl border border-white/[0.12] object-cover shrink-0">';
+      html += '  <div class="about-avatar-wrapper">';
+      html += '    <img src="' + author.avatar + '" alt="' + (author.name || 'Author') + '" class="about-avatar-img">';
+      html += '  </div>';
     }
     html += '  <div>';
-    html += '    <h1 class="text-[28px] font-bold text-[#EDEDED] mb-1 font-sans">' + (author.name || 'Alex Chen') + '</h1>';
-    html += '    <div class="text-[13px] font-mono text-[#8B8B8E]">' + (author.title || 'Software Architect') + '</div>';
+    html += '    <h1 class="about-name">' + (author.name || 'Alex Chen') + '</h1>';
+    html += '    <div class="about-meta-row">';
+    html += '      <span>' + (author.title || 'Researcher & Engineer') + '</span>';
     if (author.location) {
-      html += '    <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + author.location + '</div>';
+      html += '      <span>·</span>';
+      html += '      <span>' + author.location + '</span>';
+    }
+    html += '    </div>';
+    if (statusText) {
+      html += '    <div class="about-status-pill">';
+      html += '      <span class="about-status-dot"></span>';
+      html += '      <span>' + statusText + '</span>';
+      html += '    </div>';
     }
     html += '  </div>';
     html += '</div>';
 
-    // 渲染由 about.md 驱动的个人履历、时间线与工作记录
-    if (aboutMarkdown) {
-      var mdResult = window.BlogMarkdown.render(aboutMarkdown);
-      html += '<article class="markdown-body mb-12">';
-      html += mdResult.html;
-      html += '</article>';
-    } else {
-      html += '<div class="space-y-4 text-[15px] leading-relaxed text-[#EDEDED] mb-12">';
-      html += '  <p>' + (author.bio || 'Curious about computing fundamentals and elegant software architecture.') + '</p>';
-      html += '</div>';
+    // 2. 个人格言 (Quote Banner)
+    if (quoteText) {
+      html += '<div class="about-quote-box">“' + quoteText + '”</div>';
     }
 
-    // 独占联系方式区 (只在 About 页面展示)
-    if (social && social.length > 0) {
-      html += '<div class="pt-8 border-t border-white/[0.06]">';
-      html += '  <h2 class="text-[13px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-4">Connect / Contact</h2>';
-      html += '  <div class="space-y-2.5">';
-      social.forEach(function(item) {
-        var isExternal = item.url.indexOf('http') === 0;
-        html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="flex items-center justify-between p-3.5 rounded-lg border border-white/[0.08] hover:border-[#3B82F6] hover:bg-white/[0.02] transition-all group">';
-        html += '  <span class="text-[14px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors font-mono">' + item.name + '</span>';
-        html += '  <span class="text-[12px] text-[#5A5A5E] group-hover:text-[#EDEDED] transition-colors">↗</span>';
+    // 3. 个人简介 (Bio)
+    if (bioText) {
+      html += '<div class="about-bio-text">' + bioText + '</div>';
+    }
+
+    // 4. 经历与时间线 (Timeline & Milestones)
+    if (timeline.length > 0) {
+      html += '<section class="mb-14">';
+      html += '  <div class="about-section-header">';
+      html += '    <h2 class="about-section-title">Timeline & Milestones</h2>';
+      html += '    <span class="about-section-badge">' + timeline.length + ' Milestones</span>';
+      html += '  </div>';
+      html += '  <div class="about-timeline-track">';
+      timeline.forEach(function(item) {
+        html += '<div class="about-timeline-item">';
+        html += '  <div class="about-timeline-node"></div>';
+        if (item.period) {
+          html += '  <div class="about-timeline-period">' + item.period + '</div>';
+        }
+        if (item.title) {
+          html += '  <h3 class="about-timeline-heading">' + item.title + '</h3>';
+        }
+        if (item.desc) {
+          html += '  <p class="about-timeline-desc">' + item.desc + '</p>';
+        }
+        html += '</div>';
+      });
+      html += '  </div>';
+      html += '</section>';
+    }
+
+    // 5. 核心关注领域 (Focus Areas)
+    if (focusAreas.length > 0) {
+      html += '<section class="mb-14">';
+      html += '  <div class="about-section-header">';
+      html += '    <h2 class="about-section-title">Focus Areas</h2>';
+      html += '  </div>';
+      html += '  <div class="about-focus-grid">';
+      focusAreas.forEach(function(item) {
+        html += '<div class="about-focus-card">';
+        html += '  <div class="about-focus-title">' + item.title + '</div>';
+        html += '  <p class="about-focus-desc">' + item.desc + '</p>';
+        html += '</div>';
+      });
+      html += '  </div>';
+      html += '</section>';
+    }
+
+    // 6. 精选项目 (Selected Projects)
+    if (projects.length > 0) {
+      html += '<section class="mb-14">';
+      html += '  <div class="about-section-header">';
+      html += '    <h2 class="about-section-title">Selected Projects</h2>';
+      html += '  </div>';
+      html += '  <div class="about-project-list">';
+      projects.forEach(function(item) {
+        var isLink = item.url && item.url !== '#';
+        html += '<a href="' + (item.url || '#') + '" ' + (isLink ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-project-card group">';
+        html += '  <div class="about-project-top">';
+        html += '    <span class="about-project-name">' + item.name + '</span>';
+        if (item.tag) {
+          html += '    <span class="about-project-tag">' + item.tag + '</span>';
+        }
+        html += '  </div>';
+        if (item.desc) {
+          html += '  <p class="about-project-desc">' + item.desc + '</p>';
+        }
         html += '</a>';
       });
       html += '  </div>';
-      html += '</div>';
+      html += '</section>';
+    }
+
+    // 7. 附加自由 Markdown 内容 (如有)
+    if (notes && notes.trim().length > 0) {
+      var mdResult = window.BlogMarkdown.render(notes);
+      html += '<section class="mb-14 border-t border-white/[0.06] pt-8">';
+      html += '  <article class="markdown-body">' + mdResult.html + '</article>';
+      html += '</section>';
+    }
+
+    // 8. 独占联系方式 (Connect & Contact)
+    if (social && social.length > 0) {
+      html += '<section class="pt-8 border-t border-white/[0.06]">';
+      html += '  <div class="about-section-header">';
+      html += '    <h2 class="about-section-title">Connect / Contact</h2>';
+      html += '  </div>';
+      html += '  <div class="about-contact-grid">';
+      social.forEach(function(item) {
+        var isExternal = item.url.indexOf('http') === 0;
+        var iconName = item.icon || item.name.toLowerCase();
+        var iconSvg = window.BlogIcons ? window.BlogIcons.get(iconName, 'w-4 h-4 text-current') : '';
+        html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-contact-card group">';
+        html += '  <div class="about-contact-left">';
+        if (iconSvg) {
+          html += '    <div class="about-contact-icon">' + iconSvg + '</div>';
+        }
+        html += '    <span class="about-contact-name">' + item.name + '</span>';
+        html += '  </div>';
+        html += '  <span class="about-contact-arrow">↗</span>';
+        html += '</a>';
+      });
+      html += '  </div>';
+      html += '</section>';
     }
 
     html += '</div>';

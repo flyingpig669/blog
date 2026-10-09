@@ -30,7 +30,7 @@ window.BlogConfig = {
     name: "CCC",
     title: "Student",
     bio: "Physics, Math, and Computer Science Enthusiast.",
-    avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=CC C",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=CCC&backgroundColor=161618&textColor=EDEDED&fontWeight=600",
     location: "Shandong, China",
     email: "flyingpig06@outlook.com",
     github: "https://github.com/flyingpig669",
