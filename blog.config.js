@@ -81,8 +81,6 @@ window.BlogConfig = {
     outlineSidebar: true,
     // 启用 Cmd+K / Ctrl+K 全文即时检索
     searchModal: true,
-    // 启用在线 Markdown 创作器 (#/editor)
-    editor: true,
     // 启用数学公式 KaTeX 解析渲染
     mathKaTeX: true,
     // 启用代码块语法高亮与一键复制代码

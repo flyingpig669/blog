@@ -68,7 +68,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 3. **顶部导航栏 (Navbar)**：
    - 高度固定 56px (`h-14`)，采用全宽占据页面方式 (`w-full px-4 sm:px-6 md:px-8 lg:px-12`)，支持缩放与自适应断点（`md:` 768px 折叠抽屉）。
    - 左侧为 Logo（等宽 `shrink-0`）与主导航项（`hidden md:flex gap-4 lg:gap-6 whitespace-nowrap overflow-x-auto no-scrollbar`），两组保持充裕间距（`gap-6 lg:gap-8`），物理杜绝重叠粘连。
-   - 右侧为搜索快捷按钮（`Search ⌘K`）、写作快捷键（`Write`）与移动端抽屉开关（`md:hidden`），统一 `shrink-0`。
+   - 右侧为搜索快捷按钮（`Search ⌘K`）与移动端抽屉开关（`md:hidden`），统一 `shrink-0`。
    - 毛玻璃背景：`bg-[#0A0A0B]/72 backdrop-blur-md border-b border-white/[0.06]`。
 4. **页脚 (Footer)**：
    - 顶部间距：`mt-24`，上边框 `border-t border-white/[0.06]`，垂直内边距 `py-10`。
@@ -147,7 +147,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 1. 路由层级必须与实际内容层级严格对应。一级路径表示模块，二级路径表示具体资源。
 2. 资源集合必须使用**复数名词**（如 `/columns`、`/tags`、`/projects`），单条资源详情使用 `/资源集合/唯一标识` 的形式（如 `/columns/frontend`、`/tags/react`）。
 3. 路由路径中禁止出现动词（如 `/getPost`、`/createProject`、`/searchArticle`）。动作语义必须由 HTTP 方法（GET、POST、PUT、DELETE）或页面功能承担。
-4. `Search`（搜索）和 `Write`（写作）属于操作型功能，必须与展示型路由区分开。`Write` 必须归入统一的后台管理前缀下，禁止暴露在公开路由层级中。
+4. `Search`（搜索）属于全局交互操作，通过快捷键 ⌘K / Ctrl+K 弹出模态窗口，不占用主展示路由。
 
 ### 6.3 参数传递约束
 
@@ -186,7 +186,6 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 | Project Detail | `/projects/:projectSlug` | 项目详情 |
 | Archive | `/archive` | 独立归档页（若复用 `/posts` 则无需单独存在） |
 | Search | `/search?q=...` | 搜索页，关键词作为查询参数 |
-| Write | `/admin/write` | 写文章，必须归入后台前缀 |
 
 ### 6.7 路由与布局的映射关系
 
@@ -194,7 +193,6 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 - 单栏路由（`/`、`/columns`、`/tags`、`/archive`、`/about`、`/projects`）：使用 `max-w-[720px]`。
 - 双栏路由（`/posts/:slug`）：使用 `max-w-[1000px]`。
-- 后台路由（`/admin/write`）：可独立于前台版心，但必须遵循同一套设计令牌。
 
 ---
 

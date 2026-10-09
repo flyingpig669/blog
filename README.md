@@ -106,7 +106,6 @@ window.BlogConfig = {
     readingProgress: true,  // 顶部平滑阅读进度条
     outlineSidebar: true,   // 文章详情页常驻右侧悬浮 Outline 目录导航与实时高亮
     searchModal: true,      // 快捷键 Cmd+K / Ctrl+K 全文即时检索
-    editor: true,           // 在线实时预览 Markdown 创作器 (#/editor)
     mathKaTeX: true,        // 学术级数学公式 KaTeX 解析引擎
     codeHighlight: true     // 代码块语法高亮与悬浮一键复制代码
   },
@@ -192,7 +191,7 @@ projects:
 
 1. **全宽页面占据 (Full-Width Page Spanning)**：
    - 导航外层摒弃了窄版心限制，采用 `w-full px-4 sm:px-6 md:px-8 lg:px-12` 贯穿整个浏览器视口。
-   - 左侧为 Logo 标识（等宽字体）与主导航菜单项，右侧为搜索（`Search ⌘K`）、创作（`Write`）及小屏汉堡菜单。
+   - 左侧为 Logo 标识（等宽字体）与主导航菜单项，右侧为搜索（`Search ⌘K`）及小屏汉堡菜单。
    - 保证了在 2K、4K 或宽屏电脑上拥有充足的留白与横向舒展空间。
 
 2. **自适应缩放与防重叠机制 (Scaling & Anti-overlap Protection)**：
@@ -216,7 +215,6 @@ projects:
 * **归档时间线**：`/#/archives`
 * **标签云聚合**：`/#/categories`
 * **关于作者**：`/#/about` (纯文字去边框社交链接)
-* **在线创作器**：`/#/editor`
 
 **为什么使用 Hash 路由？**
 在 GitHub Pages 等纯静态服务器托管场景下，普通 HTML5 History 路由在用户直接刷新页面或分享深层链接时会导致致命的 404 错误。而 Hash 路由由浏览器内核原生处理哈希变化（`hashchange` 事件），无论在本地开发还是云端部署，均 100% 保证刷新不丢页、免去复杂的服务器端重定向配置。

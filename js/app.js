@@ -76,7 +76,6 @@ window.BlogApp = {
         var isExternal = href.indexOf('http') === 0;
         drawerHtml += '<a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
       });
-      drawerHtml += '<a href="#/editor" onclick="document.getElementById(\'mobile-drawer\').classList.add(\'hidden\')" class="block py-1.5 text-[14px] text-[#3B82F6] font-mono">Write Article</a>';
       mobileDrawerEl.innerHTML = drawerHtml;
     }
 
@@ -297,9 +296,8 @@ window.BlogApp = {
       return;
     }
 
-    if (path === '/editor') {
-      this.currentRoute = { name: 'editor', params: {} };
-      this.renderEditorView();
+    if (path === '/editor' || path === '/write') {
+      window.location.hash = '#/';
       return;
     }
 
@@ -352,11 +350,7 @@ window.BlogApp = {
     var site = (window.BlogStore.config && window.BlogStore.config.site) || {};
     var posts = window.BlogStore.getPosts();
 
-    if (this.activeTag) {
-      posts = posts.filter(function(p) {
-        return (p.tags || []).indexOf(window.BlogApp.activeTag) !== -1;
-      });
-    }
+
 
     var html = '<div class="max-w-[720px] mx-auto">';
 
@@ -376,7 +370,7 @@ window.BlogApp = {
     if (posts.length === 0) {
       html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
       html += '  <p class="mb-3 text-[#8B8B8E]">No articles found.</p>';
-      html += '  <p class="text-[12px]">Add a Markdown file to <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/</code> or click <a href="#/editor" class="text-[#3B82F6] hover:underline">Write</a> to publish your first post.</p>';
+      html += '  <p class="text-[12px]">Add a Markdown file to <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/</code> to publish your first post.</p>';
       html += '</div>';
     } else {
       posts.forEach(function(post) {
@@ -1107,78 +1101,8 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 5.7 在线 Markdown 创作器视图 (Editor View)
-  renderEditorView: function() {
-    var container = document.getElementById('app-main');
-    var draft = window.BlogStore.getDraft() || { title: '', tags: '', content: '' };
-
-    var html = '<div class="max-w-[720px] mx-auto pt-14 pb-20">';
-    html += '  <div class="flex items-center justify-between pb-6 border-b border-white/[0.06] mb-8">';
-    html += '    <h1 class="text-[24px] font-bold text-[#EDEDED]">Write Article</h1>';
-    html += '    <button onclick="window.BlogApp.publishArticle()" class="linear-btn linear-btn-primary">Publish</button>';
-    html += '  </div>';
-
-    html += '  <div class="space-y-5">';
-    html += '    <div>';
-    html += '      <label class="block text-[12px] font-mono text-[#5A5A5E] mb-2">TITLE</label>';
-    html += '      <input id="editor-title" type="text" value="' + (draft.title || '') + '" oninput="window.BlogApp.saveDraftDebounced()" placeholder="Article title..." class="w-full bg-[#111113] border border-white/[0.08] rounded-lg px-3.5 py-2.5 text-[15px] text-[#EDEDED] focus:border-[#3B82F6] focus:outline-none transition-colors">';
-    html += '    </div>';
-
-    html += '    <div>';
-    html += '      <label class="block text-[12px] font-mono text-[#5A5A5E] mb-2">TAGS (Comma separated)</label>';
-    html += '      <input id="editor-tags" type="text" value="' + (draft.tags || '') + '" oninput="window.BlogApp.saveDraftDebounced()" placeholder="Tech, Architecture, Algorithms..." class="w-full bg-[#111113] border border-white/[0.08] rounded-lg px-3.5 py-2.5 text-[14px] text-[#EDEDED] focus:border-[#3B82F6] focus:outline-none transition-colors">';
-    html += '    </div>';
-
-    html += '    <div>';
-    html += '      <label class="block text-[12px] font-mono text-[#5A5A5E] mb-2">MARKDOWN CONTENT</label>';
-    html += '      <textarea id="editor-content" rows="18" oninput="window.BlogApp.saveDraftDebounced()" placeholder="Write your thoughts in Markdown..." class="w-full bg-[#111113] border border-white/[0.08] rounded-lg p-4 text-[14px] font-mono text-[#EDEDED] focus:border-[#3B82F6] focus:outline-none transition-colors leading-relaxed">' + (draft.content || '') + '</textarea>';
-    html += '    </div>';
-    html += '  </div>';
-    html += '</div>';
-
-    container.innerHTML = html;
-  },
-
   // ----------------------------------------------------------------------------
-  // 6. 编辑器与本地发布逻辑
-  // ----------------------------------------------------------------------------
-  saveDraftDebounced: function() {
-    clearTimeout(this._draftTimer);
-    this._draftTimer = setTimeout(function() {
-      var title = document.getElementById('editor-title').value;
-      var tags = document.getElementById('editor-tags').value;
-      var content = document.getElementById('editor-content').value;
-      window.BlogStore.saveDraft({ title: title, tags: tags, content: content });
-    }, 400);
-  },
-
-  publishArticle: function() {
-    var title = (document.getElementById('editor-title').value || '').trim();
-    var tagsRaw = (document.getElementById('editor-tags').value || '').trim();
-    var content = (document.getElementById('editor-content').value || '').trim();
-
-    if (!title) {
-      alert('Please enter an article title.');
-      return;
-    }
-    if (!content) {
-      alert('Article content cannot be empty.');
-      return;
-    }
-
-    var tags = tagsRaw ? tagsRaw.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : ['general'];
-    var newPost = window.BlogStore.addPost({
-      title: title,
-      tags: tags,
-      content: content
-    });
-
-    window.BlogStore.clearDraft();
-    window.location.hash = '#/post/' + newPost.id;
-  },
-
-  // ----------------------------------------------------------------------------
-  // 7. 搜索弹窗逻辑 (Search Modal Cmd+K)
+  // 6. 搜索弹窗逻辑 (Search Modal Cmd+K)
   // ----------------------------------------------------------------------------
   openSearchModal: function() {
     var modal = document.getElementById('search-modal');
