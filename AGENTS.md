@@ -58,7 +58,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 严禁在任何页面引入自定义的随意外层宽度（如 `max-w-4xl`、`max-w-screen-xl` 等）：
 
-1. **标准单栏页面 (Home, Columns, Archive, Tags, About, Projects 及动态栏目)**：
+1. **标准单栏页面 (Home, Columns, Archive, Tags, About 及动态栏目)**：
    - 外层版心宽度：严格为 `max-w-[720px] mx-auto px-4 sm:px-6`。
    - 垂直留白：顶部 `pt-16 md:pt-20`（首页可增至 `pt-20 md:pt-24`），底部 `pb-20`。
 2. **文章详情双栏阅读页面 (Post View)**：

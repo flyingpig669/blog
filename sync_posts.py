@@ -70,6 +70,7 @@ def parse_md_file(filepath):
     slide = ""
     attachments = []
     is_test = False
+    doc_type = "post"
     content = raw
 
     if len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
@@ -110,6 +111,8 @@ def parse_md_file(filepath):
                 project_name = val
             elif key == "test":
                 is_test = (val.lower() == "true")
+            elif key in ["type", "layout"]:
+                doc_type = val.lower()
             elif key in ["slide", "slides", "pdf", "deck"]:
                 slide = val
             elif key in ["attachment", "attachments"]:
@@ -195,6 +198,7 @@ def parse_md_file(filepath):
         "views": 1,
         "likes": 0,
         "pinned": pinned,
+        "type": doc_type,
         "isTest": is_test,
         "slide": slide,
         "attachments": attachments,

@@ -369,25 +369,6 @@ window.BlogApp = {
     html += site.tagline || 'Curated technical writings, system architecture notes, and computing fundamentals.';
     html += '  </p>';
 
-    // 首页 Tags 快速筛选栏 (Requirement 1)
-    var allTags = window.BlogStore.getAllTags() || [];
-    if (allTags.length > 0) {
-      html += '  <div class="mt-8 flex flex-wrap items-center gap-2">';
-      html += '    <button type="button" onclick="window.BlogApp.clearTag()" class="tag-filter-pill ' + (!this.activeTag ? 'active' : '') + '">All</button>';
-      allTags.forEach(function(t) {
-        var isAct = window.BlogApp.activeTag === t.name;
-        var encTag = encodeURIComponent(t.name);
-        html += '    <button type="button" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encTag + '\'))" class="tag-filter-pill ' + (isAct ? 'active' : '') + '">#' + t.name + ' <span class="opacity-60 text-[10px]">' + t.count + '</span></button>';
-      });
-      html += '  </div>';
-    }
-
-    if (this.activeTag) {
-      html += '  <div class="mt-4 flex items-center gap-2 text-[12px] font-mono text-[#8B8B8E]">';
-      html += '    <span>Filtering by: <span class="text-[#3B82F6]">#' + this.activeTag + '</span></span>';
-      html += '    <button type="button" onclick="window.BlogApp.clearTag()" class="text-[#5A5A5E] hover:text-[#EDEDED] ml-2 cursor-pointer">✕ clear</button>';
-      html += '  </div>';
-    }
     html += '</section>';
 
     // Article List
@@ -849,26 +830,115 @@ window.BlogApp = {
   },
 
   // 5.5 标签视图 (Tags View)
+  // 5.5 标签多选检索视图 (Sorted / Categories View - 支持多选复合筛选)
+  selectedSortedTags: new Set(),
+
+  toggleSortedTag: function(tagName) {
+    if (!this.selectedSortedTags) this.selectedSortedTags = new Set();
+    if (this.selectedSortedTags.has(tagName)) {
+      this.selectedSortedTags.delete(tagName);
+    } else {
+      this.selectedSortedTags.add(tagName);
+    }
+    this.renderTagsView();
+  },
+
+  clearSortedTags: function() {
+    if (this.selectedSortedTags) this.selectedSortedTags.clear();
+    this.renderTagsView();
+  },
+
   renderTagsView: function() {
     var container = document.getElementById('app-main');
-    var allTags = window.BlogStore.getAllTags();
+    var allTags = window.BlogStore.getAllTags() || [];
+    var posts = window.BlogStore.getPosts() || [];
+    var selected = this.selectedSortedTags || new Set();
+
+    // 多选 Tag 复合交集筛选
+    var selectedArr = Array.from(selected);
+    var filteredPosts = posts;
+    if (selectedArr.length > 0) {
+      filteredPosts = posts.filter(function(p) {
+        return selectedArr.every(function(t) {
+          return p.tags && p.tags.indexOf(t) !== -1;
+        });
+      });
+    }
 
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
-    html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Tags</h1>';
-    html += '    <p class="text-[16px] text-[#8B8B8E]">Curated topics and domain tags across computer science and mathematical physics.</p>';
+    html += '  <header class="mb-8 pb-6 border-b border-white/[0.06]">';
+    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Tags & Sorted Topics</h1>';
+    html += '    <p class="text-[16px] text-[#8B8B8E]">Select single or multiple tags to filter articles with precise multi-dimensional intersection.</p>';
     html += '  </header>';
 
-    html += '  <div class="flex flex-wrap gap-2.5">';
+    // 可多选标签胶囊云
+    html += '  <div class="mb-8">';
+    html += '    <div class="flex items-center justify-between mb-3">';
+    html += '      <span class="text-[12px] font-mono text-[#5A5A5E] uppercase tracking-wider">Available Tags (' + allTags.length + ')</span>';
+    if (selected.size > 0) {
+      html += '      <button type="button" onclick="window.BlogApp.clearSortedTags()" class="text-[12px] font-mono text-[#3B82F6] hover:underline cursor-pointer">Clear Selection (' + selected.size + ')</button>';
+    }
+    html += '    </div>';
+    html += '    <div class="flex flex-wrap gap-2">';
     allTags.forEach(function(item) {
       var tagName = item.name || item;
       var count = item.count || 1;
-      html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encodeURIComponent(tagName) + '\'))" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.12] hover:border-[#3B82F6] hover:text-[#3B82F6] text-[#EDEDED] text-[13px] font-mono transition-all hover:-translate-y-[1px] bg-[#111113]">';
-      html += '      <span>#' + tagName + '</span>';
-      html += '      <span class="text-[11px] text-[#5A5A5E]">' + count + '</span>';
-      html += '    </a>';
+      var isAct = selected.has(tagName);
+      var enc = encodeURIComponent(tagName);
+      html += '<button type="button" data-tag="' + enc + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="tag-filter-pill ' + (isAct ? "active" : "") + '"><span class="font-mono">#' + tagName + '</span> <span class="opacity-60 text-[10px] font-mono">' + count + '</span></button>';
     });
+    html += '    </div>';
     html += '  </div>';
+
+    // 筛选结果列表
+    html += '  <section class="pt-6 border-t border-white/[0.06]">';
+    html += '    <div class="flex items-center justify-between mb-6">';
+    html += '      <div class="text-[13px] font-mono text-[#8B8B8E]">';
+    if (selected.size > 0) {
+      html += '        <span>Matching <span class="text-[#3B82F6] font-semibold">' + filteredPosts.length + '</span> articles for: </span>';
+      selectedArr.forEach(function(t) {
+        html += '<span class="text-[#EDEDED] mr-1.5 font-medium">#' + t + '</span>';
+      });
+    } else {
+      html += '        <span>All articles (' + posts.length + ') — click any tag above to combine filters</span>';
+    }
+    html += '      </div>';
+    html += '    </div>';
+
+    if (filteredPosts.length === 0) {
+      html += '    <div class="py-16 text-center text-[#5A5A5E] font-mono text-[14px] bg-[#111113] rounded-xl border border-white/[0.08] p-8">';
+      html += '      <p class="mb-2 text-[#8B8B8E]">No articles match all selected tags.</p>';
+      html += '      <button type="button" onclick="window.BlogApp.clearSortedTags()" class="text-[12px] text-[#3B82F6] hover:underline cursor-pointer">Reset filters</button>';
+      html += '    </div>';
+    } else {
+      html += '    <div class="divide-y divide-white/[0.06]">';
+      filteredPosts.forEach(function(post) {
+        html += '      <article class="post-item group">';
+        html += '        <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+        html += '          <span>' + post.date + '</span>';
+        if (post.readTime) html += '<span>·</span><span>' + post.readTime + '</span>';
+        if (post.columnName) html += '<span class="text-[#3B82F6]">' + post.columnName + '</span>';
+        html += '        </div>';
+        html += '        <h2 class="mb-2">';
+        html += '          <a href="#/post/' + (post.slug || post.id) + '" class="post-item-title block leading-snug">' + post.title + '</a>';
+        html += '        </h2>';
+        if (post.excerpt) {
+          html += '        <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
+        }
+        if ((post.tags || []).length > 0) {
+          html += '        <div class="flex flex-wrap items-center gap-1.5">';
+          post.tags.forEach(function(t) {
+            var isSel = selected.has(t);
+          html += '<button type="button" data-tag="' + encodeURIComponent(t) + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="text-[11px] font-mono px-2 py-0.5 rounded-full border transition-all ' + (isSel ? "border-[#3B82F6] text-[#3B82F6] bg-[#3B82F6]/10" : "border-white/[0.08] text-[#8B8B8E] hover:border-white/[0.16] hover:text-[#EDEDED]") + '">#' + t + '</button>';
+          });
+          html += '        </div>';
+        }
+        html += '      </article>';
+      });
+      html += '    </div>';
+    }
+
+    html += '  </section>';
     html += '</div>';
 
     container.innerHTML = html;

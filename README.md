@@ -78,10 +78,9 @@ window.BlogConfig = {
 
   // 3. 顶部主导航菜单 (Navigation Menu - 支持零代码动态扩展)
   nav: [
-    { id: "home", label: "Home", route: "/" },
-    { id: "columns", label: "Columns", route: "/columns" },
-    { id: "projects", label: "Projects", route: "/projects", title: "Projects", subtitle: "Selected open-source and engineering experiments.", file: "projects.md" },
-    { id: "archives", label: "Archive", route: "/archives" },
+  { id: "home", label: "Home", route: "/" },
+  { id: "columns", label: "Columns", route: "/columns" },
+  { id: "archives", label: "Archive", route: "/archives" },
     { id: "categories", label: "Tags", route: "/categories" },
     { id: "about", label: "About", route: "/about" }
   ],
@@ -213,10 +212,6 @@ projects:
   * 全部专栏列表：`/#/columns`
   * 单个专栏篇章目录：`/#/columns/<column-id>` (例如: `/#/columns/抽象代数`)
   * 专栏文章直达：`/#/columns/<column-id>/<post-slug>`
-* **项目多级路由 (与专栏 100% 架构对齐)**：
-  * 全部项目列表：`/#/projects`
-  * 单个项目篇章目录：`/#/projects/<project-id>` (例如: `/#/projects/quantum-sim`)
-  * 项目文章直达：`/#/projects/<project-id>/<post-slug>`
 * **通用博文详情页**：`/#/post/<post-id>` (支持 ID、Slug、相对路径智能容错解析)
 * **归档时间线**：`/#/archives`
 * **标签云聚合**：`/#/categories`
@@ -294,17 +289,34 @@ excerpt: "这里是一句话摘要，若不填写将自动提取正文前 140 �
 正文支持各种高级排版语法与公式渲染。
 ```
 
-### 2. 专题专栏（Series / Columns）组织
-若需要创建体系化的长文专题，在 `posts/columns/` 下建立文件夹：
+### 2. 专栏完全基于 FrontMatter 格式识别 (零目录层级依赖)
+无需在 `posts/` 目录下繁琐创建 `columns/` 子文件夹！所有文章均可直接平铺在 `posts/` 目录下。
 
-```text
-posts/columns/distributed-systems/
-├── 01-consensus-and-raft.md
-├── 02-log-replication.md
-└── 03-membership-changes.md
+只需在文章的 FrontMatter 中声明 `column`（或 `series`）与章节序号 `order`，系统将自动汇总为专栏：
+
+```yaml
+---
+title: "01 简介：代数结构与映射"
+date: "2026-10-09"
+column: "抽象代数"              # 专栏唯一标识
+columnName: "抽象代数与群论导引"    # 专栏对外展示大标题
+order: 1                       # 章节顺序序号 (自动编排为 Part 01)
+tags: ["algebra", "math"]
+---
 ```
 
-文件名中的数字序号（如 `01-`、`02-`）会自动识别为章节顺序（Part 01、Part 02），并在专栏页面（Columns）自动汇聚为时间线章节索引。
+无论文章存放在何处，只要 FrontMatter 配置了相同的 `column`，在 `/#/columns` 页面中都会自动汇聚为一个完整的体系化专栏系列。
+
+---
+
+### 3. 文章两大排版模式 (普通博文模式 vs Page 独立单页模式)
+系统支持两种截然不同的渲染形态，满足技术深度长文与定制单页的需求：
+
+* **模式 1：普通博文模式 (Post Mode - 默认)**：
+  标准学术技术文章排版。配备发布日期、阅读时间估算、字数统计、右侧常驻浮动 Outline 目录（带实时滚动高亮）、KaTeX 数学推导公式、Prism 代码高亮以及底部的上一篇/下一篇翻页导流。
+* **模式 2：Page 独立单页模式 (Page Mode - 类似于 about.md 的纯净排版)**：
+  在 FrontMatter 中声明 `type: "page"` 或 `layout: "page"`。
+  该模式专为独立个人说明、简历、关于、服务协议等单页场景定制：彻底隐藏博客发布日期、阅读字数徽章以及底部的博客翻页卡片，呈现出类似于关于页的高级纯净单页质感。
 
 ---
 

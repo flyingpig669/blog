@@ -41,7 +41,6 @@ window.BlogConfig = {
   nav: [
     { id: "home", label: "Home", route: "/" },
     { id: "columns", label: "Columns", route: "/columns" },
-    { id: "projects", label: "Projects", route: "/projects", title: "Projects", subtitle: "Selected open-source and engineering experiments.", file: "projects.md" },
     { id: "archives", label: "Archive", route: "/archives" },
     { id: "categories", label: "Tags", route: "/categories" },
     { id: "about", label: "About", route: "/about" }
