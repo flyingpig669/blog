@@ -48,11 +48,11 @@ window.BlogConfig = {
   ],
 
   // 4. 页脚与关于页社交链接 (Social Links)
-  social: [
-    { name: "GitHub", url: "https://github.com/flyingpig669", icon: "github" },
-    { name: "Twitter", url: "https://twitter.com", icon: "twitter" },
-    { name: "Email", url: "mailto:flyingpig06@outlook.com", icon: "mail" },
-  ],
+  // social: [
+  //   { name: "GitHub", url: "https://github.com/flyingpig669", icon: "github" },
+  //   { name: "Twitter", url: "https://twitter.com", icon: "twitter" },
+  //   { name: "Email", url: "mailto:flyingpig06@outlook.com", icon: "mail" },
+  // ],
 
   // 5. 专栏 / 系列默认元信息 (Series Metadata Fallback)
   // 当 posts/columns/<folder-name> 缺少自定义元数据时，将自动匹配此处的名称与描述
