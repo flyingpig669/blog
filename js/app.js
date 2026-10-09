@@ -653,11 +653,11 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-    // 5.6 关于作者视图 (About View - 纯正 Linear / Vercel 极简科技风组件化呈现)
+        // 5.6 关于作者视图 (About View - 纯粹极简科技排版，绝无厚重色块大卡片)
   renderAboutView: function() {
     var container = document.getElementById('app-main');
     var config = window.BlogStore.config || window.BlogConfig || {};
-    var author = config.author || {};
+    var author = window.BlogStore.author || config.author || {};
     var social = config.social || [];
     var about = (window.BlogPostsData && window.BlogPostsData.about) || {};
 
@@ -669,7 +669,7 @@ window.BlogApp = {
     var projects = Array.isArray(about.projects) ? about.projects : [];
     var notes = about.notes || '';
 
-    var html = '<div class="max-w-[680px] mx-auto pt-16 md:pt-20 pb-24">';
+    var html = '<div class="max-w-[640px] mx-auto pt-16 md:pt-20 pb-24">';
 
     // 1. 顶部个人名片区 (Profile Hero)
     html += '<div class="about-hero-card">';
@@ -679,9 +679,9 @@ window.BlogApp = {
       html += '  </div>';
     }
     html += '  <div>';
-    html += '    <h1 class="about-name">' + (author.name || 'Alex Chen') + '</h1>';
+    html += '    <h1 class="about-name">' + (author.name || 'CCC') + '</h1>';
     html += '    <div class="about-meta-row">';
-    html += '      <span>' + (author.title || 'Researcher & Engineer') + '</span>';
+    html += '      <span>' + (author.title || 'Student') + '</span>';
     if (author.location) {
       html += '      <span>·</span>';
       html += '      <span>' + author.location + '</span>';
@@ -689,7 +689,7 @@ window.BlogApp = {
     html += '    </div>';
     if (statusText) {
       html += '    <div class="about-status-pill">';
-      html += '      <span class="about-status-dot"></span>';
+      html += '      <span class="about-status-dot-pulse"><span class="about-status-dot-ping"></span><span class="about-status-dot-core"></span></span>';
       html += '      <span>' + statusText + '</span>';
       html += '    </div>';
     }
@@ -701,12 +701,12 @@ window.BlogApp = {
       html += '<div class="about-quote-box">“' + quoteText + '”</div>';
     }
 
-    // 3. 个人简介 (Bio)
+    // 3. 个人简介段落 (Bio)
     if (bioText) {
       html += '<div class="about-bio-text">' + bioText + '</div>';
     }
 
-    // 4. 经历与时间线 (Timeline & Milestones)
+    // 4. 经历与时间线 (Timeline & Milestones - Linear 极简发光导轨)
     if (timeline.length > 0) {
       html += '<section class="mb-14">';
       html += '  <div class="about-section-header">';
@@ -732,43 +732,53 @@ window.BlogApp = {
       html += '</section>';
     }
 
-    // 5. 核心关注领域 (Focus Areas)
+    // 5. 核心关注领域 (Focus Areas - 极简纯净条目，绝无厚重大色块网格)
     if (focusAreas.length > 0) {
       html += '<section class="mb-14">';
       html += '  <div class="about-section-header">';
       html += '    <h2 class="about-section-title">Focus Areas</h2>';
       html += '  </div>';
-      html += '  <div class="about-focus-grid">';
+      html += '  <div class="space-y-4">';
       focusAreas.forEach(function(item) {
-        html += '<div class="about-focus-card">';
-        html += '  <div class="about-focus-title">' + item.title + '</div>';
-        html += '  <p class="about-focus-desc">' + item.desc + '</p>';
+        html += '<div class="flex items-start gap-3 py-1">';
+        html += '  <span class="text-[#3B82F6] font-mono text-[13px] mt-0.5 shrink-0">/</span>';
+        html += '  <div>';
+        html += '    <h3 class="text-[15px] font-semibold text-[#EDEDED] mb-1 font-sans">' + item.title + '</h3>';
+        html += '    <p class="text-[13.5px] leading-relaxed text-[#8B8B8E] m-0">' + item.desc + '</p>';
+        html += '  </div>';
         html += '</div>';
       });
       html += '  </div>';
       html += '</section>';
     }
 
-    // 6. 精选项目 (Selected Projects)
+    // 6. 精选项目 (Selected Projects - 极简行式条目，优雅轻盈)
     if (projects.length > 0) {
       html += '<section class="mb-14">';
       html += '  <div class="about-section-header">';
       html += '    <h2 class="about-section-title">Selected Projects</h2>';
       html += '  </div>';
-      html += '  <div class="about-project-list">';
+      html += '  <div class="space-y-3">';
       projects.forEach(function(item) {
         var isLink = item.url && item.url !== '#';
-        html += '<a href="' + (item.url || '#') + '" ' + (isLink ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-project-card group">';
-        html += '  <div class="about-project-top">';
-        html += '    <span class="about-project-name">' + item.name + '</span>';
+        html += '<div class="py-2.5 border-b border-white/[0.04] last:border-b-0">';
+        html += '  <div class="flex items-center justify-between mb-1">';
+        if (isLink) {
+          html += '    <a href="' + item.url + '" target="_blank" rel="noopener noreferrer" class="text-[15px] font-semibold text-[#EDEDED] hover:text-[#3B82F6] transition-colors inline-flex items-center gap-1.5 font-sans group">';
+          html += '      <span>' + item.name + '</span>';
+          html += '      <span class="text-[12px] font-mono text-[#5A5A5E] group-hover:text-[#3B82F6] transition-colors">↗</span>';
+          html += '    </a>';
+        } else {
+          html += '    <span class="text-[15px] font-semibold text-[#EDEDED] font-sans">' + item.name + '</span>';
+        }
         if (item.tag) {
-          html += '    <span class="about-project-tag">' + item.tag + '</span>';
+          html += '    <span class="text-[11px] font-mono text-[#5A5A5E] px-2 py-0.5 rounded bg-white/[0.04]">' + item.tag + '</span>';
         }
         html += '  </div>';
         if (item.desc) {
-          html += '  <p class="about-project-desc">' + item.desc + '</p>';
+          html += '  <p class="text-[13.5px] leading-relaxed text-[#8B8B8E] m-0">' + item.desc + '</p>';
         }
-        html += '</a>';
+        html += '</div>';
       });
       html += '  </div>';
       html += '</section>';
@@ -782,25 +792,23 @@ window.BlogApp = {
       html += '</section>';
     }
 
-    // 8. 独占联系方式 (Connect & Contact)
+    // 8. 独占联系方式 (Connect / Contact - 3列紧凑精致药丸按钮)
     if (social && social.length > 0) {
       html += '<section class="pt-8 border-t border-white/[0.06]">';
       html += '  <div class="about-section-header">';
       html += '    <h2 class="about-section-title">Connect / Contact</h2>';
       html += '  </div>';
-      html += '  <div class="about-contact-grid">';
+      html += '  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">';
       social.forEach(function(item) {
         var isExternal = item.url.indexOf('http') === 0;
         var iconName = item.icon || item.name.toLowerCase();
-        var iconSvg = window.BlogIcons ? window.BlogIcons.get(iconName, 'w-4 h-4 text-current') : '';
-        html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-contact-card group">';
-        html += '  <div class="about-contact-left">';
-        if (iconSvg) {
-          html += '    <div class="about-contact-icon">' + iconSvg + '</div>';
-        }
-        html += '    <span class="about-contact-name">' + item.name + '</span>';
+        var iconSvg = window.BlogIcons ? window.BlogIcons.get(iconName, 'w-3.5 h-3.5 text-[#8B8B8E] group-hover:text-[#3B82F6] transition-colors') : '';
+        html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="flex items-center justify-between px-3.5 py-2.5 rounded-lg border border-white/[0.08] hover:border-[#3B82F6] hover:bg-white/[0.02] transition-all group">';
+        html += '  <div class="flex items-center gap-2.5">';
+        if (iconSvg) html += iconSvg;
+        html += '    <span class="text-[13px] font-mono text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + item.name + '</span>';
         html += '  </div>';
-        html += '  <span class="about-contact-arrow">↗</span>';
+        html += '  <span class="text-[11px] font-mono text-[#5A5A5E] group-hover:text-[#3B82F6] group-hover:translate-x-[1px] transition-all">↗</span>';
         html += '</a>';
       });
       html += '  </div>';
