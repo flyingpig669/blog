@@ -4,8 +4,9 @@ import socketserver
 import os
 import sys
 
-PORT = 8900
+PORT = 18888
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+
 
 def daemonize():
     if os.fork() > 0:
@@ -21,6 +22,7 @@ def daemonize():
     os.dup2(so.fileno(), sys.stdout.fileno())
     os.dup2(so.fileno(), sys.stderr.fileno())
 
+
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
@@ -29,6 +31,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         super().end_headers()
+
 
 if __name__ == "__main__":
     if "--daemon" in sys.argv or "-d" in sys.argv:

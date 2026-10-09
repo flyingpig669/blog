@@ -27,14 +27,14 @@ window.BlogConfig = {
 
   // 2. 作者个人资料 (Author Profile)
   author: {
-    name: "Alex Chen",
-    title: "Software Architect & Systems Researcher",
-    bio: "Passionate about computing fundamentals, minimalist aesthetics, and elegant distributed architectures. Turning complexity into clean order through rigorous logic and craft.",
-    avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=AlexChen",
-    location: "Shanghai / Remote",
+    name: "CCC",
+    title: "Student",
+    bio: "Physics, Math, and Computer Science Enthusiast.",
+    avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=CCC",
+    location: "Shandong, China",
     email: "flyingpig06@outlook.com",
     github: "https://github.com/flyingpig669",
-    twitter: "https://twitter.com",
+    // twitter: "https://twitter.com",
   },
 
   // 3. 顶部主导航菜单 (Navigation Menu)
@@ -51,7 +51,6 @@ window.BlogConfig = {
     { name: "GitHub", url: "https://github.com/flyingpig669", icon: "github" },
     { name: "Twitter", url: "https://twitter.com", icon: "twitter" },
     { name: "Email", url: "mailto:flyingpig06@outlook.com", icon: "mail" },
-    { name: "RSS", url: "#/archives", icon: "rss" }
   ],
 
   // 5. 专栏 / 系列默认元信息 (Series Metadata Fallback)
