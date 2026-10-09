@@ -296,6 +296,27 @@ window.BlogApp = {
       return;
     }
 
+        // 标签分类多维检索路由: #/categories, #/tags, 支持 ?tag=xxx 或 /:tag 参数
+    if (path.indexOf('/categories') === 0 || path.indexOf('/tags') === 0) {
+      this.setActiveNav('categories');
+      var tagParts = path.replace(/^\/(categories|tags)\/?/, '').split('/').filter(Boolean);
+      var queryTag = null;
+      if (hash.indexOf('?') !== -1) {
+        var queryStr = hash.split('?')[1];
+        var params = new URLSearchParams(queryStr);
+        queryTag = params.get('tag');
+      }
+      var targetTag = tagParts.length > 0 ? decodeURIComponent(tagParts[0]) : (queryTag ? decodeURIComponent(queryTag) : null);
+      if (targetTag) {
+        this.selectedSortedTags = new Set([targetTag]);
+      } else if (!queryTag && tagParts.length === 0 && hash.indexOf('?') === -1) {
+        this.selectedSortedTags = new Set();
+      }
+      this.currentRoute = { name: 'tags', params: { tag: targetTag } };
+      this.renderTagsView();
+      return;
+    }
+
     if (path === '/editor' || path === '/write') {
       window.location.hash = '#/';
       return;
@@ -405,7 +426,7 @@ window.BlogApp = {
         if ((post.tags || []).length > 0) {
           html += '  <div class="flex flex-wrap items-center gap-2">';
           post.tags.forEach(function(tag) {
-            html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encodeURIComponent(tag) + '\'))" class="tag-pill">#' + tag + '</a>';
+            html += '    <a href="#/categories?tag=' + encodeURIComponent(tag) + '" class="tag-pill">#' + tag + '</a>';
           });
           html += '  </div>';
         }
@@ -416,6 +437,7 @@ window.BlogApp = {
     html += '</div>';
 
     container.innerHTML = html;
+
   },
 
   // 5.2 文章详情视图 (Post Detail View - 附带常驻右侧 Outline 浮动导航)
@@ -475,26 +497,7 @@ window.BlogApp = {
       html += '</div>';
     }
 
-    // PPT / Slide 演示容器 (若包含幻灯片附件)
-    if (post.slide || post.pdf) {
-      var slideUrl = post.slide || post.pdf;
-      html += '<div class="slide-deck-viewer my-6">';
-      html += '  <div class="slide-deck-toolbar">';
-      html += '    <div class="flex items-center gap-2 min-w-0">';
-      html += '      <span class="text-[#3B82F6] font-mono text-[11px] font-semibold tracking-wider uppercase shrink-0">SLIDE DECK</span>';
-      html += '      <span class="text-[#5A5A5E]">·</span>';
-      html += '      <span class="text-[13px] text-[#EDEDED] font-medium truncate font-sans">' + post.title + ' (PPT 演示)</span>';
-      html += '    </div>';
-      html += '    <div class="flex items-center gap-2 shrink-0 font-mono text-[11px]">';
-      html += '      <a href="' + slideUrl + '" target="_blank" rel="noopener noreferrer" class="slide-action-btn" title="Open full screen in new tab">↗ Fullscreen</a>';
-      html += '      <a href="' + slideUrl + '" download class="slide-action-btn" title="Download presentation PDF">↓ Download</a>';
-      html += '    </div>';
-      html += '  </div>';
-      html += '  <div class="slide-deck-frame-wrapper">';
-      html += '    <iframe src="' + slideUrl + '#toolbar=0&navpanes=0&view=FitH" class="slide-deck-frame" loading="lazy"></iframe>';
-      html += '  </div>';
-      html += '</div>';
-    }
+    
 
     // 文章头部
     html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
@@ -513,12 +516,17 @@ window.BlogApp = {
       html += '    <span>·</span>';
       html += '    <div class="inline-flex flex-wrap gap-1.5">';
       post.tags.forEach(function(t) {
-        html += '      <span class="text-[#8B8B8E]">#' + t + '</span>';
+        html += '      <a href="#/categories?tag=' + encodeURIComponent(t) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">#' + t + '</a>';
       });
       html += '    </div>';
     }
     html += '  </div>';
     html += '</header>';
+
+    // PPT / Slide 演示文稿播放器挂载点 (优雅置于标题下方，正文上方)
+    if (post.slide || post.pdf) {
+      html += "<div id='post-slide-deck-mount' class='my-8'></div>";
+    }
 
     // Markdown 正文
     html += '<article class="markdown-body mb-16">';
@@ -590,6 +598,17 @@ window.BlogApp = {
     }
 
     container.innerHTML = html;
+
+    // 自动实例化演示文稿播放器 (基于 PDF.js 矢量渲染内核，支持真全屏演播与键盘热区翻页)
+    if (post.slide || post.pdf) {
+      var slideMount = document.getElementById('post-slide-deck-mount');
+      if (slideMount && window.BlogSlideViewer) {
+        window.BlogSlideViewer.mount(slideMount, {
+          url: post.slide || post.pdf,
+          title: post.title
+        });
+      }
+    }
   },
 
   // 5.3 专栏视图 (Series / Columns View)
@@ -839,6 +858,10 @@ window.BlogApp = {
 
   clearSortedTags: function() {
     if (this.selectedSortedTags) this.selectedSortedTags.clear();
+    if (window.location.hash.indexOf('?') !== -1) {
+      window.location.hash = '#/categories';
+      return;
+    }
     this.renderTagsView();
   },
 
@@ -1191,7 +1214,7 @@ window.BlogApp = {
           if ((post.tags || []).length > 0) {
             html += '  <div class="flex flex-wrap items-center gap-2">';
             post.tags.forEach(function(t) {
-              html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(&apos;' + encodeURIComponent(t) + '&apos;))" class="tag-pill">#' + t + '</a>';
+              html += '    <a href="#/categories?tag=' + encodeURIComponent(t) + '" class="tag-pill">#' + t + '</a>';
             });
             html += '  </div>';
           }
@@ -1259,14 +1282,17 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-    setTag: function(tag) {
-    this.activeTag = tag;
-    window.location.hash = '#/';
-    this.renderHomeView();
+      goToTag: function(tag) {
+    if (!tag) return;
+    this.selectedSortedTags = new Set([tag]);
+    window.location.hash = '#/categories?tag=' + encodeURIComponent(tag);
+  },
+
+  setTag: function(tag) {
+    this.goToTag(tag);
   },
 
   clearTag: function() {
-    this.activeTag = null;
-    this.renderHomeView();
+    this.clearSortedTags();
   }
 };
