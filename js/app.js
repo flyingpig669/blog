@@ -694,6 +694,24 @@ window.BlogApp = {
       html += '      <span>' + statusText + '</span>';
       html += '    </div>';
     }
+
+    // 社交渠道与主页联系方式 (纯文字极简展示，无Logo，无边框，易于自由扩展)
+    var contactLinks = (about.social && about.social.length > 0) ? about.social : ((about.contacts && about.contacts.length > 0) ? about.contacts : ((about.links && about.links.length > 0) ? about.links : (social || [])));
+    if (contactLinks.length > 0) {
+      html += '    <div class="about-contacts-row">';
+      contactLinks.forEach(function(item) {
+        var href = item.url || item.href || '#';
+        var isExternal = href.indexOf('http') === 0;
+        var label = item.name || item.title || item.label || 'Link';
+        html += '      <a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-contact-text-link group">';
+        html += '        <span>' + label + '</span>';
+        if (isExternal) {
+          html += '        <span class="about-contact-arrow">↗</span>';
+        }
+        html += '      </a>';
+      });
+      html += '    </div>';
+    }
     html += '  </div>';
     html += '</div>';
 
@@ -793,28 +811,7 @@ window.BlogApp = {
       html += '</section>';
     }
 
-    // 8. 独占联系方式 (Connect / Contact - 3列紧凑精致药丸按钮)
-    if (social && social.length > 0) {
-      html += '<section class="pt-8 border-t border-white/[0.06]">';
-      html += '  <div class="about-section-header">';
-      html += '    <h2 class="about-section-title">Connect / Contact</h2>';
-      html += '  </div>';
-      html += '  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">';
-      social.forEach(function(item) {
-        var isExternal = item.url.indexOf('http') === 0;
-        var iconName = item.icon || item.name.toLowerCase();
-        var iconSvg = window.BlogIcons ? window.BlogIcons.get(iconName, 'w-3.5 h-3.5 text-[#8B8B8E] group-hover:text-[#3B82F6] transition-colors') : '';
-        html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="flex items-center justify-between px-3.5 py-2.5 rounded-lg border border-white/[0.08] hover:border-[#3B82F6] hover:bg-white/[0.02] transition-all group">';
-        html += '  <div class="flex items-center gap-2.5">';
-        if (iconSvg) html += iconSvg;
-        html += '    <span class="text-[13px] font-mono text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + item.name + '</span>';
-        html += '  </div>';
-        html += '  <span class="text-[11px] font-mono text-[#5A5A5E] group-hover:text-[#3B82F6] group-hover:translate-x-[1px] transition-all">↗</span>';
-        html += '</a>';
-      });
-      html += '  </div>';
-      html += '</section>';
-    }
+
 
     html += '</div>';
     container.innerHTML = html;

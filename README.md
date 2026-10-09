@@ -150,6 +150,15 @@ focusAreas:
   - title: "现代化工程美学"
     desc: "精细化 Design Tokens、极简暗色交互与极致留白秩序。"
 
+# 联系方式与社交渠道 (Contacts) - 无需Logo，无边框纯文字展示，自由扩展任意平台
+social:
+  - name: "GitHub"
+    url: "https://github.com/flyingpig669"
+  - name: "Twitter"
+    url: "https://twitter.com"
+  - name: "Email"
+    url: "mailto:flyingpig06@outlook.com"
+
 # 精选项目 (Selected Projects) - 自动渲染为带外链指示标与技术标签的交互卡片
 projects:
   - name: "Aurora Notes"
@@ -167,7 +176,7 @@ projects:
 ---
 ```
 
-> **关于页独占联系方式**：关于页底部会自动挂载 `blog.config.js` 中声明的社交渠道卡片（配备专属图标与动态悬浮箭头），而全站其他页面底部保持纯净无扰。
+> **名片区联系方式 (无边框纯文字极简架构)**：联系方式与主页链接直接展示在顶部个人名片区（状态标签下方），采用纯文字 + 外部跳转标 ↗ 呈现，彻底去掉外边框与卡片阴影。无任何 Logo 图标依赖，无论添加 GitHub、Twitter、Email，还是知乎、Bilibili、Google Scholar、独立主页等，只需在 about.md 或 blog.config.js 中填写 name 与 url 即可自适应自由扩充。
 
 ---
 

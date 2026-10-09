@@ -369,7 +369,7 @@ html, body {
 /* Profile Header Card */
 .about-hero-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 24px;
   padding-bottom: 36px;
   margin-bottom: 36px;
@@ -450,6 +450,43 @@ html, body {
   height: 7px;
   width: 7px;
   background-color: var(--accent-primary);
+}
+
+
+/* Hero Contact Links (Pure text, zero border, easy to extend) */
+.about-contacts-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+}
+.about-contact-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+  transition: color 150ms ease-out, transform 150ms ease-out;
+}
+.about-contact-text-link:hover {
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+.about-contact-arrow {
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: color 150ms ease-out, transform 150ms ease-out;
+}
+.about-contact-text-link:hover .about-contact-arrow {
+  color: var(--accent-primary);
+  transform: translate(1px, -1px);
 }
 
 /* Quote Banner */

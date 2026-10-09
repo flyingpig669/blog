@@ -133,6 +133,9 @@ def parse_about_file(filepath):
         "timeline": [],
         "focusAreas": [],
         "projects": [],
+        "social": [],
+        "contacts": [],
+        "links": [],
         "notes": ""
     }
 
@@ -157,7 +160,7 @@ def parse_about_file(filepath):
         if top_m and not line.startswith(" ") and not line.startswith("\t"):
             key = top_m.group(1)
             val = top_m.group(2).strip().strip("\"'")
-            if key in ["timeline", "focusAreas", "projects"]:
+            if key in ["timeline", "focusAreas", "projects", "social", "contacts", "links"]:
                 current_section = key
                 current_item = None
             else:
@@ -166,7 +169,7 @@ def parse_about_file(filepath):
                 data[key] = val
             continue
 
-        if current_section in ["timeline", "focusAreas", "projects"]:
+        if current_section in ["timeline", "focusAreas", "projects", "social", "contacts", "links"]:
             item_start = re.match(r"^\s*-\s+([a-zA-Z0-9_-]+):\s*(.*)$", line)
             if item_start:
                 k = item_start.group(1)

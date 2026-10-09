@@ -25,6 +25,15 @@ focusAreas:
   - title: "现代化工程美学"
     desc: "精细化 Design Tokens、极简暗色交互与极致留白秩序。"
 
+# 社交渠道与个人主页 (Contacts) - 纯文字极简展示，支持在此任意扩展任意平台与主页
+social:
+  - name: "GitHub"
+    url: "https://github.com/flyingpig669"
+  - name: "Twitter"
+    url: "https://twitter.com"
+  - name: "Email"
+    url: "mailto:flyingpig06@outlook.com"
+
 # 精选项目 (Selected Projects)
 projects:
   - name: "Aurora Notes"
