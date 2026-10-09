@@ -224,6 +224,7 @@ window.BlogApp = {
     }
   },
 
+  toggleMobileDrawer: function() { var d = document.getElementById('mobile-drawer'); if (d) d.classList.toggle('hidden'); },
   closeMobileDrawer: function() { var d = document.getElementById('mobile-drawer'); if (d) d.classList.add('hidden'); },
 
   closeMobileOutline: function() {

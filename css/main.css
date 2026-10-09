@@ -49,6 +49,15 @@ html, body {
   background-size: 32px 32px;
 }
 
+/* Utility: Hide scrollbar while preserving scroll capability */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Navbar */
 .nav-blur {
   background: rgba(10, 10, 11, 0.72);
@@ -64,6 +73,8 @@ html, body {
   transition: color 150ms ease-out;
   position: relative;
   padding: 6px 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .nav-link:hover {
   color: var(--text-primary);

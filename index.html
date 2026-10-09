@@ -51,50 +51,55 @@
     <div id="reading-progress-bar" class="h-full bg-[#3B82F6] w-0 transition-all duration-75"></div>
   </div>
 
-  <!-- 1. Fixed Header (56px, blur(12px), max-w 720px aligned) -->
+  <!-- 1. Fixed Header (56px, blur(12px), Full Width Page Spanning, Zoom & Scaling Resistant) -->
   <header class="sticky top-0 z-40 w-full nav-blur">
-    <div class="max-w-[720px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <div class="w-full px-4 sm:px-6 md:px-8 lg:px-12 h-14 flex items-center justify-between gap-4">
       
-      <!-- Logo: Monospace, font-weight 600 -->
-      <a href="#/" class="flex items-center gap-2 group text-[#EDEDED] font-mono text-[14px] font-semibold tracking-tight">
-        <span class="text-[#3B82F6] font-mono">/</span>
-        <span>aurora.notes</span>
-      </a>
+      <!-- Left side: Logo + Desktop Nav Group -->
+      <div class="flex items-center gap-6 lg:gap-8 min-w-0">
+        <!-- Logo: Monospace, font-weight 600 -->
+        <a href="#/" class="flex items-center gap-2 group text-[#EDEDED] font-mono text-[14px] font-semibold tracking-tight shrink-0 whitespace-nowrap">
+          <span class="text-[#3B82F6] font-mono">/</span>
+          <span>aurora.notes</span>
+        </a>
 
-      <!-- Desktop Nav: Home / Columns / Archive / Tags / About -->
-      <nav class="hidden sm:flex items-center gap-5 md:gap-6 text-[14px]">
-        <a href="#/" data-nav-link="home" class="nav-link active">Home</a>
-        <a href="#/columns" data-nav-link="columns" class="nav-link">Columns</a>
-        <a href="#/archives" data-nav-link="archives" class="nav-link">Archive</a>
-        <a href="#/categories" data-nav-link="categories" class="nav-link">Tags</a>
-        <a href="#/about" data-nav-link="about" class="nav-link">About</a>
-      </nav>
+        <!-- Desktop Nav: Home / Columns / Projects / Archive / Tags / About (Scrollable on extreme zoom) -->
+        <nav id="desktop-nav" class="hidden md:flex items-center gap-4 lg:gap-6 text-[14px] overflow-x-auto no-scrollbar py-1">
+          <a href="#/" data-nav-link="home" class="nav-link active">Home</a>
+          <a href="#/columns" data-nav-link="columns" class="nav-link">Columns</a>
+          <a href="#/projects" data-nav-link="projects" class="nav-link">Projects</a>
+          <a href="#/archives" data-nav-link="archives" class="nav-link">Archive</a>
+          <a href="#/categories" data-nav-link="categories" class="nav-link">Tags</a>
+          <a href="#/about" data-nav-link="about" class="nav-link">About</a>
+        </nav>
+      </div>
 
-      <!-- Quick Actions (Search Cmd+K) -->
-      <div class="flex items-center gap-3">
-        <button type="button" onclick="window.BlogApp.openSearchModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-[6px] bg-[#111113] hover:bg-white/[0.04] text-[#8B8B8E] hover:text-[#EDEDED] text-[12px] border border-white/[0.08] transition-all" title="Search articles">
+      <!-- Quick Actions (Search Cmd+K, Write, Mobile menu hamburger) -->
+      <div class="flex items-center gap-3 shrink-0">
+        <button type="button" onclick="window.BlogApp.openSearchModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-[6px] bg-[#111113] hover:bg-white/[0.04] text-[#8B8B8E] hover:text-[#EDEDED] text-[12px] border border-white/[0.08] transition-all shrink-0 cursor-pointer" title="Search articles">
           <svg class="w-3.5 h-3.5 text-[#8B8B8E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <span class="hidden sm:inline font-mono">Search</span>
-          <kbd class="hidden sm:inline-block px-1 py-0.2 text-[10px] font-mono bg-[#161618] border border-white/[0.08] rounded text-[#5A5A5E]">⌘K</kbd>
+          <span class="hidden md:inline font-mono">Search</span>
+          <kbd class="hidden md:inline-block px-1 py-0.2 text-[10px] font-mono bg-[#161618] border border-white/[0.08] rounded text-[#5A5A5E]">⌘K</kbd>
         </button>
 
-        <a href="#/editor" class="text-[12px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors hidden sm:inline" title="Write article">Write</a>
+        <a href="#/editor" class="text-[12px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors hidden md:inline shrink-0" title="Write article">Write</a>
 
         <!-- Mobile menu hamburger -->
-        <button type="button" onclick="document.getElementById('mobile-drawer').classList.toggle('hidden')" class="sm:hidden p-1.5 rounded-md text-[#8B8B8E] hover:text-[#EDEDED] hover:bg-white/[0.06]">
+        <button type="button" onclick="window.BlogApp.toggleMobileDrawer()" class="md:hidden p-1.5 rounded-md text-[#8B8B8E] hover:text-[#EDEDED] hover:bg-white/[0.06] shrink-0" aria-label="Toggle Navigation">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
       </div>
     </div>
 
-    <!-- Mobile Drawer -->
-    <div id="mobile-drawer" class="hidden sm:hidden px-4 py-3 space-y-2 border-t border-white/[0.06] bg-[#0A0A0B]/95 backdrop-blur-md max-w-[720px] mx-auto">
-      <a href="#/" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block py-1 text-[14px] text-[#EDEDED] font-medium">Home</a>
-      <a href="#/columns" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block py-1 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">Columns</a>
-      <a href="#/archives" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block py-1 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">Archive</a>
-      <a href="#/categories" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block py-1 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">Tags</a>
-      <a href="#/about" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block py-1 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">About</a>
-      <a href="#/editor" onclick="document.getElementById('mobile-drawer').classList.add('hidden')" class="block py-1 text-[14px] text-[#3B82F6] font-mono">Write Article</a>
+    <!-- Mobile Drawer (Full width backdrop) -->
+    <div id="mobile-drawer" class="hidden md:hidden px-4 sm:px-6 md:px-8 py-3 space-y-2 border-t border-white/[0.06] bg-[#0A0A0B]/95 backdrop-blur-md w-full">
+      <a href="#/" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#EDEDED] font-medium">Home</a>
+      <a href="#/columns" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">Columns</a>
+      <a href="#/projects" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">Projects</a>
+      <a href="#/archives" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">Archive</a>
+      <a href="#/categories" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">Tags</a>
+      <a href="#/about" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED]">About</a>
+      <a href="#/editor" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#3B82F6] font-mono">Write Article</a>
     </div>
   </header>
 

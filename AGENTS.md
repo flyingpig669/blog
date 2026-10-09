@@ -65,7 +65,9 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
    - 左侧正文列：`flex-1 max-w-[680px] min-w-0`。
    - 右侧常驻悬浮目录 (Outline)：宽度约 220px 级固定侧边栏，桌面端悬浮滚动联动，移动端隐藏并降级为浮动操作圆钮。
 3. **顶部导航栏 (Navbar)**：
-   - 高度固定 56px (`h-14`)，内部对齐版心 `max-w-[720px] mx-auto px-4 sm:px-6`。
+   - 高度固定 56px (`h-14`)，采用全宽占据页面方式 (`w-full px-4 sm:px-6 md:px-8 lg:px-12`)，支持缩放与自适应断点（`md:` 768px 折叠抽屉）。
+   - 左侧为 Logo（等宽 `shrink-0`）与主导航项（`hidden md:flex gap-4 lg:gap-6 whitespace-nowrap overflow-x-auto no-scrollbar`），两组保持充裕间距（`gap-6 lg:gap-8`），物理杜绝重叠粘连。
+   - 右侧为搜索快捷按钮（`Search ⌘K`）、写作快捷键（`Write`）与移动端抽屉开关（`md:hidden`），统一 `shrink-0`。
    - 毛玻璃背景：`bg-[#0A0A0B]/72 backdrop-blur-md border-b border-white/[0.06]`。
 4. **页脚 (Footer)**：
    - 顶部间距：`mt-24`，上边框 `border-t border-white/[0.06]`，垂直内边距 `py-10`。

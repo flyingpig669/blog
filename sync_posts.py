@@ -229,7 +229,7 @@ def sync():
     # 扫描根目录与其他自定义页面 Markdown 文件 (如 projects.md 等)
     custom_pages = {}
     for filename in sorted(os.listdir(BASE_DIR)):
-        if filename.endswith(".md") and filename not in ["README.md", "about.md"]:
+        if filename.endswith(".md") and filename not in ["README.md", "about.md", "AGENTS.md"]:
             page_id = os.path.splitext(filename)[0]
             with open(os.path.join(BASE_DIR, filename), "r", encoding="utf-8") as f:
                 custom_pages[page_id] = f.read()
