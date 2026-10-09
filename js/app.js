@@ -76,22 +76,12 @@ window.BlogApp = {
       mobileDrawerEl.innerHTML = drawerHtml;
     }
 
-    // 5. 页脚版权与社交媒体
+    // 5. 页脚版权 (联系方式仅在 About 页面独占展示)
     var footerEl = document.querySelector('footer');
     if (footerEl) {
-      var copyEl = footerEl.querySelector('div:first-child');
+      var copyEl = footerEl.querySelector('#footer-copyright') || footerEl.querySelector('div:first-child');
       if (copyEl && site.footerText) {
         copyEl.textContent = site.footerText;
-      }
-
-      var socialContainer = footerEl.querySelector('div.flex');
-      if (socialContainer && social.length > 0) {
-        var socialHtml = '';
-        social.forEach(function(item) {
-          var isExternal = item.url.indexOf('http') === 0;
-          socialHtml += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="hover:text-[#3B82F6] transition-all hover:-translate-y-[2px]" title="' + item.name + '">' + item.name + '</a>';
-        });
-        socialContainer.innerHTML = socialHtml;
       }
     }
   },
@@ -641,22 +631,23 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 5.6 关于作者视图 (About View - 动态拉取配置)
+  // 5.6 关于作者视图 (About View - 基于 about.md 独立渲染 + 独占联系方式)
   renderAboutView: function() {
     var container = document.getElementById('app-main');
     var config = window.BlogStore.config || window.BlogConfig || {};
     var author = config.author || {};
     var social = config.social || [];
+    var aboutMarkdown = window.BlogStore.about || '';
 
-    var html = '<div class="max-w-[620px] mx-auto pt-16 md:pt-20 pb-20">';
-    
-    // 头像与基本名衔
-    html += '<div class="flex items-center gap-5 mb-8">';
+    var html = '<div class="max-w-[680px] mx-auto pt-16 md:pt-20 pb-20">';
+
+    // 头部名片卡
+    html += '<div class="flex items-center gap-5 mb-10 pb-8 border-b border-white/[0.06]">';
     if (author.avatar) {
-      html += '  <img src="' + author.avatar + '" alt="' + author.name + '" class="w-20 h-20 rounded-xl border border-white/[0.12] object-cover shrink-0">';
+      html += '  <img src="' + author.avatar + '" alt="' + (author.name || 'Author') + '" class="w-20 h-20 rounded-xl border border-white/[0.12] object-cover shrink-0">';
     }
     html += '  <div>';
-    html += '    <h1 class="text-[26px] font-bold text-[#EDEDED] mb-1 font-sans">' + (author.name || 'Alex Chen') + '</h1>';
+    html += '    <h1 class="text-[28px] font-bold text-[#EDEDED] mb-1 font-sans">' + (author.name || 'Alex Chen') + '</h1>';
     html += '    <div class="text-[13px] font-mono text-[#8B8B8E]">' + (author.title || 'Software Architect') + '</div>';
     if (author.location) {
       html += '    <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + author.location + '</div>';
@@ -664,22 +655,33 @@ window.BlogApp = {
     html += '  </div>';
     html += '</div>';
 
-    // 个人简介
-    html += '<div class="space-y-4 text-[15px] leading-relaxed text-[#EDEDED] mb-12 border-b border-white/[0.06] pb-10">';
-    html += '  <p>' + (author.bio || 'Curious about computing fundamentals, physics models, and elegant software design.') + '</p>';
-    html += '</div>';
+    // 渲染由 about.md 驱动的个人履历、时间线与工作记录
+    if (aboutMarkdown) {
+      var mdResult = window.BlogMarkdown.render(aboutMarkdown);
+      html += '<article class="markdown-body mb-12">';
+      html += mdResult.html;
+      html += '</article>';
+    } else {
+      html += '<div class="space-y-4 text-[15px] leading-relaxed text-[#EDEDED] mb-12">';
+      html += '  <p>' + (author.bio || 'Curious about computing fundamentals and elegant software architecture.') + '</p>';
+      html += '</div>';
+    }
 
-    // 社交与通讯方式列表
-    html += '<h2 class="text-[13px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-4">Connect</h2>';
-    html += '<div class="space-y-2.5">';
-    social.forEach(function(item) {
-      var isExternal = item.url.indexOf('http') === 0;
-      html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="flex items-center justify-between p-3 rounded-lg border border-white/[0.08] hover:border-[#3B82F6] hover:bg-white/[0.02] transition-all group">';
-      html += '  <span class="text-[14px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors font-mono">' + item.name + '</span>';
-      html += '  <span class="text-[12px] text-[#5A5A5E] group-hover:text-[#EDEDED] transition-colors">↗</span>';
-      html += '</a>';
-    });
-    html += '</div>';
+    // 独占联系方式区 (只在 About 页面展示)
+    if (social && social.length > 0) {
+      html += '<div class="pt-8 border-t border-white/[0.06]">';
+      html += '  <h2 class="text-[13px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-4">Connect / Contact</h2>';
+      html += '  <div class="space-y-2.5">';
+      social.forEach(function(item) {
+        var isExternal = item.url.indexOf('http') === 0;
+        html += '<a href="' + item.url + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="flex items-center justify-between p-3.5 rounded-lg border border-white/[0.08] hover:border-[#3B82F6] hover:bg-white/[0.02] transition-all group">';
+        html += '  <span class="text-[14px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors font-mono">' + item.name + '</span>';
+        html += '  <span class="text-[12px] text-[#5A5A5E] group-hover:text-[#EDEDED] transition-colors">↗</span>';
+        html += '</a>';
+      });
+      html += '  </div>';
+      html += '</div>';
+    }
 
     html += '</div>';
     container.innerHTML = html;

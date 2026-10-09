@@ -51,6 +51,7 @@ window.BlogStore = {
     var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [] };
     var compiledPosts = Array.isArray(postsData.posts) ? JSON.parse(JSON.stringify(postsData.posts)) : [];
     this.columns = Array.isArray(postsData.columns) ? JSON.parse(JSON.stringify(postsData.columns)) : [];
+    this.about = postsData.about || "";
 
     // 4. 载入本地交互统计 (浏览量、点赞、书签)
     var viewsMap = {};
