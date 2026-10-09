@@ -110,6 +110,13 @@ window.BlogConfig = {
     editor: true,           // 在线实时预览 Markdown 创作器 (#/editor)
     mathKaTeX: true,        // 学术级数学公式 KaTeX 解析引擎
     codeHighlight: true     // 代码块语法高亮与悬浮一键复制代码
+  },
+
+  // 7. 过滤与排除规则 (Exclude & Filter Settings)
+  exclude: {
+    showTest: true,         // 测试文档开关：为 false 时自动过滤带有 test 标签的测试文档，为 true 时显示
+    files: [],              // 根据文件名排除特定文档 (例如: ["secret.md", "draft-1.md"])
+    dirs: []                // 根据目录名排除特定文件夹 (例如: ["drafts", "temp"])
   }
 };
 ```
@@ -201,14 +208,20 @@ projects:
 
 ### 1. Hash 客户端路由机制说明
 本项目采用客户端 Hash 路由（`#/path`）：
-* 首页：`/#/`
-* 专栏：`/#/columns`
-* 归档：`/#/archives`
-* 标签：`/#/categories`
-* 关于：`/#/about`
-* 动态项目页：`/#/projects`
-* 文章详情页：`/#/post/<post-id>`
-* 在线创作器：`/#/editor`
+* **首页**：`/#/` (支持全站标签即时切换筛选)
+* **专栏多级路由**：
+  * 全部专栏列表：`/#/columns`
+  * 单个专栏篇章目录：`/#/columns/<column-id>` (例如: `/#/columns/抽象代数`)
+  * 专栏文章直达：`/#/columns/<column-id>/<post-slug>`
+* **项目多级路由 (与专栏 100% 架构对齐)**：
+  * 全部项目列表：`/#/projects`
+  * 单个项目篇章目录：`/#/projects/<project-id>` (例如: `/#/projects/quantum-sim`)
+  * 项目文章直达：`/#/projects/<project-id>/<post-slug>`
+* **通用博文详情页**：`/#/post/<post-id>` (支持 ID、Slug、相对路径智能容错解析)
+* **归档时间线**：`/#/archives`
+* **标签云聚合**：`/#/categories`
+* **关于作者**：`/#/about` (纯文字去边框社交链接)
+* **在线创作器**：`/#/editor`
 
 **为什么使用 Hash 路由？**
 在 GitHub Pages 等纯静态服务器托管场景下，普通 HTML5 History 路由在用户直接刷新页面或分享深层链接时会导致致命的 404 错误。而 Hash 路由由浏览器内核原生处理哈希变化（`hashchange` 事件），无论在本地开发还是云端部署，均 100% 保证刷新不丢页、免去复杂的服务器端重定向配置。
@@ -323,7 +336,34 @@ def fibonacci(n: int) -> int:
 print([fibonacci(i) for i in range(10)])
 ```
 
-### 4. 提示块 Callouts 语法
+### 4. PDF 格式 PPT 演讲幻灯片展示 (Slide Deck Viewer)
+系统专为技术分享与学术汇报设计了高兼容性 PPT 演示容器：
+
+#### 方式 A：在 Markdown 内容中使用容器语法嵌入
+```markdown
+::: slide /posts/assets/slides/quantum-computing-slides.pdf
+量子计算与态矢量演化汇报 PPT 演示
+:::
+```
+
+#### 方式 B：在 FrontMatter 中直接声明幻灯片
+```yaml
+---
+title: "量子算法与变分线路实录"
+slide: "posts/assets/slides/quantum-computing-slides.pdf"
+---
+```
+文章顶部会自动挂载配备全屏演示按钮、下载课件按钮、深色高对比视口的原生嵌入播放器。
+
+---
+
+### 5. 文档附件存储规范与相对路径解析 (Attachments)
+* **推荐存储目录**：所有幻灯片、数据文件与图片资源统一存放在 posts/assets/（如 posts/assets/slides/ 或 posts/assets/images/），或者专栏同级子目录 posts/columns/<专栏名>/assets/。
+* **零配置同步**：sync_posts.py 会自动跳过 assets/ 资源目录并保留相对路径引用，无论在本地还是 GitHub Pages 静态服务器，均可 100% 可靠访问。
+
+---
+
+### 6. 提示块 Callouts 语法
 支持四种级别的语义化提示容器：
 ```markdown
 ::: tip 提示

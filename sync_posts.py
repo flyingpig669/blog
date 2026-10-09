@@ -17,6 +17,37 @@ POSTS_DIR = os.path.join(BASE_DIR, "posts")
 POSTS_DATA_FILE = os.path.join(BASE_DIR, "js", "posts-data.js")
 SAMPLE_DATA_FILE = os.path.join(BASE_DIR, "js", "sample-data.js")
 
+IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachments", "images", "img", "slides", "vendor"}
+
+def load_config_exclude():
+    config_path = os.path.join(BASE_DIR, "blog.config.js")
+    exclude = {"showTest": True, "files": [], "dirs": []}
+    if not os.path.exists(config_path):
+        return exclude
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        if "exclude:" in content:
+            idx = content.find("exclude:")
+            block = content[idx:content.find("}", idx) + 1]
+            if "showtest: false" in block.lower():
+                exclude["showTest"] = False
+            elif "showtest: true" in block.lower():
+                exclude["showTest"] = True
+
+            files_m = re.search(r"files\s*:\s*\[(.*?)\]", block, re.S)
+            if files_m:
+                raw_files = [x.strip().replace("'", "").replace('"', '') for x in files_m.group(1).split(",") if x.strip()]
+                exclude["files"] = [f for f in raw_files if f]
+
+            dirs_m = re.search(r"dirs\s*:\s*\[(.*?)\]", block, re.S)
+            if dirs_m:
+                raw_dirs = [x.strip().replace("'", "").replace('"', '') for x in dirs_m.group(1).split(",") if x.strip()]
+                exclude["dirs"] = [d for d in raw_dirs if d]
+    except Exception:
+        pass
+    return exclude
+
 def parse_md_file(filepath):
     rel_path = os.path.relpath(filepath, POSTS_DIR)
     path_parts = rel_path.split(os.sep)
@@ -29,10 +60,16 @@ def parse_md_file(filepath):
     date = time.strftime("%Y-%m-%d")
     category = "general"
     column = ""
+    column_name = ""
+    project = ""
+    project_name = ""
     order = 999
     tags = []
     pinned = False
     excerpt = ""
+    slide = ""
+    attachments = []
+    is_test = False
     content = raw
 
     if len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
@@ -65,6 +102,19 @@ def parse_md_file(filepath):
                 category = val
             elif key in ["column", "series"]:
                 column = val
+            elif key in ["columnname", "column_name", "columntitle", "column_title"]:
+                column_name = val
+            elif key in ["project", "projects", "proj"]:
+                project = val
+            elif key in ["projectname", "project_name", "projecttitle", "project_title"]:
+                project_name = val
+            elif key == "test":
+                is_test = (val.lower() == "true")
+            elif key in ["slide", "slides", "pdf", "deck"]:
+                slide = val
+            elif key in ["attachment", "attachments"]:
+                clean_att = val.strip("[]")
+                attachments = [t.strip().strip("'\"") for t in clean_att.split(",") if t.strip()]
             elif key in ["order", "chapter"]:
                 if val.isdigit(): order = int(val)
             elif key == "pinned":
@@ -83,8 +133,36 @@ def parse_md_file(filepath):
     if not title:
         title = os.path.splitext(filename)[0].replace("-", " ").replace("_", " ").title()
 
+    section = "posts"
+    if column:
+        section = "columns"
+    elif project:
+        section = "projects"
+    elif len(path_parts) >= 3 and path_parts[0] in ["projects", "project"]:
+        section = "projects"
+        project = path_parts[1]
+    elif len(path_parts) == 2 and path_parts[0] in ["projects", "project"]:
+        section = "projects"
+        project = path_parts[0]
+    elif len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
+        section = "columns"
+        if not column: column = path_parts[1]
+
+    if not slide:
+        slide_m = re.search(r":::\s*(?:slide|pdf|deck)\s+([^\s\r\n]+)", content)
+        if slide_m:
+            slide = slide_m.group(1).strip()
+
+    if "test" in [t.lower() for t in tags] or is_test:
+        is_test = True
+
     slug = os.path.splitext(filename)[0]
-    post_id = "post-" + slug.replace(".", "-")
+    if column:
+        post_id = f"post-col-{column}-{slug}".replace(" ", "-").replace(".", "-")
+    elif project:
+        post_id = f"post-proj-{project}-{slug}".replace(" ", "-").replace(".", "-")
+    else:
+        post_id = f"post-{slug}".replace(".", "-")
 
     if not excerpt:
         clean_text = re.sub(r"[#*>`\[\]]", "", content)
@@ -96,15 +174,19 @@ def parse_md_file(filepath):
     read_mins = max(1, round(words_count / 300))
     read_time = f"{read_mins} min read"
 
-    col_display = column.replace("-", " ").replace("_", " ").title() if column else ""
+    col_display = column_name or (column.replace("-", " ").replace("_", " ").title() if column else "")
+    proj_display = project_name or (project.replace("-", " ").replace("_", " ").title() if project else "")
 
     return {
         "id": post_id,
         "slug": slug,
         "title": title,
         "category": category,
+        "section": section,
         "column": column,
         "columnName": col_display,
+        "project": project,
+        "projectName": proj_display,
         "order": order,
         "relPath": rel_path,
         "date": date,
@@ -113,6 +195,9 @@ def parse_md_file(filepath):
         "views": 1,
         "likes": 0,
         "pinned": pinned,
+        "isTest": is_test,
+        "slide": slide,
+        "attachments": attachments,
         "excerpt": excerpt,
         "tags": tags or [category],
         "content": content
@@ -189,19 +274,36 @@ def parse_about_file(filepath):
 
 def sync():
     os.makedirs(POSTS_DIR, exist_ok=True)
+    exclude_cfg = load_config_exclude()
+    exclude_files = set(exclude_cfg.get("files", []))
+    exclude_dirs = set(exclude_cfg.get("dirs", []))
+    show_test = exclude_cfg.get("showTest", True)
+
     md_files = []
     for root, dirs, files in os.walk(POSTS_DIR):
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS and d not in exclude_dirs]
         for file in files:
             if file.endswith(".md") or file.endswith(".markdown"):
+                rel = os.path.relpath(os.path.join(root, file), POSTS_DIR)
+                if file in exclude_files or rel in exclude_files:
+                    print(f" ⊘ 跳过排除文件 (exclude.files): {rel}")
+                    continue
                 md_files.append(os.path.join(root, file))
 
     synced_posts = []
     columns_map = {}
+    projects_map = {}
 
     for filepath in sorted(md_files):
         p = parse_md_file(filepath)
+        if not show_test and p.get("isTest"):
+            print(f" ⊘ 跳过测试文档 (showTest=false): {p['relPath']}")
+            continue
+
         synced_posts.append(p)
         col = p.get("column")
+        proj = p.get("project")
+
         if col:
             if col not in columns_map:
                 columns_map[col] = {
@@ -212,7 +314,25 @@ def sync():
                     "posts": []
                 }
             columns_map[col]["posts"].append(p)
-        print(f" -> 扫描博文: {p['relPath']} (分类: {p['category']}" + (f", 专栏: {p['columnName']} Part {p['order']}" if col else "") + ")")
+
+        if proj:
+            if proj not in projects_map:
+                projects_map[proj] = {
+                    "id": proj,
+                    "name": p.get("projectName") or proj.title(),
+                    "desc": f"Engineering project collection for {p.get('projectName') or proj}.",
+                    "icon": "folder",
+                    "posts": []
+                }
+            projects_map[proj]["posts"].append(p)
+
+        extra_info = []
+        if col: extra_info.append(f"专栏: {p['columnName']} Part {p['order']}")
+        if proj: extra_info.append(f"项目: {p['projectName']}")
+        if p.get("isTest"): extra_info.append("[TEST]")
+        if p.get("slide"): extra_info.append("[SLIDE]")
+        info_str = " (" + ", ".join(extra_info) + ")" if extra_info else ""
+        print(f" -> 扫描博文: {p['relPath']}{info_str}")
 
     columns_list = []
     for col_id, col_info in columns_map.items():
@@ -220,6 +340,13 @@ def sync():
         col_info["postsCount"] = len(col_info["posts"])
         col_info["totalWords"] = sum(x["words"] for x in col_info["posts"])
         columns_list.append(col_info)
+
+    projects_list = []
+    for proj_id, proj_info in projects_map.items():
+        proj_info["posts"].sort(key=lambda x: x["order"])
+        proj_info["postsCount"] = len(proj_info["posts"])
+        proj_info["totalWords"] = sum(x["words"] for x in proj_info["posts"])
+        projects_list.append(proj_info)
 
     # 结构化解析关于页 about.md
     about_path = os.path.join(BASE_DIR, "about.md")
@@ -242,6 +369,7 @@ def sync():
         "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "posts": synced_posts,
         "columns": columns_list,
+        "projects": projects_list,
         "about": about_data,
         "customPages": custom_pages
     }
@@ -257,7 +385,7 @@ def sync():
     with open(SAMPLE_DATA_FILE, "w", encoding="utf-8") as f:
         f.write(js_output)
 
-    print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏。")
+    print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏，{len(projects_list)} 个项目集合。")
     print(f" -> 索引文件已更新: js/posts-data.js")
 
 if __name__ == "__main__":

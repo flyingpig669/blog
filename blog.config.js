@@ -88,5 +88,17 @@ window.BlogConfig = {
     mathKaTeX: true,
     // 启用代码块语法高亮与一键复制代码
     codeHighlight: true
+  },
+
+  // 7. 过滤与排除规则 (Exclude & Filter Settings)
+  exclude: {
+    // 测试文档显示开关：为 false 时过滤隐藏所有带 test 标签或 test: true 的测试文档，为 true 时展示
+    showTest: true,
+
+    // 根据文件名排除指定文档 (例如: ["secret.md", "draft-1.md"])
+    files: [],
+
+    // 根据目录名排除指定文件夹 (例如: ["drafts", "temp"])
+    dirs: []
   }
 };

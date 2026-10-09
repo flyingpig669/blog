@@ -48,9 +48,12 @@ window.BlogStore = {
     this.nav = config.nav || [];
 
     // 3. 载入编译生成的博文索引 (来自 posts/ 目录)
-    var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [] };
+    var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [], projects: [] };
     var compiledPosts = Array.isArray(postsData.posts) ? JSON.parse(JSON.stringify(postsData.posts)) : [];
-    this.columns = Array.isArray(postsData.columns) ? JSON.parse(JSON.stringify(postsData.columns)) : [];
+    this.rawColumns = Array.isArray(postsData.columns) ? JSON.parse(JSON.stringify(postsData.columns)) : [];
+    this.rawProjects = Array.isArray(postsData.projects) ? JSON.parse(JSON.stringify(postsData.projects)) : [];
+    this.columns = this.rawColumns;
+    this.projects = this.rawProjects;
     this.about = postsData.about || "";
 
     // 4. 载入本地交互统计 (浏览量、点赞、书签)
@@ -110,8 +113,11 @@ window.BlogStore = {
 
   // 获取全部博文 (支持多维筛选与排序)
   getPosts: function(filter) {
+    var self = this;
     filter = filter || {};
-    var list = this.posts.slice();
+    var list = this.posts.filter(function(p) {
+      return !self.isPostExcluded(p);
+    });
 
     if (filter.category && filter.category !== 'all') {
       list = list.filter(function(p) { return p.category === filter.category; });
@@ -149,7 +155,17 @@ window.BlogStore = {
   },
 
   getPostById: function(id) {
-    return this.posts.find(function(p) { return p.id === id || p.slug === id; });
+    if (!id) return null;
+    var norm = decodeURIComponent(id).toLowerCase().trim();
+    return this.posts.find(function(p) {
+      if (p.id && p.id.toLowerCase() === norm) return true;
+      if (p.slug && p.slug.toLowerCase() === norm) return true;
+      if (p.relPath && p.relPath.toLowerCase() === norm) return true;
+      if (p.relPath && p.relPath.replace(/\.md$/i, '').toLowerCase() === norm) return true;
+      if (p.id && ('post-' + norm) === p.id.toLowerCase()) return true;
+      if (p.id && p.id.toLowerCase().endsWith('-' + norm)) return true;
+      return false;
+    });
   },
 
   // 在线编辑器保存本地新文章
@@ -246,13 +262,75 @@ window.BlogStore = {
     return this.bookmarkedPosts.has(id);
   },
 
+  isPostExcluded: function(p) {
+    if (!p) return true;
+    var exclude = (window.BlogConfig && window.BlogConfig.exclude) || (this.config && this.config.exclude) || {};
+    if (exclude.showTest === false) {
+      if (p.isTest) return true;
+      if (p.tags && p.tags.some(function(t) { return (t || '').toLowerCase() === 'test'; })) return true;
+    }
+    if (exclude.files && Array.isArray(exclude.files) && exclude.files.length > 0) {
+      var fn = (p.relPath || '').split('/').pop();
+      if (exclude.files.indexOf(fn) !== -1 || exclude.files.indexOf(p.relPath) !== -1 || exclude.files.indexOf(p.slug) !== -1) {
+        return true;
+      }
+    }
+    if (exclude.dirs && Array.isArray(exclude.dirs) && exclude.dirs.length > 0) {
+      var parts = (p.relPath || '').split('/');
+      parts.pop();
+      if (parts.some(function(d) { return exclude.dirs.indexOf(d) !== -1; })) {
+        return true;
+      }
+    }
+    return false;
+  },
+
   // 专栏获取
   getColumns: function() {
-    return this.columns || [];
+    var self = this;
+    return (this.rawColumns || this.columns || []).map(function(col) {
+      var filteredPosts = (col.posts || []).filter(function(p) {
+        return !self.isPostExcluded(p);
+      });
+      var copy = Object.assign({}, col);
+      copy.posts = filteredPosts;
+      copy.postsCount = filteredPosts.length;
+      return copy;
+    }).filter(function(col) {
+      return col.postsCount > 0;
+    });
   },
 
   getColumnById: function(colId) {
-    return this.columns.find(function(c) { return c.id === colId; });
+    if (!colId) return null;
+    var norm = decodeURIComponent(colId).toLowerCase().trim();
+    return this.getColumns().find(function(c) {
+      return c.id.toLowerCase() === norm || (c.name && c.name.toLowerCase() === norm);
+    });
+  },
+
+  // 项目集合获取
+  getProjects: function() {
+    var self = this;
+    return (this.rawProjects || this.projects || []).map(function(proj) {
+      var filteredPosts = (proj.posts || []).filter(function(p) {
+        return !self.isPostExcluded(p);
+      });
+      var copy = Object.assign({}, proj);
+      copy.posts = filteredPosts;
+      copy.postsCount = filteredPosts.length;
+      return copy;
+    }).filter(function(proj) {
+      return proj.postsCount > 0;
+    });
+  },
+
+  getProjectById: function(projId) {
+    if (!projId) return null;
+    var norm = decodeURIComponent(projId).toLowerCase().trim();
+    return this.getProjects().find(function(p) {
+      return p.id.toLowerCase() === norm || (p.name && p.name.toLowerCase() === norm);
+    });
   },
 
   // 聚合全站标签

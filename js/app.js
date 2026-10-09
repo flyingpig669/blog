@@ -261,6 +261,42 @@ window.BlogApp = {
       return;
     }
 
+    // 专栏统一多级路由: #/columns, #/columns/:colId, #/columns/:colId/:postSlug
+    if (path.indexOf('/columns') === 0) {
+      var colParts = path.replace(/^\/columns\/?/, '').split('/').filter(Boolean);
+      this.setActiveNav('columns');
+      if (colParts.length === 0) {
+        this.currentRoute = { name: 'columns', params: {} };
+        this.renderColumnsView();
+      } else if (colParts.length === 1) {
+        this.currentRoute = { name: 'column-detail', params: { colId: decodeURIComponent(colParts[0]) } };
+        this.renderColumnsView(decodeURIComponent(colParts[0]));
+      } else {
+        var postSlug = colParts.slice(1).join('/');
+        this.currentRoute = { name: 'post', params: { id: postSlug, column: decodeURIComponent(colParts[0]) } };
+        this.renderPostView(postSlug);
+      }
+      return;
+    }
+
+    // 项目统一多级路由: #/projects, #/projects/:projId, #/projects/:projId/:postSlug
+    if (path.indexOf('/projects') === 0) {
+      var projParts = path.replace(/^\/projects\/?/, '').split('/').filter(Boolean);
+      this.setActiveNav('projects');
+      if (projParts.length === 0) {
+        this.currentRoute = { name: 'projects', params: {} };
+        this.renderProjectsView();
+      } else if (projParts.length === 1) {
+        this.currentRoute = { name: 'project-detail', params: { projId: decodeURIComponent(projParts[0]) } };
+        this.renderProjectsView(decodeURIComponent(projParts[0]));
+      } else {
+        var postSlug = projParts.slice(1).join('/');
+        this.currentRoute = { name: 'post', params: { id: postSlug, project: decodeURIComponent(projParts[0]) } };
+        this.renderPostView(postSlug);
+      }
+      return;
+    }
+
     if (path === '/editor') {
       this.currentRoute = { name: 'editor', params: {} };
       this.renderEditorView();
@@ -333,8 +369,21 @@ window.BlogApp = {
     html += site.tagline || 'Curated technical writings, system architecture notes, and computing fundamentals.';
     html += '  </p>';
 
+    // 首页 Tags 快速筛选栏 (Requirement 1)
+    var allTags = window.BlogStore.getAllTags() || [];
+    if (allTags.length > 0) {
+      html += '  <div class="mt-8 flex flex-wrap items-center gap-2">';
+      html += '    <button type="button" onclick="window.BlogApp.clearTag()" class="tag-filter-pill ' + (!this.activeTag ? 'active' : '') + '">All</button>';
+      allTags.forEach(function(t) {
+        var isAct = window.BlogApp.activeTag === t.name;
+        var encTag = encodeURIComponent(t.name);
+        html += '    <button type="button" onclick="window.BlogApp.setTag(decodeURIComponent(\'' + encTag + '\'))" class="tag-filter-pill ' + (isAct ? 'active' : '') + '">#' + t.name + ' <span class="opacity-60 text-[10px]">' + t.count + '</span></button>';
+      });
+      html += '  </div>';
+    }
+
     if (this.activeTag) {
-      html += '  <div class="mt-6 flex items-center gap-2 text-[13px] font-mono text-[#8B8B8E]">';
+      html += '  <div class="mt-4 flex items-center gap-2 text-[12px] font-mono text-[#8B8B8E]">';
       html += '    <span>Filtering by: <span class="text-[#3B82F6]">#' + this.activeTag + '</span></span>';
       html += '    <button type="button" onclick="window.BlogApp.clearTag()" class="text-[#5A5A5E] hover:text-[#EDEDED] ml-2 cursor-pointer">✕ clear</button>';
       html += '  </div>';
@@ -435,7 +484,40 @@ window.BlogApp = {
       html += '    <span class="px-1.5 py-0.5 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[11px] font-medium shrink-0">PART ' + partNumber + '</span>';
       html += '    <span class="text-[#EDEDED] font-sans truncate">' + columnInfo.name + '</span>';
       html += '  </div>';
-      html += '  <a href="#/columns" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3">Series Index →</a>';
+      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3">Series Index →</a>';
+      html += '</div>';
+    }
+
+    // 项目系列横幅 (若属于某个项目)
+    var projectInfo = post.project ? window.BlogStore.getProjectById(post.project) : null;
+    if (projectInfo) {
+      html += '<div class="mb-6 py-2 px-3.5 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
+      html += '  <div class="flex items-center gap-2 min-w-0">';
+      html += '    <span class="px-1.5 py-0.5 rounded bg-[#22D3EE]/15 text-[#22D3EE] text-[11px] font-medium shrink-0">PROJECT</span>';
+      html += '    <span class="text-[#EDEDED] font-sans truncate">' + projectInfo.name + '</span>';
+      html += '  </div>';
+      html += '  <a href="#/projects/' + encodeURIComponent(projectInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3">Project Index →</a>';
+      html += '</div>';
+    }
+
+    // PPT / Slide 演示容器 (若包含幻灯片附件)
+    if (post.slide || post.pdf) {
+      var slideUrl = post.slide || post.pdf;
+      html += '<div class="slide-deck-viewer my-6">';
+      html += '  <div class="slide-deck-toolbar">';
+      html += '    <div class="flex items-center gap-2 min-w-0">';
+      html += '      <span class="text-[#3B82F6] font-mono text-[11px] font-semibold tracking-wider uppercase shrink-0">SLIDE DECK</span>';
+      html += '      <span class="text-[#5A5A5E]">·</span>';
+      html += '      <span class="text-[13px] text-[#EDEDED] font-medium truncate font-sans">' + post.title + ' (PPT 演示)</span>';
+      html += '    </div>';
+      html += '    <div class="flex items-center gap-2 shrink-0 font-mono text-[11px]">';
+      html += '      <a href="' + slideUrl + '" target="_blank" rel="noopener noreferrer" class="slide-action-btn" title="Open full screen in new tab">↗ Fullscreen</a>';
+      html += '      <a href="' + slideUrl + '" download class="slide-action-btn" title="Download presentation PDF">↓ Download</a>';
+      html += '    </div>';
+      html += '  </div>';
+      html += '  <div class="slide-deck-frame-wrapper">';
+      html += '    <iframe src="' + slideUrl + '#toolbar=0&navpanes=0&view=FitH" class="slide-deck-frame" loading="lazy"></iframe>';
+      html += '  </div>';
       html += '</div>';
     }
 
@@ -536,11 +618,45 @@ window.BlogApp = {
   },
 
   // 5.3 专栏视图 (Series / Columns View)
-  renderColumnsView: function() {
+  renderColumnsView: function(selectedColId) {
     var container = document.getElementById('app-main');
     var columns = window.BlogStore.getColumns() || [];
 
     var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+
+    if (selectedColId) {
+      var col = window.BlogStore.getColumnById(selectedColId);
+      if (!col) {
+        html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
+        html += '  <p class="mb-3 text-[#8B8B8E]">Series not found.</p>';
+        html += '  <a href="#/columns" class="text-[#3B82F6] hover:underline">← Back to all series</a>';
+        html += '</div></div>';
+        container.innerHTML = html;
+        return;
+      }
+      html += '<a href="#/columns" class="inline-flex items-center gap-1.5 text-[13px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors mb-6">← All Series</a>';
+      html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
+      html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+      html += '    <span>SERIES</span><span>·</span><span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
+      html += '  </div>';
+      html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + col.name + '</h1>';
+      if (col.desc) html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed">' + col.desc + '</p>';
+      html += '</header>';
+
+      html += '<div class="space-y-3 border-l border-white/[0.08] pl-5">';
+      (col.posts || []).forEach(function(p) {
+        var partNum = p.order < 10 ? '0' + p.order : p.order;
+        html += '  <a href="#/columns/' + encodeURIComponent(col.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+        html += '    <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
+        html += '    <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
+        if (p.slide) html += '<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
+        html += '  </a>';
+      });
+      html += '</div></div>';
+      container.innerHTML = html;
+      return;
+    }
+
     html += '  <header class="mb-8 pb-8 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">Series</h1>';
     html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">Curated technical collections and deep dives into computing fundamentals.</p>';
@@ -566,7 +682,7 @@ window.BlogApp = {
         }
         html += '  </div>';
 
-        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2">' + col.name + '</h2>';
+        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2"><a href="#/columns/' + encodeURIComponent(col.id) + '" class="hover:text-[#3B82F6] transition-colors">' + col.name + '</a></h2>';
         if (col.desc) {
           html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + col.desc + '</p>';
         }
@@ -574,15 +690,119 @@ window.BlogApp = {
         html += '  <div class="space-y-2 border-l border-white/[0.08] pl-4">';
         (col.posts || []).forEach(function(p) {
           var partNum = p.order < 10 ? '0' + p.order : p.order;
-          html += '    <a href="#/post/' + p.id + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+          html += '    <a href="#/columns/' + encodeURIComponent(col.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
           html += '      <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
           html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
+          if (p.slide) html += '  <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
           html += '    </a>';
         });
         html += '  </div>';
         html += '</section>';
       });
       html += '</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  },
+
+  // 5.3.1 项目视图 (Projects View - 与 Series / Columns 遵循完全相同架构)
+  renderProjectsView: function(selectedProjId) {
+    var container = document.getElementById('app-main');
+    var projects = window.BlogStore.getProjects() || [];
+    var customPages = (window.BlogPostsData && window.BlogPostsData.customPages) || {};
+    var standaloneProjectsMd = customPages['projects'] || '';
+
+    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+
+    if (selectedProjId) {
+      var proj = window.BlogStore.getProjectById(selectedProjId);
+      if (!proj) {
+        html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
+        html += '  <p class="mb-3 text-[#8B8B8E]">Project not found.</p>';
+        html += '  <a href="#/projects" class="text-[#3B82F6] hover:underline">← Back to all projects</a>';
+        html += '</div></div>';
+        container.innerHTML = html;
+        return;
+      }
+      html += '<a href="#/projects" class="inline-flex items-center gap-1.5 text-[13px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors mb-6">← All Projects</a>';
+      html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
+      html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+      html += '    <span>PROJECT</span><span>·</span><span>' + (proj.postsCount || (proj.posts || []).length) + ' Documents</span>';
+      html += '  </div>';
+      html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + proj.name + '</h1>';
+      if (proj.desc) html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed">' + proj.desc + '</p>';
+      html += '</header>';
+
+      html += '<div class="space-y-3 border-l border-white/[0.08] pl-5">';
+      (proj.posts || []).forEach(function(p) {
+        var partNum = p.order < 10 ? '0' + p.order : p.order;
+        html += '  <a href="#/projects/' + encodeURIComponent(proj.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+        html += '    <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
+        html += '    <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
+        if (p.slide) html += '<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
+        html += '  </a>';
+      });
+      html += '</div></div>';
+      container.innerHTML = html;
+      return;
+    }
+
+    // All Projects Overview
+    html += '  <header class="mb-8 pb-8 border-b border-white/[0.06]">';
+    html += '    <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">Projects</h1>';
+    html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">Selected engineering systems, open-source architectures, and interactive prototypes.</p>';
+    html += '  </header>';
+
+    if (projects.length === 0 && !standaloneProjectsMd) {
+      html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
+      html += '  <p class="mb-3 text-[#8B8B8E]">No project collections created yet.</p>';
+      html += '  <p class="text-[12px]">Add Markdown posts to <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/projects/&lt;project-name&gt;/</code> to form a project showcase automatically.</p>';
+      html += '</div>';
+    } else {
+      if (projects.length > 0) {
+        html += '<div class="space-y-12 mb-16">';
+        projects.forEach(function(proj, idx) {
+          var num = idx + 1 < 10 ? '0' + (idx + 1) : (idx + 1);
+          html += '<section class="border-b border-white/[0.06] pb-10 last:border-b-0">';
+          html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+          html += '    <span>PROJECT ' + num + '</span>';
+          html += '    <span>·</span>';
+          html += '    <span>' + (proj.postsCount || (proj.posts || []).length) + ' Documents</span>';
+          if (proj.totalWords) {
+            html += '    <span>·</span>';
+            html += '    <span>' + Math.round(proj.totalWords / 1000) + 'k words</span>';
+          }
+          html += '  </div>';
+
+          html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2">';
+          html += '    <a href="#/projects/' + encodeURIComponent(proj.id) + '" class="hover:text-[#3B82F6] transition-colors">' + proj.name + '</a>';
+          html += '  </h2>';
+          if (proj.desc) {
+            html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + proj.desc + '</p>';
+          }
+
+          html += '  <div class="space-y-2 border-l border-white/[0.08] pl-4">';
+          (proj.posts || []).forEach(function(p) {
+            var partNum = p.order < 10 ? '0' + p.order : p.order;
+            html += '    <a href="#/projects/' + encodeURIComponent(proj.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+            html += '      <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
+            html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
+            if (p.slide) html += '  <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
+            html += '    </a>';
+          });
+          html += '  </div>';
+          html += '</section>';
+        });
+        html += '</div>';
+      }
+
+      if (standaloneProjectsMd) {
+        var renderedProjMd = window.BlogMarkdown.render(standaloneProjectsMd);
+        html += '<section class="pt-8 border-t border-white/[0.06]">';
+        html += '  <article class="markdown-body mb-12">' + renderedProjMd.html + '</article>';
+        html += '</section>';
+      }
     }
 
     html += '</div>';

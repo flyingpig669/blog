@@ -52,6 +52,31 @@ window.BlogMarkdown = {
       '</div>';
     });
 
+    // 2.1 Pre-process Slide Deck / PDF Presentation blocks
+    var slideRegex = new RegExp('::: *(slide|pdf|deck) *([^\\s\\r\\n]+) *([^\\n]*)[\\r\\n]+([\\s\\S]*?):::', 'g');
+    text = text.replace(slideRegex, function(match, type, url, title, desc) {
+      var slideTitle = (title || '').trim() || 'Presentation Deck (PPT / PDF)';
+      var slideDesc = (desc || '').trim();
+      var cleanUrl = (url || '').trim();
+      return '<div class="slide-deck-viewer my-8">' +
+        '<div class="slide-deck-toolbar">' +
+          '<div class="flex items-center gap-2 min-w-0">' +
+            '<span class="text-[#3B82F6] font-mono text-[11px] font-semibold tracking-wider uppercase shrink-0">SLIDE DECK</span>' +
+            '<span class="text-[#5A5A5E]">·</span>' +
+            '<span class="text-[13px] text-[#EDEDED] font-medium truncate font-sans">' + slideTitle + '</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 shrink-0 font-mono text-[11px]">' +
+            '<a href="' + cleanUrl + '" target="_blank" rel="noopener noreferrer" class="slide-action-btn" title="Open full screen in new tab">↗ Fullscreen</a>' +
+            '<a href="' + cleanUrl + '" download class="slide-action-btn" title="Download presentation PDF">↓ Download</a>' +
+          '</div>' +
+        '</div>' +
+        '<div class="slide-deck-frame-wrapper">' +
+          '<iframe src="' + cleanUrl + '#toolbar=0&navpanes=0&view=FitH" class="slide-deck-frame" loading="lazy"></iframe>' +
+        '</div>' +
+        (slideDesc ? '<div class="p-3 text-[12px] text-[#8B8B8E] border-t border-white/[0.06] bg-[#111113]">' + slideDesc + '</div>' : '') +
+      '</div>';
+    });
+
     // 3. Marked.js parsing
     var markedParser = (typeof marked !== 'undefined') ? marked : (window.marked || null);
     if (markedParser && markedParser.setOptions) {
