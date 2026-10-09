@@ -60,7 +60,9 @@ window.BlogApp = {
     if (desktopNavEl && nav.length > 0) {
       var navHtml = '';
       nav.forEach(function(item) {
-        navHtml += '<a href="' + item.href + '" data-nav-link="' + item.id + '" class="nav-link">' + item.label + '</a>';
+        var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+        var isExternal = href.indexOf('http') === 0;
+        navHtml += '<a href="' + href + '" data-nav-link="' + item.id + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + item.label + '</a>';
       });
       desktopNavEl.innerHTML = navHtml;
     }
@@ -70,7 +72,9 @@ window.BlogApp = {
     if (mobileDrawerEl && nav.length > 0) {
       var drawerHtml = '';
       nav.forEach(function(item) {
-        drawerHtml += '<a href="' + item.href + '" onclick="document.getElementById(\'mobile-drawer\').classList.add(\'hidden\')" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
+        var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+        var isExternal = href.indexOf('http') === 0;
+        drawerHtml += '<a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
       });
       drawerHtml += '<a href="#/editor" onclick="document.getElementById(\'mobile-drawer\').classList.add(\'hidden\')" class="block py-1.5 text-[14px] text-[#3B82F6] font-mono">Write Article</a>';
       mobileDrawerEl.innerHTML = drawerHtml;
@@ -220,6 +224,8 @@ window.BlogApp = {
     }
   },
 
+  closeMobileDrawer: function() { var d = document.getElementById('mobile-drawer'); if (d) d.classList.add('hidden'); },
+
   closeMobileOutline: function() {
     var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
     if (drawer && !drawer.classList.contains('hidden')) {
@@ -243,7 +249,6 @@ window.BlogApp = {
     var hash = window.location.hash.slice(1) || '/';
     var path = hash.split('?')[0];
 
-    // 更新导航高亮状态
     document.querySelectorAll('.nav-link').forEach(function(link) {
       link.classList.remove('active');
     });
@@ -252,40 +257,57 @@ window.BlogApp = {
       var id = path.replace('/post/', '');
       this.currentRoute = { name: 'post', params: { id: id } };
       this.renderPostView(id);
-    } else if (path === '/columns') {
-      this.currentRoute = { name: 'columns', params: {} };
-      var link = document.querySelector('[data-nav-link="columns"]');
-      if (link) link.classList.add('active');
-      this.renderColumnsView();
-    } else if (path === '/archives') {
-      this.currentRoute = { name: 'archives', params: {} };
-      var link = document.querySelector('[data-nav-link="archives"]');
-      if (link) link.classList.add('active');
-      this.renderArchivesView();
-    } else if (path === '/categories' || path === '/tags') {
-      this.currentRoute = { name: 'tags', params: {} };
-      var link = document.querySelector('[data-nav-link="categories"]');
-      if (link) link.classList.add('active');
-      this.renderTagsView();
-    } else if (path === '/editor') {
+      return;
+    }
+
+    if (path === '/editor') {
       this.currentRoute = { name: 'editor', params: {} };
       this.renderEditorView();
-    } else if (path === '/about') {
-      this.currentRoute = { name: 'about', params: {} };
-      var link = document.querySelector('[data-nav-link="about"]');
-      if (link) link.classList.add('active');
-      this.renderAboutView();
-    } else {
-      this.currentRoute = { name: 'home', params: {} };
-      var link = document.querySelector('[data-nav-link="home"]');
-      if (link) link.classList.add('active');
-      this.renderHomeView();
+      return;
     }
+
+    var nav = (window.BlogStore.config && window.BlogStore.config.nav) || (window.BlogConfig && window.BlogConfig.nav) || [];
+    var matchedNavItem = nav.find(function(item) {
+      var r = item.route || item.href || '';
+      if (r.indexOf('#') === 0) r = r.slice(1);
+      if (!r.startsWith('/')) r = '/' + r;
+      return r === path || (r === '/' && (path === '' || path === '/'));
+    });
+
+    if (matchedNavItem) {
+      var navId = matchedNavItem.id;
+      this.setActiveNav(navId);
+
+      if (navId === 'home') {
+        this.currentRoute = { name: 'home', params: {} };
+        this.renderHomeView();
+      } else if (navId === 'columns') {
+        this.currentRoute = { name: 'columns', params: {} };
+        this.renderColumnsView();
+      } else if (navId === 'archives') {
+        this.currentRoute = { name: 'archives', params: {} };
+        this.renderArchivesView();
+      } else if (navId === 'categories' || navId === 'tags') {
+        this.currentRoute = { name: 'tags', params: {} };
+        this.renderTagsView();
+      } else if (navId === 'about') {
+        this.currentRoute = { name: 'about', params: {} };
+        this.renderAboutView();
+      } else {
+        this.currentRoute = { name: navId, params: {}, navItem: matchedNavItem };
+        this.renderDynamicNavView(matchedNavItem);
+      }
+      return;
+    }
+
+    this.setActiveNav('home');
+    this.renderHomeView();
   },
 
-  // ----------------------------------------------------------------------------
-  // 5. 模块化视图渲染层 (Modular Views)
-  // ----------------------------------------------------------------------------
+  setActiveNav: function(id) {
+    var link = document.querySelector('[data-nav-link="' + id + '"]');
+    if (link) link.classList.add('active');
+  },
 
   // 5.1 首页视图 (Home View)
   renderHomeView: function() {
@@ -903,7 +925,121 @@ window.BlogApp = {
   // ----------------------------------------------------------------------------
   // 8. 标签过滤辅助
   // ----------------------------------------------------------------------------
-  setTag: function(tag) {
+  // ----------------------------------------------------------------------------
+  // 5.8 统一通用动态栏目渲染器 (Zero-Code Dynamic Section View)
+  // ----------------------------------------------------------------------------
+  renderDynamicNavView: function(item) {
+    var container = document.getElementById('app-main');
+    var title = item.title || item.label || 'Section';
+    var subtitle = item.subtitle || '';
+    var posts = window.BlogStore.posts || [];
+    var customPages = (window.BlogPostsData && window.BlogPostsData.customPages) || {};
+
+    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+
+    // 统一页面头部 (严格遵循整站留白、字号与 1px 分割线规范)
+    html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
+    html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + title + '</h1>';
+    if (subtitle) {
+      html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px]">' + subtitle + '</p>';
+    }
+    html += '</header>';
+
+    // 场景 A: 按分类或标签过滤博文流
+    if (item.category || item.tag) {
+      var filtered = posts.filter(function(p) {
+        if (item.category && p.category === item.category) return true;
+        if (item.tag && (p.tags || []).indexOf(item.tag) !== -1) return true;
+        return false;
+      });
+
+      html += '<section class="divide-y divide-white/[0.06]">';
+      if (filtered.length === 0) {
+        html += '<div class="py-20 text-center text-[#5A5A5E] font-mono text-[14px]">';
+        html += '  <p class="mb-2 text-[#8B8B8E]">No articles in this section yet.</p>';
+        html += '  <p class="text-[12px]">Add Markdown posts with <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">category: "' + (item.category || item.tag) + '"</code> in posts/ to show here.</p>';
+        html += '</div>';
+      } else {
+        filtered.forEach(function(post) {
+          html += '<article class="post-item group">';
+          html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+          html += '    <span>' + post.date + '</span>';
+          if (post.readTime) html += '<span>·</span><span>' + post.readTime + '</span>';
+          html += '  </div>';
+          html += '  <h2 class="mb-2"><a href="#/post/' + post.id + '" class="post-item-title block leading-snug">' + post.title + '</a></h2>';
+          if (post.excerpt) html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
+          if ((post.tags || []).length > 0) {
+            html += '  <div class="flex flex-wrap items-center gap-2">';
+            post.tags.forEach(function(t) {
+              html += '    <a href="#/" onclick="window.BlogApp.setTag(decodeURIComponent(&apos;' + encodeURIComponent(t) + '&apos;))" class="tag-pill">#' + t + '</a>';
+            });
+            html += '  </div>';
+          }
+          html += '</article>';
+        });
+      }
+      html += '</section>';
+
+    // 场景 B: 卡片集合 (如 projects, tools, links)
+    } else if (item.items && Array.isArray(item.items) && item.items.length > 0) {
+      html += '<div class="space-y-3">';
+      item.items.forEach(function(card) {
+        var isLink = card.url && card.url !== '#';
+        html += '<a href="' + (card.url || '#') + '" ' + (isLink ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="p-4 rounded-xl bg-[#111113] border border-white/[0.08] hover:border-white/[0.16] block transition-all hover:-translate-y-[2px] group">';
+        html += '  <div class="flex items-center justify-between mb-1.5">';
+        html += '    <h3 class="text-[15px] font-semibold text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors font-sans">' + card.title + '</h3>';
+        if (card.tag) html += '    <span class="text-[11px] font-mono text-[#5A5A5E] px-2 py-0.5 rounded bg-white/[0.04]">' + card.tag + '</span>';
+        html += '  </div>';
+        if (card.desc) html += '  <p class="text-[13.5px] leading-relaxed text-[#8B8B8E]">' + card.desc + '</p>';
+        html += '</a>';
+      });
+      html += '</div>';
+
+    // 场景 C: 独立 Markdown 文档渲染 (例如 projects.md 等)
+    } else {
+      var fileKey = item.file ? item.file.replace(/\.md$/i, '') : item.id;
+      var mdContent = customPages[fileKey] || customPages[item.id] || '';
+
+      if (mdContent) {
+        var rendered = window.BlogMarkdown.render(mdContent);
+        html += '<article class="markdown-body mb-12">';
+        html += rendered.html;
+        html += '</article>';
+      } else {
+        var targetFile = item.file || (item.id + '.md');
+        html += '<div id="dynamic-md-container" class="py-12 text-[#8B8B8E]">';
+        html += '  <div class="p-5 rounded-xl bg-[#111113] border border-white/[0.08]">';
+        html += '    <div class="text-[14px] font-semibold text-[#EDEDED] mb-2 font-mono">Section Ready</div>';
+        html += '    <p class="text-[13.5px] text-[#8B8B8E] mb-3">To populate this page, simply create <code class="text-[#3B82F6] font-mono px-1.5 py-0.5 bg-white/[0.06] rounded">' + targetFile + '</code> in your blog directory.</p>';
+        html += '    <p class="text-[12px] text-[#5A5A5E] font-mono">Route: ' + (item.route || item.href) + '</p>';
+        html += '  </div>';
+        html += '</div>';
+
+        // 异步尝试 fetch 目标 markdown 文件 (本地服务/Pages 支持)
+        setTimeout(function() {
+          if (window.fetch) {
+            fetch(targetFile)
+              .then(function(res) { return res.ok ? res.text() : null; })
+              .then(function(text) {
+                if (text) {
+                  var dom = document.getElementById('dynamic-md-container');
+                  if (dom) {
+                    var renderedMd = window.BlogMarkdown.render(text);
+                    dom.innerHTML = '<article class="markdown-body">' + renderedMd.html + '</article>';
+                  }
+                }
+              })
+              .catch(function() {});
+          }
+        }, 10);
+      }
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  },
+
+    setTag: function(tag) {
     this.activeTag = tag;
     window.location.hash = '#/';
     this.renderHomeView();

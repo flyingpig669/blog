@@ -195,7 +195,7 @@ posts/columns/distributed-systems/
 #### 第二步：在 `js/app.js` 中注册路由与渲染函数
 打开 `js/app.js`，在 `handleRoute` 路由分发器中追加匹配分支：
 ```javascript
-    } else if (path === '/projects') {
+     else if (path === '/projects') {
       this.currentRoute = { name: 'projects', params: {} };
       var link = document.querySelector('[data-nav-link="projects"]');
       if (link) link.classList.add('active');

@@ -137,9 +137,18 @@
   <script src="js/markdown.js"></script>
   <script src="js/app.js"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      window.BlogApp.init();
-    });
+    function startApp() {
+      if (window.BlogApp && typeof window.BlogApp.init === 'function') {
+        window.BlogApp.init();
+      } else {
+        setTimeout(startApp, 40);
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startApp);
+    } else {
+      startApp();
+    }
   </script>
 </body>
 </html>
