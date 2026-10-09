@@ -15,8 +15,7 @@ excerpt: "基于高维复希尔伯特空间演化的轻量级量子计算仿真�
 
 以下是该项目的学术汇报 PPT 演示幻灯片：
 
-::: slide attachments/slides/quantum-computing-slides.pdf
-量子计算与态矢量演化汇报 PPT 演示
+::: slide attachments/slides/quantum-computing-slides.pdf 量子计算与态矢量演化汇报 PPT 演示
 :::
 
 ## 态矢量数学表示
@@ -24,5 +23,5 @@ excerpt: "基于高维复希尔伯特空间演化的轻量级量子计算仿真�
 任意单量子比特纯态可以表示为二维复希尔伯特空间中的单位向量：
 
 $$
-left| psi ightangle = alpha left| 0 ightangle + eta left| 1 ightangle, quad |alpha|^2 + |eta|^2 = 1
+\left| \psi \right\rangle = \alpha \left| 0 \right\rangle + \beta \left| 1 \right\rangle, \quad |\alpha|^2 + |\beta|^2 = 1
 $$

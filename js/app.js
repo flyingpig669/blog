@@ -523,11 +523,6 @@ window.BlogApp = {
     html += '  </div>';
     html += '</header>';
 
-    // PPT / Slide 演示文稿播放器挂载点 (优雅置于标题下方，正文上方)
-    if (post.slide || post.pdf) {
-      html += "<div id='post-slide-deck-mount' class='my-8'></div>";
-    }
-
     // Markdown 正文
     html += '<article class="markdown-body mb-16">';
     html += renderedHtml;
@@ -599,15 +594,19 @@ window.BlogApp = {
 
     container.innerHTML = html;
 
-    // 自动实例化演示文稿播放器 (基于 PDF.js 矢量渲染内核，支持真全屏演播与键盘热区翻页)
-    if (post.slide || post.pdf) {
-      var slideMount = document.getElementById('post-slide-deck-mount');
-      if (slideMount && window.BlogSlideViewer) {
-        window.BlogSlideViewer.mount(slideMount, {
-          url: post.slide || post.pdf,
-          title: post.title
-        });
-      }
+    // 扫描并实例化正文内的所有演示文稿播放器 (支持单篇文章内出现多个 PDF / 幻灯片演示)
+    var slideMounts = container.querySelectorAll('.article-slide-player-mount');
+    if (slideMounts.length > 0 && window.BlogSlideViewer) {
+      slideMounts.forEach(function(mountEl) {
+        var url = mountEl.getAttribute('data-slide-url');
+        var title = mountEl.getAttribute('data-slide-title') || post.title;
+        if (url) {
+          window.BlogSlideViewer.mount(mountEl, {
+            url: url,
+            title: title
+          });
+        }
+      });
     }
   },
 
