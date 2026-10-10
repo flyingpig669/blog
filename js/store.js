@@ -241,6 +241,88 @@ window.BlogStore = {
     return { kind: null, data: null };
   },
 
+  // 站内互链解析：把 [[key]] / 相对 .md 链接 统一解析为「站内路由 + 展示标题」。
+  // 支持按 文章 slug / id / relPath / 标题 / 专栏 / 标签 引用；未命中返回 null。
+  // 返回：{ kind, title, route, href?, slug, excerpt }
+  resolveLink: function(key) {
+    if (key === undefined || key === null) return null;
+    var raw = String(key).trim();
+    if (!raw) return null;
+
+    // 1) 外链 / 已带 # 的 Hash 路由：原样透传
+    if (/^https?:\/\//i.test(raw) || /^(mailto|tel):/i.test(raw) || raw.charAt(0) === '#') {
+      return { kind: 'url', title: raw.replace(/^#/, ''), href: raw };
+    }
+
+    var decoded = raw;
+    try { decoded = decodeURIComponent(raw); } catch (e) {}
+    decoded = decoded.trim();
+
+    // 2) 绝对站内路由（如 /about、/archive）：原样透传（.md 结尾的除外，需按文档解析）
+    if (decoded.charAt(0) === '/' && !/\.(md|markdown)$/i.test(decoded)) {
+      return { kind: 'route', title: decoded, route: decoded };
+    }
+
+    var stripped = decoded
+      .replace(/^(?:\.\.?\/)+/, '')   // 去掉 ./ ../
+      .replace(/^\/+/, '')            // 去掉前导 /
+      .replace(/\.(md|markdown)$/i, '') // 去掉扩展名
+      .replace(/^posts\//i, '');      // 去掉 posts/ 前缀
+    var norm = stripped.trim();
+    var lower = norm.toLowerCase();
+    if (!norm) return null;
+
+    // 3) 关于页
+    if (lower === 'about' || lower === 'about.md') {
+      return { kind: 'page', title: (this.about && this.about.title) || 'About', route: '/about', slug: 'about' };
+    }
+
+    // 4) 专栏（按 id / 名称）
+    var col = this.getColumnById(norm);
+    if (col) {
+      return { kind: 'column', title: col.name, route: '/columns/' + encodeURIComponent(col.id), slug: col.id, excerpt: col.desc || '' };
+    }
+
+    // 5) 标签（带或不带 #）
+    var tagName = norm.replace(/^#/, '');
+    var tag = (this.getAllTags() || []).find(function(t) {
+      return t.name.toLowerCase() === tagName.toLowerCase();
+    });
+    if (tag) {
+      return { kind: 'tag', title: '#' + tag.name, route: '/tags/' + encodeURIComponent(tag.name), slug: tag.name };
+    }
+
+    // 6) 文档（normal 文章 / post 结构化独立页），支持 slug / id / relPath
+    var doc = this.getDoc(norm) || this.getDoc(decoded);
+    if (doc && doc.data) {
+      var d = doc.data;
+      var slug = d.slug || d.id || norm;
+      return {
+        kind: doc.kind === 'page' ? 'page' : 'post',
+        title: d.title || slug,
+        route: '/posts/' + encodeURIComponent(slug),
+        slug: slug,
+        excerpt: d.excerpt || ''
+      };
+    }
+
+    // 7) 按标题匹配（精确优先，其次包含）
+    var byTitle = this.posts.find(function(p) { return p.title && p.title.toLowerCase() === lower; }) ||
+                  this.posts.find(function(p) { return p.title && p.title.toLowerCase().indexOf(lower) !== -1; });
+    if (byTitle) {
+      var s2 = byTitle.slug || byTitle.id;
+      return {
+        kind: 'post',
+        title: byTitle.title,
+        route: '/posts/' + encodeURIComponent(s2),
+        slug: s2,
+        excerpt: byTitle.excerpt || ''
+      };
+    }
+
+    return null;
+  },
+
   incrementView: function(id) {
     var post = this.getPostById(id);
     if (post) {

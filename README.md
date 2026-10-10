@@ -279,6 +279,10 @@ tags: ["algebra", "math"]
 
 > **路由规范**：路由参数禁止中文。文件名/专栏名含中文时，请显式声明 `slug` 与 `columnSlug`（见 `AGENTS.md` 第 6 节）。仓库内示例文章已全部声明 ASCII slug。
 
+### 3. 文章之间互相引用 / 写收录页
+
+正文里不要手写 `#/posts/xxx` 路由，直接用双链 `[[slug]]`（自动补全标题）或相对 `.md` 链接，详见 [第七节 · 站内互链](#2-站内互链引用其它文章双链语法)。收录页起点模板：[`templates/template-collection.md`](templates/template-collection.md)。
+
 ---
 
 ## 六、关于页与结构化单页 (`about.md`)
@@ -315,7 +319,34 @@ social:                                        # 名片区纯文字外链（自�
 - 点击目录项平滑滚动，并自动避让 56px 顶栏（预留 76px 缓冲）。
 - 移动端折叠为右下角 `# Outline` 胶囊 + 侧滑抽屉。
 
-### 2. 学术级数学公式 (KaTeX)
+### 2. 站内互链：引用其它文章（双链语法）
+
+写「收录 / 索引页」或文章之间互相引用时，不必手写 `#/posts/...` 路由，直接用双链：
+
+```markdown
+- [[hello-world]]                          → 自动取文章标题作为链接文字
+- [[hello-world|去看 Hello World]]          → 自定义显示文字
+- [[group-theory]]                         → 引用整个专栏
+- [[algebra]]                              → 引用某个标签下的全部文章
+- [[about.md]]                             → 引用关于页
+```
+
+`[[...]]` 中可填：文章 **slug**、**文件名/路径**（`群论/01-简介.md`、`posts/roadmap.md`）、**文章标题**、**专栏 id 或名称**、**标签名**、`about.md`。
+
+标准 Markdown 链接只要指向 `.md` 文件，也会被自动解析为站内路由：
+
+```markdown
+[看这篇](hello-world.md)
+[看这篇](./hello-world.md)
+[看这篇](posts/hello-world.md)
+[看这篇](群论/01-简介.md)
+```
+
+- **不会被改写**：外部链接（`https://…`、`mailto:`）、Hash 锚点（`#/tags`）、附件资源（`attachments/…pdf`）、行内代码与代码块内的 `[[…]]`。
+- 引用不到目标时渲染为灰色虚线的「缺失」标记，便于发现写错的 slug。
+- 可直接复制 [`templates/template-collection.md`](templates/template-collection.md) 作为收录页起点。
+
+### 3. 学术级数学公式 (KaTeX)
 
 - 行内公式：`$$E = mc^2$$` 或 `\( E = mc^2 \)`。**禁止**单个 `$` 内联（与 AGENTS.md 约定一致）。
 - 块级公式：独立 `$$` 块，前后保留空行：
@@ -326,7 +357,7 @@ $$
 
 - 狄拉克符号用 `\left| \psi \right\rangle`；多行用 `\begin{aligned} ... \end{aligned}`。
 
-### 3. 深色代码高亮与一键复制 (Prism)
+### 4. 深色代码高亮与一键复制 (Prism)
 
 ```python
 def fibonacci(n: int) -> int:
@@ -336,7 +367,7 @@ def fibonacci(n: int) -> int:
     return a
 ```
 
-### 4. PDF 幻灯片 / 演示文稿播放 (Slide Deck)
+### 5. PDF 幻灯片 / 演示文稿播放 (Slide Deck)
 
 **方式 A：正文容器语法**
 
@@ -357,12 +388,12 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 
 两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）；若正文已内嵌 `::: slide`，FrontMatter 的 `slide` 不会重复挂载。
 
-### 5. 附件与相对路径
+### 6. 附件与相对路径
 
 - 幻灯片、图片、压缩包统一放在 `attachments/`（如 `attachments/slides/`）。
 - `sync_posts.py` 会自动跳过 `attachments/`、`assets/` 等资源目录，路径引用在本地与 GitHub Pages 均可用。
 
-### 6. Callout 提示块
+### 7. Callout 提示块
 
 ```markdown
 ::: tip 提示

@@ -163,6 +163,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 3. `Home` 必须使用根路径 `/`，禁止使用 `/home` 或 `/index`。
 4. `About` 作为单页展示型路由，必须使用单数形式 `/about`，禁止使用 `/abouts` 或 `/about-us`。
 5. `Archive` 若独立存在，必须使用单数形式 `/archive`，表示归档整体。
+6. **页面内互链一律使用双链 `[[slug]]`（或相对 `.md` 链接）**，由渲染层统一解析为站内路由；禁止在 Markdown 正文中硬编码 `#/posts/xxx` 形式的 Hash 路由，避免 slug 变更后产生死链。
 
 ### 6.5 重定向与兼容约束
 

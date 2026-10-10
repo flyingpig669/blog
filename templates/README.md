@@ -13,6 +13,7 @@
 | **`template-slide-presentation.md`** | PPT / PDF 演示文稿课件 | 支持 `::: slide` 嵌入本地 PDF 课件，具备 Retina 矢量放映与真全屏演播 |
 | **`template-independent-page.md`** | 结构化独立页 (type: post) | 声明 `type: "post"`，支持时间线/关注领域/社交等区块，可被导航 `target: "file:xxx.md"` 绑定为独立页 |
 | **`template-math-physics-paper.md`** | 理论数学与物理推导长文 | 严格兼容 Codex 双美元符号 KaTeX，狄拉克符号、矩阵与多行对齐方程推导 |
+| **`template-collection.md`** | 文章收录 / 阅读索引页 | 用 `[[slug]]` 双链与相对 `.md` 链接把全站文章整理成可跳转索引 |
 
 ---
 
@@ -29,6 +30,9 @@ cp templates/template-column-chapter.md posts/my-column-part-01.md
 
 # 示例 3：创建一篇带演示文稿的文章
 cp templates/template-slide-presentation.md posts/my-presentation.md
+
+# 示例 4：创建一个文章收录 / 索引页
+cp templates/template-collection.md posts/collection.md
 ```
 
 ---

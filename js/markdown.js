@@ -73,7 +73,8 @@ window.BlogMarkdown = {
     // 3. Marked.js parsing
     var markedParser = (typeof marked !== 'undefined') ? marked : (window.marked || null);
     if (markedParser && markedParser.setOptions) {
-      markedParser.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+      // 注：headerIds / mangle 已在 marked v5+ 移除，标题 id 由下方 TOC 流程统一生成
+      markedParser.setOptions({ gfm: true, breaks: true });
     }
     var rawHtml = markedParser ? markedParser.parse(text) : text;
 
@@ -110,6 +111,99 @@ window.BlogMarkdown = {
     if (typeof document !== 'undefined') {
       var tempDiv = document.createElement('div');
       tempDiv.innerHTML = rawHtml;
+
+      // 5.0 站内互链处理 (Cross-Article Links)
+      //   (a) 双链语法: [[slug]] / [[slug|显示文本]]  → 自动补全标题并生成站内路由
+      //   (b) 相对 .md 链接: [文本](xxx.md) / [文本](posts/xxx.md) → 自动解析为站内路由
+      //   解析统一由 window.BlogStore.resolveLink() 提供；未命中降级为「缺失」提示。
+      var linkStore = window.BlogStore;
+      if (linkStore && typeof linkStore.resolveLink === 'function') {
+        var toHref = function(route) {
+          if (!route) return '#';
+          return route.charAt(0) === '#' ? route : '#' + route;
+        };
+        var applyAnchor = function(anchor, hit, fallbackLabel) {
+          anchor.setAttribute('href', hit.href || toHref(hit.route));
+          anchor.setAttribute('title', hit.title || fallbackLabel || '');
+          anchor.classList.add('wiki-link');
+          if (hit.kind) anchor.classList.add('wiki-link-' + hit.kind);
+          if (/^https?:/i.test(hit.href || '')) {
+            anchor.setAttribute('target', '_blank');
+            anchor.setAttribute('rel', 'noopener noreferrer');
+          }
+        };
+
+        // (a) 双链语法
+        var textWalker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        var textNodes = [];
+        while (textWalker.nextNode()) textNodes.push(textWalker.currentNode);
+
+        textNodes.forEach(function(node) {
+          var value = node.nodeValue || '';
+          if (value.indexOf('[[') === -1 || value.indexOf(']]') === -1) return;
+
+          // 跳过代码块 / 行内代码 / 已有链接内部，避免误伤
+          var ancestor = node.parentNode;
+          while (ancestor && ancestor !== tempDiv) {
+            var tag = (ancestor.tagName || '').toLowerCase();
+            if (tag === 'code' || tag === 'pre' || tag === 'a') return;
+            ancestor = ancestor.parentNode;
+          }
+
+          var re = /\[\[([^\[\]\r\n]+)\]\]/g;
+          if (!re.test(value)) return;
+          re.lastIndex = 0;
+
+          var fragment = document.createDocumentFragment();
+          var cursor = 0;
+          var match;
+          while ((match = re.exec(value)) !== null) {
+            if (match.index > cursor) {
+              fragment.appendChild(document.createTextNode(value.slice(cursor, match.index)));
+            }
+            var inner = match[1];
+            var pipeAt = inner.indexOf('|');
+            var key = (pipeAt === -1 ? inner : inner.slice(0, pipeAt)).trim();
+            var label = (pipeAt === -1 ? '' : inner.slice(pipeAt + 1)).trim();
+            var hit = linkStore.resolveLink(key);
+
+            if (hit && (hit.route || hit.href)) {
+              var anchor = document.createElement('a');
+              applyAnchor(anchor, hit, key);
+              anchor.textContent = label || hit.title || key;
+              fragment.appendChild(anchor);
+            } else {
+              var missing = document.createElement('span');
+              missing.className = 'wiki-link is-missing';
+              missing.setAttribute('title', '未找到引用的文章: ' + key);
+              missing.textContent = label || key;
+              fragment.appendChild(missing);
+            }
+            cursor = match.index + match[0].length;
+          }
+          if (cursor < value.length) {
+            fragment.appendChild(document.createTextNode(value.slice(cursor)));
+          }
+          node.parentNode.replaceChild(fragment, node);
+        });
+
+        // (b) 相对 Markdown 文件链接
+        tempDiv.querySelectorAll('a[href]').forEach(function(anchor) {
+          var href = (anchor.getAttribute('href') || '').trim();
+          if (!/\.(md|markdown)(?:$|[?#])/i.test(href)) return;
+          if (/^(?:https?:|mailto:|tel:|#)/i.test(href)) return;
+
+          var clean = href.split('#')[0].split('?')[0].replace(/^(?:\.\.?\/)+/, '');
+          var hit = linkStore.resolveLink(clean);
+          if (hit && (hit.route || hit.href)) {
+            applyAnchor(anchor, hit);
+          } else {
+            var fallbackSlug = clean.replace(/^posts\//i, '').replace(/\.(md|markdown)$/i, '');
+            anchor.setAttribute('href', toHref('/posts/' + encodeURIComponent(fallbackSlug)));
+            anchor.classList.add('wiki-link');
+          }
+        });
+      }
 
       // 统一标题层级追踪配置 (优先级: 单篇 FrontMatter tocLevels > 全局 BlogConfig.tocLevels > 默认 [2, 3, 4])
       var targetLevels = (options && options.tocLevels !== undefined && options.tocLevels !== null) 

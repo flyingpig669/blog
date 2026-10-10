@@ -284,6 +284,24 @@ html, body {
 .markdown-body a:hover {
   color: var(--accent-secondary);
 }
+
+/* 站内互链 (Wiki-style Cross Links) */
+.markdown-body a.wiki-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.45);
+  transition: color 150ms ease-out, border-color 150ms ease-out;
+}
+.markdown-body a.wiki-link:hover {
+  color: var(--accent-secondary);
+  border-bottom-color: var(--accent-secondary);
+}
+.markdown-body .wiki-link.is-missing {
+  color: var(--text-muted);
+  border-bottom: 1px dashed var(--text-muted);
+  text-decoration: none;
+  cursor: help;
+}
 .markdown-body ul, .markdown-body ol { margin: 16px 0; padding-left: 24px; color: var(--text-primary); }
 .markdown-body li { margin: 6px 0; }
 .markdown-body hr { margin: 40px 0; border: 0; height: 1px; background: var(--divider); }
