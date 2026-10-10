@@ -122,6 +122,10 @@ window.BlogStore = {
     var relNorm = norm.indexOf('posts/') === 0 ? norm.slice('posts/'.length) : norm;
     var relNoExt = relNorm.replace(/\.md$/i, '');
     var keys = [raw, norm, relNorm, relNoExt].filter(function(v, i, a) { return v && a.indexOf(v) === i; });
+    var exactPath = this.posts.find(function(p) {
+      return String(p.relPath || '').toLowerCase() === relNorm;
+    });
+    if (exactPath) return exactPath;
     return this.posts.find(function(p) {
       var idl = String(p.id || '').toLowerCase();
       var slugl = String(p.slug || '').toLowerCase();
@@ -130,43 +134,14 @@ window.BlogStore = {
       for (var i = 0; i < keys.length; i++) {
         var k = keys[i];
         if (idl === k || slugl === k || rel === k || relNoExt2 === k) return true;
-        if (idl && idl === 'post-' + k) return true;
-        if (idl && idl.slice(-(k.length + 1)) === '-' + k) return true;
       }
       return false;
-    });
+    }) || null;
   },
 
   // 获取独立单页数据对象 (支持关于页、自定义 Markdown 单页等)
   getPage: function(key) {
-    if (!key) return null;
-    var decoded = key;
-    try { decoded = decodeURIComponent(key); } catch (e) {}
-    var norm = String(decoded).toLowerCase().trim();
-    if (this.pages) {
-      if (this.pages[key]) return this.pages[key];
-      if (this.pages[norm]) return this.pages[norm];
-      var base = norm.split("/").pop().replace(/\.md$/i, "");
-      if (this.pages[base]) return this.pages[base];
-      if (this.pages[base + ".md"]) return this.pages[base + ".md"];
-    }
-    if (norm === "about" || norm === "about.md") {
-      return this.about || null;
-    }
-    var postMatch = this.posts.find(function(p) {
-      if (p.relPath && p.relPath.toLowerCase() === norm) return true;
-      if (p.relPath && p.relPath.toLowerCase().endsWith("/" + norm)) return true;
-      if (p.slug && p.slug.toLowerCase() === norm) return true;
-      if (p.id && p.id.toLowerCase() === norm) return true;
-      return false;
-    });
-    if (postMatch) return postMatch;
-    if (this.customPages) {
-      if (this.customPages[key]) return { content: this.customPages[key], raw: this.customPages[key], title: key };
-      var base2 = norm.split("/").pop().replace(/\.md$/i, "");
-      if (this.customPages[base2]) return { content: this.customPages[base2], raw: this.customPages[base2], title: base2 };
-    }
-    return null;
+    return this.getDoc(key).data;
   },
 
   // 文档解析：按路径 / slug 解析出文档类型与数据
@@ -177,14 +152,16 @@ window.BlogStore = {
     try { decoded = decodeURIComponent(key); } catch (e) {}
     var norm = String(decoded).toLowerCase().trim();
     var relNorm = norm.indexOf('posts/') === 0 ? norm.slice('posts/'.length) : norm;
-    var base = norm.split('/').pop();
-    var baseNoExt = base.replace(/\.md$/i, '');
+    // 完整路径不允许降级为文件名，否则 demo/roadmap.md 会命中根目录 Roadmap。
+    var post = this.getPostById(key);
+    if (post && post.type !== 'post' && post.type !== 'page') {
+      return { kind: 'post', data: post };
+    }
     if (this.pages) {
-      var pg = this.pages[key] || this.pages[norm] || this.pages[relNorm] ||
-               this.pages[base] || this.pages[baseNoExt] || this.pages[baseNoExt + '.md'];
+      var pg = this.pages[norm] || this.pages[relNorm];
+      if (!pg && post) pg = this.pages[post.relPath] || this.pages[post.slug];
       if (pg) return { kind: 'page', data: pg };
     }
-    var post = this.getPostById(key);
     if (post) {
       var rich = (post.type === 'post' || post.type === 'page');
       return { kind: rich ? 'page' : 'post', data: post };
@@ -204,7 +181,7 @@ window.BlogStore = {
     if (!raw) return null;
 
     // 1) 外链 / 已带 # 的 Hash 路由：原样透传
-    if (/^https?:\/\//i.test(raw) || /^(mailto|tel):/i.test(raw) || raw.charAt(0) === '#') {
+    if (/^https?:\/\//i.test(raw) || /^(mailto|tel):/i.test(raw) || raw.indexOf('#/') === 0) {
       return { kind: 'url', title: raw.replace(/^#/, ''), href: raw };
     }
 
@@ -232,7 +209,8 @@ window.BlogStore = {
     }
 
     // 4) 专栏（按 id / 名称）
-    var col = this.getColumnById(norm);
+    var explicitTag = norm.charAt(0) === '#';
+    var col = explicitTag ? null : this.getColumnById(norm);
     if (col) {
       return { kind: 'column', title: col.name, route: '/columns/' + encodeURIComponent(col.id), slug: col.id, excerpt: col.desc || '' };
     }
@@ -240,7 +218,6 @@ window.BlogStore = {
     // 5) 文档（normal 文章 / post 结构化独立页），支持 slug / id / relPath。
     //    文档优先于标签：否则一旦出现与文章同名的标签，[[名字]] 会被标签悄悄截走。
     //    以 # 开头视为「显式指定标签」，跳过文档解析。
-    var explicitTag = norm.charAt(0) === '#';
     if (!explicitTag) {
       var doc = this.getDoc(norm) || this.getDoc(decoded);
       if (doc && doc.data) {
@@ -266,6 +243,7 @@ window.BlogStore = {
     }
 
     // 7) 按标题匹配（精确优先，其次包含）
+    if (explicitTag) return null;
     var byTitle = this.posts.find(function(p) { return p.title && p.title.toLowerCase() === lower; }) ||
                   this.posts.find(function(p) { return p.title && p.title.toLowerCase().indexOf(lower) !== -1; });
     if (byTitle) {

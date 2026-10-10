@@ -574,6 +574,8 @@ window.BlogApp = {
   // ----------------------------------------------------------------------------
   handleRoute: function() {
     var self = this;
+    this.routeRevision = (this.routeRevision || 0) + 1;
+    var revision = this.routeRevision;
     window.scrollTo(0, 0);
     this.closeMobileDrawer();
     this.closeMobileOutline();
@@ -635,6 +637,12 @@ window.BlogApp = {
       } else {
         this.currentRoute = { name: 'post', params: { id: id } };
         this.renderPostView(id);
+      }
+      var heading = new URLSearchParams(query).get('heading');
+      if (heading) {
+        requestAnimationFrame(function() {
+          if (self.routeRevision === revision) self.scrollToHeading(heading);
+        });
       }
       return;
     }
@@ -1465,7 +1473,7 @@ window.BlogApp = {
 
     var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
     var tocLevels = post.tocLevels !== null && post.tocLevels !== undefined ? post.tocLevels : features.tocLevels;
-    var mdResult = this.safeMarkdown(post.content, { tocLevels: tocLevels });
+    var mdResult = this.safeMarkdown(post.content, { tocLevels: tocLevels, sourcePath: 'posts/' + post.relPath });
     var renderedHtml = mdResult.html;
     var toc = mdResult.toc || [];
 
@@ -1703,7 +1711,7 @@ window.BlogApp = {
           var isCur = cp.id === post.id || cp.slug === post.slug;
           var ord = cp.order ? (cp.order < 10 ? '0' + cp.order : cp.order) : ('0' + (cidx + 1));
           html += '<a href="' + window.BlogApp.postHref(cp) + '" onclick="window.BlogApp.toggleMobileOutline()" class="block py-1 truncate ' + (isCur ? 'text-[#3B82F6] font-semibold' : 'text-[#8B8B8E]') + '">';
-          html += '  <span class="opacity-60 mr-1.5">' + ord + '</span>' + cp.title;
+          html += '  <span class="opacity-60 mr-1.5">' + ord + '</span>' + window.BlogApp.escapeHtml(cp.title);
           html += '</a>';
         });
         html += '  </div>';
@@ -1729,9 +1737,12 @@ window.BlogApp = {
     // 扫描并实例化正文内的所有演示文稿播放器 (支持单篇文章内出现多个 PDF / 幻灯片演示)
     var slideMounts = container.querySelectorAll('.article-slide-player-mount');
     if (slideMounts.length > 0) {
+      var self = this;
+      var revision = this.routeRevision;
       this.ensureSlideViewer(function() {
-        if (!window.BlogSlideViewer) return;
+        if (!window.BlogSlideViewer || self.routeRevision !== revision) return;
         slideMounts.forEach(function(mountEl) {
+          if (!mountEl.isConnected) return;
           var url = mountEl.getAttribute('data-slide-url');
           if (!url) return;
           window.BlogSlideViewer.mount(mountEl, {
@@ -2138,7 +2149,7 @@ window.BlogApp = {
 
     // 6. 自由 Markdown 正文 (支持 KaTeX、Prism 代码高亮与 Callout 提示框)
     if (rawMarkdown && rawMarkdown.trim().length > 0) {
-      var mdResult = this.safeMarkdown(rawMarkdown);
+      var mdResult = this.safeMarkdown(rawMarkdown, { tocLevels: pageData.tocLevels, sourcePath: pageData.sourcePath });
       html += '<section class="mb-14 border-t border-white/[0.06] pt-8">';
       html += '  <article class="markdown-body">' + mdResult.html + '</article>';
       html += '</section>';

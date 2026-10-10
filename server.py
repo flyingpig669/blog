@@ -31,6 +31,7 @@ import socketserver
 import subprocess
 import sys
 import threading
+import time
 
 DEFAULT_PORT = int(os.environ.get("AURORA_PORT", "18888"))
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
@@ -166,8 +167,7 @@ def scan_tree(root):
 class FileWatcher(threading.Thread):
     """轮询文件 mtime，变更后广播给所有 SSE 订阅者。
 
-    版本号取「所有文件的最大 mtime（毫秒）」，因此服务器重启不会改变版本号，
-    也就不会造成浏览器重新连接时误判为「有更新」而白白刷新一次。
+    每次变化递增版本号，删除文件或恢复旧时间戳也能触发刷新。
     """
 
     # sync_posts.py 的输出：它们是同步动作的结果，不应再单独触发一次刷新
@@ -183,6 +183,7 @@ class FileWatcher(threading.Thread):
         self.auto_sync = auto_sync
         self.log = log or (lambda message: None)
         self._snapshot = scan_tree(root)
+        self._version = int(time.time() * 1000)
         self._subscribers = set()
         self._lock = threading.Lock()
         self._stopped = threading.Event()
@@ -190,7 +191,7 @@ class FileWatcher(threading.Thread):
     # ---- 对外接口 ----
     def version_ms(self):
         with self._lock:
-            return int(max(self._snapshot.values(), default=0) * 1000)
+            return self._version
 
     def subscribe(self):
         channel = queue.Queue()
@@ -235,7 +236,13 @@ class FileWatcher(threading.Thread):
 
         # 等文件写完：编辑器可能有多次落盘 / 一次保存多个文件
         self._stopped.wait(WATCH_SETTLE_SECONDS)
-        self._snapshot = scan_tree(self.root)
+        settled = scan_tree(self.root)
+        changed = sorted(
+            [path for path, mtime in settled.items() if previous.get(path) != mtime]
+            + [path for path in previous if path not in settled]
+        )
+        if not changed:
+            return
 
         sources = [path for path in changed if path not in self.GENERATED]
         needs_sync = self.auto_sync and any(
@@ -245,7 +252,17 @@ class FileWatcher(threading.Thread):
         if needs_sync:
             self._run_sync()
             # sync 会重写 js/posts-data.js，一并吞进新基线，避免紧接着再刷一次
-            self._snapshot = scan_tree(self.root)
+            # 只吞掉生成文件；编译期间的新源文件改动留给下一轮检测。
+            after_sync = scan_tree(self.root)
+            for path in self.GENERATED:
+                if path in after_sync:
+                    settled[path] = after_sync[path]
+                else:
+                    settled.pop(path, None)
+
+        with self._lock:
+            self._snapshot = settled
+            self._version = max(self._version + 1, int(time.time() * 1000))
 
         preview = "、".join(sources[:3]) + ("…" if len(sources) > 3 else "")
         self.log(f"🔄 检测到改动：{preview or '生成产物'} → 通知浏览器刷新")
@@ -353,6 +370,8 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def send_head(self):
         if WATCHER is not None:
             translated = self.translate_path(self.path)
+            if os.path.isdir(translated):
+                translated = os.path.join(translated, "index.html")
             if translated.lower().endswith(".html") and os.path.isfile(translated):
                 injected = self._injected_html_response(translated)
                 if injected is not None:

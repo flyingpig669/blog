@@ -21,4 +21,7 @@ python3 -c 'import ast, pathlib; [ast.parse(path.read_text(encoding="utf-8"), fi
 echo "[4/4] Checking shell syntax..."
 bash -n run.sh deploy.sh check.sh
 
+node --test tests/*.test.js
+python3 -m unittest discover -s tests -p 'test_*.py'
+
 echo "Project checks passed."

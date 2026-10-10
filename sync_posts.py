@@ -244,6 +244,10 @@ def parse_md_file(filepath, words_per_minute=300):
         is_test = True
 
     slug = slugify(slug_override) or slugify(os.path.splitext(filename)[0]) or os.path.splitext(filename)[0]
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
+        raise ValueError(f"{rel_path}: 请声明英文小写 slug（使用连字符连接）")
+    if column and not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", column):
+        raise ValueError(f"{rel_path}: 请声明英文小写 columnSlug")
     if column:
         post_id = f"post-col-{column}-{slug}".replace(".", "-")
     else:
@@ -454,6 +458,8 @@ def parse_structured_page_file(filepath):
 
     data = {
         "title": default_title,
+        "slug": slugify(os.path.splitext(filename)[0]),
+        "sourcePath": os.path.relpath(filepath, BASE_DIR).replace(os.sep, "/"),
         "status": "",
         "quote": "",
         "bio": "",
@@ -584,12 +590,17 @@ def sync():
 
     synced_posts = []
     columns_map = {}
+    slug_sources = {}
 
     for filepath in sorted(md_files):
         p = parse_md_file(filepath, words_per_minute)
         if not show_test and p.get("isTest"):
             print(f" ⊘ 跳过测试文档 (showTest=false): {p['relPath']}")
             continue
+
+        if p["slug"] in slug_sources:
+            raise ValueError(f"重复 slug '{p['slug']}': {slug_sources[p['slug']]} 与 {p['relPath']}")
+        slug_sources[p["slug"]] = p["relPath"]
 
         synced_posts.append(p)
         col = p.get("column")
@@ -658,6 +669,8 @@ def sync():
             if p_data:
                 p_data["title"] = p.get("title") or p_data["title"]
                 p_data["excerpt"] = p.get("excerpt") or ""
+                p_data["slug"] = p["slug"]
+                p_data["sourcePath"] = "posts/" + p["relPath"]
                 p_id = p.get("slug") or p.get("id")
                 pages_map[p_id] = p_data
                 pages_map[p["relPath"]] = p_data

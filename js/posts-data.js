@@ -203,6 +203,8 @@ window.BlogPostsData = {
   ],
   "about": {
     "title": "About",
+    "slug": "about",
+    "sourcePath": "about.md",
     "status": "Physics, Math & Computer Science",
     "quote": "Turning complexity into clean order through rigorous logic, mathematics, and craft.",
     "bio": "热爱理论物理与计算机科学的交叉前沿。致力于从高维希尔伯特空间、哈密顿量演化与微观统计力学的物理视角，理解并构建现代大规模计算架构与复杂分布式系统。坚持极简主义与深度心流开发，崇尚用严谨的数学推导与干净的代码建立秩序。",
@@ -329,6 +331,8 @@ window.BlogPostsData = {
   "pages": {
     "about": {
       "title": "About",
+      "slug": "about",
+      "sourcePath": "about.md",
       "status": "Physics, Math & Computer Science",
       "quote": "Turning complexity into clean order through rigorous logic, mathematics, and craft.",
       "bio": "热爱理论物理与计算机科学的交叉前沿。致力于从高维希尔伯特空间、哈密顿量演化与微观统计力学的物理视角，理解并构建现代大规模计算架构与复杂分布式系统。坚持极简主义与深度心流开发，崇尚用严谨的数学推导与干净的代码建立秩序。",
@@ -454,6 +458,8 @@ window.BlogPostsData = {
     },
     "about.md": {
       "title": "About",
+      "slug": "about",
+      "sourcePath": "about.md",
       "status": "Physics, Math & Computer Science",
       "quote": "Turning complexity into clean order through rigorous logic, mathematics, and craft.",
       "bio": "热爱理论物理与计算机科学的交叉前沿。致力于从高维希尔伯特空间、哈密顿量演化与微观统计力学的物理视角，理解并构建现代大规模计算架构与复杂分布式系统。坚持极简主义与深度心流开发，崇尚用严谨的数学推导与干净的代码建立秩序。",
@@ -579,6 +585,8 @@ window.BlogPostsData = {
     },
     "roadmap": {
       "title": "个人发展路线图与白皮书",
+      "slug": "roadmap",
+      "sourcePath": "posts/roadmap.md",
       "status": "",
       "quote": "",
       "bio": "",
@@ -628,6 +636,8 @@ window.BlogPostsData = {
     },
     "roadmap.md": {
       "title": "个人发展路线图与白皮书",
+      "slug": "roadmap",
+      "sourcePath": "posts/roadmap.md",
       "status": "",
       "quote": "",
       "bio": "",

@@ -247,7 +247,7 @@ social:
 ---
 title: "我的第一篇技术文章"
 date: "2026-10-09"
-slug: "my-first-post"        # 可选：URL 标识；文件名含中文时建议显式声明 ASCII slug
+slug: "my-first-post"        # URL 标识；文件名含中文时必须显式声明英文小写 slug
 category: "architecture"
 tags: ["分布式", "架构设计"]
 pinned: false
@@ -406,6 +406,7 @@ timeline:
 - [[hello-world|去看 Hello World]]          → 自定义显示文字
 - [[group-theory]]                         → 引用整个专栏
 - [[algebra]]                              → 引用某个标签下的全部文章
+- [[#algebra]]                             → 显式指定标签，避免与文章同名
 - [[about.md]]                             → 引用关于页
 ```
 
@@ -418,7 +419,12 @@ timeline:
 [看这篇](./hello-world.md)
 [看这篇](posts/hello-world.md)
 [看这篇](群论/01-简介.md)
+[看这一节](posts/群论/01-简介.md#section-2)
 ```
+
+相对路径以当前文档所在目录为基准；`posts/` 开头的路径从文章根目录查找。
+章节锚点会转换为路由查询参数 `heading`，目标页面渲染后自动定位到对应标题。
+完整文件路径优先匹配，不再回退到其它目录的同名文件。
 
 - **不会被改写**：外部链接（`https://…`、`mailto:`）、Hash 锚点（`#/tags`）、附件资源（`attachments/…pdf`）、行内代码与代码块内的 `[[…]]`。
 - 引用不到目标时渲染为灰色虚线的「缺失」标记，便于发现写错的 slug。
@@ -597,9 +603,9 @@ cd ~/Documents/blog
 
 ### Q4: 为什么路由里出现过中文？还能用吗？
 
-路由参数**不应包含中文**（违反 `AGENTS.md` 第 6 节）。`slugify()` 默认保留中日韩字符，因此**中文文件名会直接产出中文路由**——请在 FrontMatter 里显式声明 ASCII 的 `slug` / `columnSlug`（示例文章与专栏均已补齐）。
+路由参数必须使用英文小写、数字与连字符。中文文件名需要在 FrontMatter 中显式声明 `slug`，中文专栏名需要声明 `columnSlug`（示例均已补齐）。索引构建会拒绝不符合规则或重复的文章 slug，防止生成歧义链接。
 
-> 注意：补 `slug` 会改变文章 URL，需自行处理旧链接失效（文章内部的双链 `[[...]]` 会自动跟随，无需手改）。
+修改 `slug` 会直接改变文章 URL；项目处于开发阶段，不维护旧 slug 兼容层。
 
 ### Q5: 为什么不用 `gh-pages` 分支？
 

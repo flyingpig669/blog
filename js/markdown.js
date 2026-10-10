@@ -16,7 +16,34 @@ window.BlogMarkdown = {
 
     var mathBlocks = [];
     var mathInlines = [];
-    var text = markdownText;
+    var text = String(markdownText).replace(/\r\n?/g, '\n');
+
+    // 先保护代码，再做公式、Callout 和 PDF 预处理；代码中的语法必须原样保留。
+    var codeLiterals = [];
+    var protectCode = function(literal) {
+      var token = 'AURORACODELITERAL' + codeLiterals.length + 'END';
+      while (markdownText.indexOf(token) !== -1) token += 'X';
+      codeLiterals.push({ token: token, raw: literal });
+      return token;
+    };
+    var fencedStart = /^ {0,3}(?:>[ \t]*)*(`{3,}|~{3,})[^\n]*(?:\n|$)/gm;
+    var match;
+    var cursor = 0;
+    var protectedText = '';
+    while ((match = fencedStart.exec(text)) !== null) {
+      var fence = match[1];
+      var endPattern = new RegExp('^ {0,3}(?:>[ \\t]*)*' + fence.charAt(0) + '{' + fence.length + ',}[ \\t]*(?:\\n|$)', 'gm');
+      endPattern.lastIndex = fencedStart.lastIndex;
+      var closing = endPattern.exec(text);
+      var end = closing ? endPattern.lastIndex : text.length;
+      protectedText += text.slice(cursor, match.index) + protectCode(text.slice(match.index, end)) + '\n';
+      cursor = end;
+      fencedStart.lastIndex = end;
+    }
+    text = protectedText + text.slice(cursor);
+    // 缩进代码块与任意长度反引号包裹的行内代码。
+    text = text.replace(/^(?:(?: {4}|\t)[^\n]*(?:\n|$))+/gm, protectCode);
+    text = text.replace(/(`+)([\s\S]*?)\1(?!`)/g, protectCode);
 
     // 1. Pre-process Math formulas using safe %% tokens
     // 1.1 Support explicit inline math \( ... \)
@@ -78,6 +105,9 @@ window.BlogMarkdown = {
     });
 
     // 3. Marked.js parsing
+    codeLiterals.forEach(function(item) {
+      text = text.split(item.token).join(item.raw);
+    });
     var markedParser = (typeof marked !== 'undefined') ? marked : (window.marked || null);
     if (markedParser && markedParser.setOptions) {
       // 注：headerIds / mangle 已在 marked v5+ 移除，标题 id 由下方 TOC 流程统一生成
@@ -202,10 +232,21 @@ window.BlogMarkdown = {
           if (!/\.(md|markdown)(?:$|[?#])/i.test(href)) return;
           if (/^(?:https?:|mailto:|tel:|#)/i.test(href)) return;
 
-          var clean = href.split('#')[0].split('?')[0].replace(/^(?:\.\.?\/)+/, '');
+          var fragmentAt = href.indexOf('#');
+          var heading = fragmentAt === -1 ? '' : href.slice(fragmentAt + 1);
+          var file = href.split('#')[0].split('?')[0];
+          var clean = file.replace(/^(?:\.\.?\/)+/, '');
+          if (options.sourcePath && !/^\/?posts\//i.test(file) && file.charAt(0) !== '/') {
+            var directory = options.sourcePath.slice(0, options.sourcePath.lastIndexOf('/') + 1);
+            clean = new URL(file, 'https://aurora.invalid/' + directory).pathname.slice(1);
+          }
           var hit = linkStore.resolveLink(clean);
           if (hit && (hit.route || hit.href)) {
             applyAnchor(anchor, hit);
+            if (heading) {
+              var targetHref = anchor.getAttribute('href');
+              anchor.setAttribute('href', targetHref + (targetHref.indexOf('?') === -1 ? '?' : '&') + 'heading=' + encodeURIComponent(heading));
+            }
           } else {
             var fallbackSlug = clean.replace(/^posts\//i, '').replace(/\.(md|markdown)$/i, '');
             anchor.setAttribute('href', toHref('/posts/' + encodeURIComponent(fallbackSlug)));

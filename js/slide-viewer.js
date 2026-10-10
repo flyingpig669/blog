@@ -23,7 +23,7 @@ window.BlogSlideViewer = {
     if (typeof container === 'string') {
       container = document.querySelector(container);
     }
-    if (!container) return null;
+    if (!container || !container.isConnected) return null;
 
     this.initWorker();
     var id = 'slide-deck-' + Math.random().toString(36).slice(2, 9);
@@ -52,6 +52,8 @@ function SlidePlayer(container, options, id) {
 
   this.pdfDoc = null;
   this.loadingTask = null;
+  this.renderTask = null;
+  this.resizeTimer = null;
   this.pageNum = 1;
   this.pageRendering = false;
   this.pageNumPending = null;
@@ -274,10 +276,9 @@ SlidePlayer.prototype.buildDOM = function() {
   document.addEventListener('webkitfullscreenchange', this.boundFullscreenChange);
 
   // 窗口自适应重排
-  var resizeTimer;
   this.boundResizeHandler = function() {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function() {
+    clearTimeout(self.resizeTimer);
+    self.resizeTimer = setTimeout(function() {
       if (self.pdfDoc && !self.pageRendering) {
         self.renderPage(self.pageNum);
       }
@@ -334,6 +335,7 @@ SlidePlayer.prototype.renderPage = function(num) {
   }
 
   this.pdfDoc.getPage(num).then(function(page) {
+    if (self.destroyed) return;
     var canvas = self.elements.canvas;
     var stage = self.elements.stage;
     if (!canvas || !stage) return;
@@ -375,8 +377,11 @@ SlidePlayer.prototype.renderPage = function(num) {
     };
 
     var renderTask = page.render(renderContext);
+    self.renderTask = renderTask;
 
-    renderTask.promise.then(function() {
+    return renderTask.promise.then(function() {
+      if (self.destroyed) return;
+      self.renderTask = null;
       self.pageRendering = false;
       if (self.elements.loader) {
         self.elements.loader.style.opacity = '0';
@@ -406,7 +411,9 @@ SlidePlayer.prototype.renderPage = function(num) {
       }
     });
   }).catch(function(err) {
+    self.renderTask = null;
     self.pageRendering = false;
+    if (self.destroyed || (err && err.name === 'RenderingCancelledException')) return;
     console.error('Page Render Error:', err);
   });
 };
@@ -543,21 +550,25 @@ SlidePlayer.prototype.handleKeyDown = function(e) {
 };
 
 SlidePlayer.prototype.destroy = function() {
+  if (this.destroyed) return;
   this.destroyed = true;
   clearTimeout(this.hideControlsTimer);
+  clearTimeout(this.resizeTimer);
+  if (this.renderTask) this.renderTask.cancel();
   window.removeEventListener('keydown', this.boundKeyHandler);
   document.removeEventListener('fullscreenchange', this.boundFullscreenChange);
   document.removeEventListener('webkitfullscreenchange', this.boundFullscreenChange);
   if (this.boundResizeHandler) window.removeEventListener('resize', this.boundResizeHandler);
 
   if (this.loadingTask && typeof this.loadingTask.destroy === 'function') {
-    try { this.loadingTask.destroy(); } catch (e) {}
+    try { Promise.resolve(this.loadingTask.destroy()).catch(function() {}); } catch (e) {}
   } else if (this.pdfDoc && typeof this.pdfDoc.destroy === 'function') {
-    try { this.pdfDoc.destroy(); } catch (e) {}
+    try { Promise.resolve(this.pdfDoc.destroy()).catch(function() {}); } catch (e) {}
   }
 
   this.loadingTask = null;
   this.pdfDoc = null;
+  this.renderTask = null;
   this.elements = {};
 };
 
