@@ -186,6 +186,10 @@ window.BlogApp = {
     this.setMetaContent('meta[property="og:title"]', full);
     this.setMetaContent('meta[name="twitter:title"]', full);
     this.setMetaContent('meta[property="og:url"]', url);
+    // 分享图与站点根同源，写成绝对地址（部分抓取器不解析相对 og:image）。
+    // 静态 HTML 里的 ./og-image.png 只是无 JS 时的兜底。
+    this.setMetaContent('meta[property="og:image"]', url + 'og-image.png');
+    this.setMetaContent('meta[name="twitter:image"]', url + 'og-image.png');
     var canonicalEl = document.getElementById('canonical-link');
     if (canonicalEl) canonicalEl.setAttribute('href', url);
   },
@@ -758,9 +762,14 @@ window.BlogApp = {
     html += '  </div>';
     html += '</header>';
 
-    // FrontMatter 声明的幻灯片 (方式 B)：若正文未内嵌 ::: slide，则在正文前自动挂载播放器
-    if (post.slide && renderedHtml.indexOf('article-slide-player-mount') === -1) {
-      html += '<div class="article-slide-player-mount my-8" data-slide-url="' + this.escapeHtml(post.slide) + '" data-slide-title="' + this.escapeHtml(post.title || '') + '"></div>';
+    // FrontMatter 声明的幻灯片（方式 B）：课件固定挂在页头之下、正文之上。
+    // 规则（2026-10-11 调整）：FrontMatter 显式声明的 slide 永远在顶部挂载；正文若也
+    // 内嵌了同一份 ::: slide，那个挂载点会在实例化阶段被剔除，同一份 PDF 不出现两个播放器。
+    // 此前这里是「正文有 ::: slide 就整段跳过」—— 作者两处都写时 FrontMatter 被静默忽略，
+    // 看起来像没生效。注意：FrontMatter 未写时 sync_posts.py 会从正文第一条 ::: slide 反向
+    // 提取 slide 字段（slideExplicit=false），那种情况仍以正文书写位置为准，不挂顶。
+    if (post.slide && (post.slideExplicit || renderedHtml.indexOf('article-slide-player-mount') === -1)) {
+      html += '<div class="article-slide-player-mount my-8" data-slide-primary="1" data-slide-url="' + this.escapeHtml(post.slide) + '" data-slide-title="' + this.escapeHtml(post.title || '') + '"></div>';
     }
 
     // Markdown 正文 (正文内部可能包含一处或多处 ::: slide 演示文稿)
@@ -930,6 +939,14 @@ window.BlogApp = {
         if (self.routeRevision !== revision) return;
         slideMounts.forEach(function(mountEl) {
           if (!mountEl.isConnected) return;
+          // FrontMatter 已在顶部挂载这份课件时，剔除正文里指向同一文件的挂载点
+          // （连同占位与间距），同一份 PDF 不渲染两个播放器；其它课件不受影响。
+          if (mountEl.getAttribute('data-slide-primary') !== '1' &&
+              post.slideExplicit && post.slide &&
+              mountEl.getAttribute('data-slide-url') === post.slide) {
+            mountEl.remove();
+            return;
+          }
           if (error) {
             mountEl.innerHTML = '<p class="search-status">PDF viewer could not load. Check your connection.</p><button type="button" class="btn-secondary">Retry</button>';
             mountEl.querySelector('button').onclick = function() {
@@ -974,7 +991,8 @@ window.BlogApp = {
       html += '<a href="' + this.routeHref('columns') + '" class="inline-flex items-center gap-1.5 text-[13px] font-mono text-secondary hover:text-accent transition-colors mb-6">← All Series</a>';
       html += '<header class="mb-8 pb-6 border-b border-divider">';
       html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-muted mb-2">';
-      html += '    <span>SERIES</span><span>·</span><span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
+      var partCount = col.postsCount || (col.posts || []).length;
+      html += '    <span>SERIES</span><span>·</span><span>' + partCount + (partCount === 1 ? ' Part' : ' Parts') + '</span>';
       html += '  </div>';
       html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + window.BlogApp.escapeHtml(col.name) + '</h1>';
       if (col.desc) html += '  <p class="text-[16px] text-secondary leading-relaxed">' + window.BlogApp.escapeHtml(col.desc) + '</p>';
@@ -1012,10 +1030,11 @@ window.BlogApp = {
       html += '<div class="ruled-list">';
       columns.forEach(function(col, idx) {
         var num = idx + 1 < 10 ? '0' + (idx + 1) : (idx + 1);
+        var parts = col.postsCount || (col.posts || []).length;
         html += '  <section class="series-item">';
         html += '    <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-muted mb-2">';
         html += '      <span class="px-1.5 py-0.5 rounded bg-white/[0.04] border border-divider">SERIES ' + num + '</span>';
-        html += '      <span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
+        html += '      <span>' + parts + (parts === 1 ? ' Part' : ' Parts') + '</span>';
         if (col.totalWords) {
           html += '      <span>·</span>';
           html += '      <span>' + window.BlogApp.formatWordCount(col.totalWords) + '</span>';

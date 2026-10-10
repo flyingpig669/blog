@@ -1,35 +1,56 @@
 ---
-title: "Hello World: Welcome to Your Aurora Blog"
+title: "Hello World: Welcome to Aurora Notes"
 date: "2026-10-09"
 category: "general"
 tags: ["Engineering", "Getting Started", "Markdown"]
 pinned: true
 ---
 
-Welcome to your new personal blog, designed with Linear and Vercel-inspired dark minimalism.
+Aurora Notes is a place for long-form technical writing: system architecture notes, computing
+fundamentals, and the occasional detour into physics and mathematics. Everything here is
+plain Markdown, compiled ahead of time into a static site with no server and no framework.
 
-## Getting Started
+## How the writing is organised
 
-Writing a new article is as simple as placing a Markdown file in the `posts/` directory.
+Articles live in `posts/`. A single file is a single article — drop a `.md` file in and it
+shows up in the archive the next time the site is built.
 
-### Folder Structure
+- **Standalone articles** sit directly in `posts/`, or in a category folder such as `posts/physics/`.
+- **Series** live in a folder under `posts/columns/<slug>/`, numbered `01-…`, `02-…`. Files
+  sharing that folder are grouped automatically into a column with previous/next navigation.
 
-- **Regular Articles**: Save any `.md` file directly in `posts/` or under category folders like `posts/tech/my-article.md`.
-- **Series / Columns**: Create a subdirectory inside `posts/columns/`, for example `posts/columns/system-design/01-introduction.md`.
+Each file opens with a small block of front matter that supplies the metadata for the page:
 
-## Features Showcase
+```yaml
+---
+title: "Article title"
+date: "2026-10-09"
+category: "physics"
+tags: ["algebra", "math"]
+excerpt: "One sentence shown in listings and search results."
+---
+```
 
-Here is a quick demonstration of built-in capabilities:
+Documents tagged `test` are treated as drafts: while the site is in production mode they are
+filtered out at build time, so they never reach the archive, the search index, or the
+published files.
 
-### 1. Mathematical Formulas (KaTeX)
+## What the reader gets
 
-Inline formulas like $$E = mc^2$$ or $$\left| \psi \right\rangle = \alpha \left| 0 \right\rangle + \beta \left| 1 \right\rangle$$, and block equations:
+The rendering pipeline is deliberately small, but a few things are worth knowing about.
+
+### Mathematics
+
+Equations are typeset with KaTeX, inline and in display blocks:
 
 $$
-\mathcal{L} = \mathbb{E}_{x \sim p_{\text{data}}} \left[ \log D(x) \right] + \mathbb{E}_{z \sim p_z} \left[ \log (1 - D(G(z))) \right]
+\left| \psi \right\rangle = \alpha \left| 0 \right\rangle + \beta \left| 1 \right\rangle,
+\quad |\alpha|^2 + |\beta|^2 = 1
 $$
 
-### 2. Code Highlighting & One-Click Copy
+### Code
+
+Fenced code blocks are highlighted and carry a one-click copy button:
 
 ```python
 def fibonacci(n: int) -> int:
@@ -37,14 +58,23 @@ def fibonacci(n: int) -> int:
     for _ in range(n):
         a, b = b, a + b
     return a
-
-print([fibonacci(i) for i in range(10)])
 ```
 
-### 3. Callout Boxes
+### Cross-references
 
-::: tip Quick Publishing
-Run `./deploy.sh` to compile Markdown articles and push changes to GitHub Pages automatically.
+Articles can point at each other by name — see [[group-theory-intro]] for a worked
+introduction, or [[quantum-simulator]] for an article that embeds a slide deck.
+
+::: tip Finding things
+Press `Cmd+K` (or `Ctrl+K`) anywhere to search every article, or browse the archive,
+the tag index, and the column list from the top navigation.
 :::
 
-Enjoy crafting your writings!
+## Where to go next
+
+- **Archive** — every article, grouped by year.
+- **Tags** — combine tags to narrow the list; selections intersect.
+- **Columns** — multi-part series, read in order.
+- **Roadmap** — what is planned, and what is being worked on.
+
+Thanks for reading.

@@ -7,6 +7,7 @@ const path = require('node:path');
 function createStore() {
   const context = { window: {} };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/lib/routes.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../blog.config.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/store.js'), 'utf8'), context);
   const store = context.window.BlogStore;

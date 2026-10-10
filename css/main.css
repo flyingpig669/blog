@@ -412,6 +412,31 @@ html, body {
 }
 .markdown-body blockquote p { margin: 4px 0; }
 
+/* 正文图片与多媒体：绝不撑破 680px 正文列。
+   此前 img 没有任何约束，宽图会直接溢出版心；现在统一 max-width + 等比缩放，
+   圆角与 1px 细边对齐全站「方框只包内容」的卡片语言（幻灯片画布同款）。 */
+.markdown-body img,
+.markdown-body video {
+  max-width: 100%;
+  height: auto;
+}
+.markdown-body img {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+.markdown-body audio { max-width: 100%; }
+.markdown-body figure { margin: 24px 0; }
+.markdown-body figure img { display: block; margin: 0 auto; }
+.markdown-body figcaption {
+  margin-top: 10px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* Inline Code */
 .markdown-body code:not([class*="language-"]) {
   font-family: var(--font-mono);
@@ -1162,12 +1187,45 @@ html, body {
   display: none !important;
 }
 
+/* 放映模式下的舞台：吃满整个视口（min-height 清零，高度完全交给 flex 分配）。
+   此前写的 height: 100vh 会让舞台比容器高出进度线那 2px，把进度线挤出屏幕外。 */
 .slide-player-root:fullscreen .slide-stage,
-.slide-player-root:-webkit-full-screen .slide-stage {
-  flex: 1 !important;
-  height: 100vh !important;
+.slide-player-root:-webkit-full-screen .slide-stage,
+.theater-presentation-mode .slide-stage {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
   background: var(--bg-page) !important;
 }
+
+/* 放映模式下画布零装饰：去掉内距、圆角与投影，幻灯片直接铺到屏幕边缘，
+   宽高比之外的空隙由深色舞台充当信箱边 —— 与 PowerPoint 放映一致。 */
+.slide-player-root:fullscreen .slide-canvas-wrapper,
+.slide-player-root:-webkit-full-screen .slide-canvas-wrapper,
+.theater-presentation-mode .slide-canvas-wrapper { padding: 0; }
+.slide-player-root:fullscreen .slide-canvas,
+.slide-player-root:-webkit-full-screen .slide-canvas,
+.theater-presentation-mode .slide-canvas { border-radius: 0; box-shadow: none; }
+
+/* 放映模式下进度线改为贴底悬浮层：不再占据 flex 高度，并与控制岛同步淡入淡出。 */
+.slide-player-root:fullscreen .slide-progress-track,
+.slide-player-root:-webkit-full-screen .slide-progress-track,
+.theater-presentation-mode .slide-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  opacity: 1;
+  transition: opacity 300ms ease-out;
+}
+.slide-player-root:fullscreen .slide-progress-track.slide-chrome-hidden,
+.slide-player-root:-webkit-full-screen .slide-progress-track.slide-chrome-hidden,
+.theater-presentation-mode .slide-progress-track.slide-chrome-hidden { opacity: 0; }
+
+/* 放映静置时隐藏鼠标指针（PowerPoint 行为）：移动鼠标即恢复，见 showFullscreenIsland。 */
+.slide-player-root.slide-cursor-hidden,
+.slide-player-root.slide-cursor-hidden * { cursor: none !important; }
 
 /* Fallback Theater Mode (if browser denies native fullscreen) */
 .theater-presentation-mode {
@@ -1184,11 +1242,6 @@ html, body {
 }
 .theater-presentation-mode .slide-player-header {
   display: none !important;
-}
-.theater-presentation-mode .slide-stage {
-  flex: 1 !important;
-  height: 100vh !important;
-  background: var(--bg-page) !important;
 }
 
 /* Floating Fullscreen Island */

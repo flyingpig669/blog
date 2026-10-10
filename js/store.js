@@ -26,7 +26,7 @@ window.BlogStore = {
       brand: "aurora.notes",
       tagline: "Curated research essays and computing fundamentals.",
       description: "Personal technical blog.",
-      footerText: "© 2026 Alex Chen · All rights reserved."
+      footerText: "© 2026 CCC · All rights reserved."
     };
 
     // 3. 载入编译生成的博文索引 (来自 posts/ 目录)

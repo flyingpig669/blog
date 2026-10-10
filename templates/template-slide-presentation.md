@@ -3,7 +3,7 @@ title: "量子模拟器与架构演讲汇报"
 date: "2026-10-10"
 category: "physics"
 tags: ["quantum", "presentation", "slides"]
-slide: "attachments/slides/quantum-computing-slides.pdf"   # 标识文章挂载的幻灯片文件
+slide: "attachments/slides/quantum-computing-slides.pdf"   # 声明后播放器固定挂在正文最上方；正文里同 URL 的 ::: slide 会被自动去重
 excerpt: "基于高维复希尔伯特空间演化的学术汇报总结，正文内嵌高保真全屏演讲播放器。"
 tocLevels: [2, 3]
 ---

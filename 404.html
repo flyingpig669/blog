@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<!--
+  非 Hash 路径的 404 页。
+
+  为什么需要单独一个文件：本站是 Hash 路由单页应用，应用内的未知路由（例如 #/nope）
+  由 js/app.js#renderNotFoundView 处理；但**物理路径**不存在时（例如 /blog/foo/bar）
+  应用根本没被加载，浏览器显示的是服务器返回的内容 —— GitHub Pages 会原样返回本文件，
+  且 **URL 不重写**。
+
+  这带来一个硬约束：本页不能用相对路径引用任何外部资源（css/、js/、og-image.png），
+  因为在 /blog/foo/bar 下相对路径会解析成 /blog/foo/css/… 而 404。所以样式全部内联，
+  站内链接则依赖构建期注入的站点根 __SITE_BASE__（见 .github/workflows/static.yml 的
+  Assemble 步骤）。直接用浏览器打开本文件时链接会保留占位符而无法跳转，属预期 —— 本页
+  只在 Pages 上生效。
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Not Found · Aurora Notes</title>
+  <!-- 该页只在 HTTP 404 响应下返回；显式 noindex 以免任何爬虫把它当成一个正常页面。 -->
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0A0A0B">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0A0B'/%3E%3Cpath d='M39 10 22 54' stroke='%233B82F6' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
+  <style>
+    /* 字体走绝对地址的 Google Fonts —— 绝对 URL 不受「相对路径在深层路径下解析错」的影响，
+       断网时下面的系统字体栈同样成立。 */
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;600;700&display=swap');
+
+    /* 设计令牌与 css/main.css 的 :root 一致（本页无法引用它，故此处复制一份）。 */
+    :root {
+      --bg-page: #0A0A0B;
+      --text-primary: #EDEDED;
+      --text-secondary: #8B8B8E;
+      --text-muted: #5A5A5E;
+      --accent-primary: #3B82F6;
+      --divider: rgba(255, 255, 255, 0.06);
+      --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', sans-serif;
+      --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; text-align: center;
+      background: var(--bg-page); color: var(--text-primary);
+      font-family: var(--font-sans); -webkit-font-smoothing: antialiased;
+    }
+    main { max-width: 480px; }
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px; margin-bottom: 34px;
+      font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.10em;
+      color: var(--text-muted); text-decoration: none; text-transform: lowercase;
+    }
+    .brand img { width: 22px; height: 22px; }
+    .code {
+      margin-bottom: 12px; font-family: var(--font-mono);
+      font-size: 12px; color: var(--text-muted);
+    }
+    h1 { margin: 0 0 12px; font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+    p { margin: 0 0 26px; font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    a.btn {
+      display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 8px;
+      font-size: 13px; text-decoration: none; transition: background-color 180ms ease-out;
+    }
+    a.primary { border: 1px solid var(--accent-primary); background: var(--accent-primary); color: var(--text-primary); }
+    a.primary:hover { background: #2f6fd8; }
+    a.ghost { border: 1px solid var(--divider); color: var(--text-secondary); }
+    a.ghost:hover { border-color: rgba(255, 255, 255, 0.16); color: var(--text-primary); }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="brand" href="__SITE_BASE__">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161618'/%3E%3Cpath d='M39 10 22 54' stroke='%233B82F6' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E" alt="">
+      <span>aurora.notes</span>
+    </a>
+    <div class="code">404 · <span id="not-found-path">/</span></div>
+    <h1>Page not found</h1>
+    <p>The requested route does not exist or has moved.</p>
+    <div class="actions">
+      <a class="btn primary" href="__SITE_BASE__">Back to home</a>
+      <a class="btn ghost" href="__SITE_BASE__#/archive">Archive</a>
+      <a class="btn ghost" href="__SITE_BASE__#/tags">Tags</a>
+    </div>
+  </main>
+  <!-- 显示被请求的物理路径（服务端返回本页时 URL 不变，所以这里读得真实路径）。 -->
+  <script>
+    document.getElementById('not-found-path').textContent = location.pathname + location.search;
+  </script>
+</body>
+</html>

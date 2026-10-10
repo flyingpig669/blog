@@ -7,7 +7,7 @@
 ## 目录索引 (Documentation Index)
 
 - [一、核心架构与目录结构](#一核心架构与目录结构)
-- [二、全站统一配置 (`blog.config.js`)](#二全站统一配置-blogconfigjs)
+- [二、路由声明表与全局配置](#二路由声明表与全局配置)
 - [三、导航与路由系统](#三导航与路由系统)
 - [四、文档两大类型：normal 与 post](#四文档两大类型normal-与-post)
 - [五、撰写文章与专栏 (`posts/`)](#五撰写文章与专栏-posts)
@@ -27,18 +27,23 @@
 
 ```text
 ~/Documents/blog/
-├── blog.config.js          # ⭐ 全局配置中心：站点信息、作者、导航 nav、路由字典、功能开关
+├── blog.config.js          # ⭐ 全局配置中心：站点信息、作者、功能开关（routes / nav 由路由表派生）
 ├── about.md                # ⭐ 关于页数据源：状态/座右铭/时间线/关注领域/社交
 ├── index.html              # 主入口：SPA 挂载容器、页脚、资源载入
+├── 404.html                # 非 Hash 物理路径的 404 页（样式内联，站点根由 CI 注入）
+├── og-image.png            # ⚙ 自动生成：社交分享卡片图（1200×630，npm run build:og）
 ├── css/
 │   └── main.css            # 设计系统：Tokens、组件样式、导航下拉、时间线、幻灯片播放器
 ├── js/
-│   ├── app.js              # 核心控制器：Hash 路由分发、各视图渲染、事件监听
+│   ├── app.js              # 核心控制器：各视图渲染、事件监听、链接生成
 │   ├── store.js            # 数据中心：读取配置与编译数据，文档/专栏/标签检索与站内互链解析
 │   ├── markdown.js         # Markdown 渲染：KaTeX 公式、Prism 高亮、Callout、Slide 容器、TOC、双链
 │   ├── slide-viewer.js     # PDF.js 幻灯片/演示文稿播放器（按需懒加载，约 20KB）
 │   ├── icons.js            # 极简内联 SVG 图标库 (Lucide，仅保留 Callout 用到的 3 个)
-│   └── posts-data.js       # ⚙ 自动生成：由 sync_posts.py 编译产出的内容索引，请勿手改
+│   ├── posts-data.js       # ⚙ 自动生成：由 sync_posts.py 编译产出的内容索引，请勿手改
+│   └── lib/
+│       ├── routes.js       # ⭐ 路由声明表：全站路由与导航的唯一来源，加模块只改这一处
+│       └── router.js       # Hash 路由解析、视图分派、旧地址兼容
 ├── posts/                  # ⭐ 文章与独立页存放目录（纯 Markdown）
 │   ├── hello-world.md
 │   ├── quantum-simulator.md
@@ -48,6 +53,10 @@
 ├── attachments/            # 附件（幻灯片 PDF、图片、压缩包等），同步脚本自动跳过
 │   └── slides/
 ├── templates/              # 写作模板库（不参与发布）
+├── scripts/                # 构建期脚本（不参与发布）
+│   ├── build.js            # 构建入口：调用 sync_posts.py 与 Tailwind CLI
+│   ├── validate-content.js # 内容与路由一致性校验（双链、附件、版心、导航互查）
+│   └── generate-og-image.js # 生成 og-image.png（无头 Chrome 渲染，文案取自配置）
 ├── sync_posts.py           # 内容编译脚本：扫描 posts/ 与 about.md → 生成 js/posts-data.js（+ sitemap.xml）
 ├── check.sh                # 一键自检：重建索引 → JS/Python/Shell 语法校验
 ├── server.py               # 本地预览服务器（多线程加固，默认端口 18888）
@@ -63,18 +72,48 @@
 
 ---
 
-## 二、全站统一配置 (`blog.config.js`)
+## 二、路由声明表与全局配置
 
-站点所有核心属性都收敛在根目录的 [`blog.config.js`](blog.config.js) 中，修改即可全站生效：
+### 1. 路由声明表：一个模块一行
+
+**全站路由与导航的唯一来源是 [`js/lib/routes.js`](js/lib/routes.js) 里的声明表。** 加一个页面、改一个地址，只改这张表：
 
 ```javascript
-window.BlogRoutes = Object.freeze({
-  home: "/", posts: "/posts", columns: "/columns",
-  archive: "/archive", tags: "/tags", about: "/about"
-});
+{
+  name: 'notes',              // 全小写字母数字；同时是路由字典的键与导航项 id
+  path: '/notes',             // 规范地址；集合型用复数
+  view: 'dynamic',            // 渲染器：home / columns / archive / tags / post / page / dynamic
+  shell: 'shell',             // 版心：'shell'(720px) 或 'shell-detail'(1000px，仅文章详情)
+  kind: 'page',               // 'page' 单页 / 'collection' 集合(必带 detail) / 'prefix' 前缀(必带 alias)
+  target: 'dir:posts/notes',  // 可选；省略则用 path。支持 "dir:" / "file:" 前缀
+  nav: { label: 'Notes' },    // 必填；无入口须显式写 null
+  note: '一句话说明'
+}
+```
 
+这一行会自动驱动四件事，不需要在别处再写一遍：
+
+| 自动派生 | 消费者 |
+| :--- | :--- |
+| `window.BlogRoutes`（name → path） | 路由匹配、站内链接、`[[双链]]` 解析 |
+| `BlogConfig.nav`（label / 分组 / 目标） | 顶部导航栏与移动端抽屉 |
+| 视图分派 | `router.js#dispatchNavItem` 按 `view` 选择渲染器 |
+| 构建期校验 | `scripts/validate-content.js` 检查命名、层级、版心与导航自洽 |
+
+写错会在 `./check.sh` 或 `npm run build` 阶段直接报错。例如把首页版心误写成 `shell-detail`：
+
+```text
+Route[0] home: 只有文章详情（view: 'post'）可以用 shell-detail；其余页面必须用 shell
+Route home: 表里声明 shell-detail，但 renderHomeView 实际用的是 shell
+```
+
+### 2. 全局配置
+
+站点其余属性收敛在根目录的 [`blog.config.js`](blog.config.js) 中：
+
+```javascript
 window.BlogConfig = {
-  routes: window.BlogRoutes,
+  routes: window.BlogRoutes,              // 由路由表派生，不要手写
   defaultRoute: window.BlogRoutes.home,   // 访问空 Hash / 根地址时的落地路由
 
   site: {
@@ -89,7 +128,10 @@ window.BlogConfig = {
 
   author: { name, title, bio, avatar, location, email, github },
 
-  nav: [ /* 见下一节 */ ],
+  // 导航主体由路由表派生；这里只补「不对应任何站内路由」的即席项（如外部链接）
+  nav: window.BlogRouteRegistry.buildNav().concat([
+    // { id: "rss", label: "RSS", href: "https://example.com/feed.xml" },
+  ]),
 
   features: {
     readingProgress: true,   // 顶部阅读进度条
@@ -133,33 +175,32 @@ window.BlogConfig = {
 
 ### 2. 统一导航目标：`target`
 
-导航在 `blog.config.js` 的 `nav` 中定义。每一项用统一的 `target` 描述目标，**新增导航只需改这一处**：
+导航主体由路由声明表派生（见第二节）。表里每一项的 `nav.target` 用统一的 `target` 描述目标；`nav.group` 相同的项会自动折叠进同一个下拉菜单：
 
 | `target` 写法 | 含义 |
 | :--- | :--- |
-| `"/archive"` 或 `window.BlogRoutes.archive` | 绑定一个路由（默认路由模式） |
+| `"/archive"` | 绑定一个路由（默认路由模式）。省略 `target` 时直接用该模块的 `path` |
 | `"dir:posts/群论"` | 绑定一个目录，自动列出该目录（含子目录）下的普通文章 |
 | `"file:about.md"` | 绑定一个 Markdown 文件，按文档类型自动分流渲染 |
 
-- **单个对象** = 普通导航项。
-- **数组** = 下拉菜单：数组第一项常显，其余项折叠进下拉。
-- 未提供 `target` 时，向下兼容旧的 `route` / `file` / `dir` 字段。
+- **`nav` 为单个对象** = 普通导航项；**同 `group` 的多项** = 下拉菜单（表内首项常显，其余折叠进下拉）。
+- **`nav: null`** = 有意不放入导航（如 `posts` 仅是路径前缀），构建期会要求给出 `alias` 或理由。
+- 只想加一个站外入口（RSS、外链）时，才写进 `blog.config.js` 的 `nav` 尾部，且用 `href` 而不是 `target`。
 
-当前默认导航：
+当前默认导航由下表七行派生（`posts` 无导航入口，故实际产出 6 项）：
 
 ```javascript
-nav: [
-  { id: "home",    label: "Home",    target: window.BlogRoutes.home },
-  { id: "columns", label: "Columns", target: window.BlogRoutes.columns },
-  { id: "archive", label: "Archive", target: window.BlogRoutes.archive },
-  { id: "tags",    label: "Tags",    target: window.BlogRoutes.tags },
-  // 数组 = 下拉菜单：About 常显，Roadmap 折叠进下拉
-  [
-    { id: "about",   label: "About",   target: "file:about.md" },
-    { id: "roadmap", label: "Roadmap", target: "file:posts/roadmap.md" }
-  ]
-]
+// js/lib/routes.js 摘录 —— 这才是唯一来源
+{ name: 'home',    path: '/',        nav: { label: 'Home' } },
+{ name: 'columns', path: '/columns', nav: { label: 'Columns' } },
+{ name: 'archive', path: '/archive', nav: { label: 'Archive' } },
+{ name: 'tags',    path: '/tags',    nav: { label: 'Tags' } },
+{ name: 'posts',   path: '/posts',   nav: null },   // 路径前缀，不是页面
+{ name: 'about',   path: '/about',   nav: { label: 'About',   group: 'about', target: 'file:about.md' } },
+{ name: 'roadmap', path: '/roadmap', nav: { label: 'Roadmap', group: 'about', target: 'file:posts/roadmap.md' } }
 ```
+
+派生结果：`Home / Columns / Archive / Tags / [About ▾ Roadmap]`。
 
 ### 3. 四种扩展场景
 
@@ -476,7 +517,9 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 ---
 ```
 
-两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）；若正文已内嵌 `::: slide`，FrontMatter 的 `slide` 不会重复挂载。
+两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）。**FrontMatter 显式声明的 `slide` 优先**：只要写了它，播放器就固定挂在页头之下、正文之上；正文里若也内嵌了同一份课件，那个挂载点会被自动剔除——同一份 PDF 绝不出现两个播放器（正文内嵌**其它**课件不受影响，仍按书写位置渲染）。只写方式 A 时课件挂在所写处（此时 `slide` 字段由第一条指令反推）；只写方式 B 时挂在顶部。不管用哪种，`sync_posts.py` 都会把课件路径收进文档的 `slide` 字段，列表页的 `SLIDE` 徽章与构建日志里的 `[SLIDE]` 标记都由它驱动；`scripts/validate-content.js` 还会在构建期校验该文件真实存在，路径写错直接构建失败（注意：本地 `server.py` 的实时重建只跑同步不做校验，坏路径要以 `./check.sh` 为准）。
+
+**全屏放映对齐 PowerPoint 的行为**：进入放映后幻灯片按原始宽高比铺满视口的某一轴（另一轴富余的部分由深色背景充当信箱边，绝不拉伸），无圆角、无阴影、无边距；控制岛、底部进度线与鼠标指针在静止 2.5 秒后一起淡出，移动鼠标即一起恢复。
 
 播放器交互：
 
@@ -486,13 +529,18 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 | 点击画布左/右 25% 热区 | 上一页 / 下一页 |
 | `←` `→` `Space` `PageUp` `PageDown` `Home` `End` | 翻页与首末页（鼠标悬停或全屏时生效） |
 | `F` / `Esc` | 进入 / 退出全屏演示 |
+| 静止 2.5 秒（放映中） | 控制岛、进度线与鼠标指针一起隐藏；移动鼠标恢复 |
 | 工具栏 `○−` `○＋` | 缩放（**移动端同样可见**：窄屏才是最需要缩放的场景） |
 
 > **性能**：PDF.js（约 1.3MB）与 `slide-viewer.js` 不会随首屏加载。只有真的渲染到带演示文稿的文章时，才由 `app.js#ensureSlideViewer()` 按需注入，首页与普通文章零额外开销。
 
-### 6. 附件与相对路径
+### 6. 附件、图片与下载
 
 - 幻灯片、图片、压缩包统一放在 `attachments/`（如 `attachments/slides/`）。
+- **任何静态资源都必须放在 `attachments/` 等发布白名单目录下**——放在文章旁边（`posts/pic.png`）本地可见、线上 404，构建期会直接拦截并提示。
+- 正文图片：`![alt 文本](attachments/images/foo.png)`，自动等比缩放不撑破正文列；带题注用原生 `<figure>/<figcaption>`，控制尺寸用 `<img width="480">`（详见 `templates/template-media-attachments.md`）。
+- 行内下载链接：`[数据集 (2.1 MB)](attachments/datasets/data.zip)`；文件末尾配套材料用 FrontMatter `attachments:` 列表，会自动渲染带强制下载属性的 Attachments 卡片。
+- 路径一律**相对站点根**书写（Hash 路由 SPA，所有文章共用同一物理页面）。
 - `sync_posts.py` 会自动跳过 `attachments/`、`assets/` 等资源目录，路径引用在本地与 GitHub Pages 均可用。
 - 需要「下载型」附件时，在 FrontMatter 里声明 `attachments`，文章末尾会自动渲染带 `download` 属性的下载区：
 
@@ -606,7 +654,25 @@ cd ~/Documents/blog
 3. 推送到远程 `main` 分支。
 4. 触发云端 [`.github/workflows/static.yml`](.github/workflows/static.yml)，由 GitHub Actions 完成 Pages 打包上线。
 
-Pull Request 也执行完整检查但不发布；只有检查通过的非 PR 构建才能部署。部署仍从项目根目录打包，没有引入 `dist/` 隔离。仍使用 Hash 路由，独立静态页面与 SSG 属于后续路由迁移，不在本次改造内。
+Pull Request 也执行完整检查但不发布；只有检查通过的非 PR 构建才能部署。
+
+### 发布产物是白名单，不是整个仓库
+
+CI 的 `check` 任务在自检之后额外做一次 **Assemble site**：把站点运行时真正需要的文件拷进 `_site/`，再上传部署。白名单之外的任何文件都不会出现在线上：
+
+```text
+index.html  blog.config.js  robots.txt  404.html  og-image.png  sitemap.xml
+css/  js/  data/  vendor/  attachments/
+```
+
+组装完成后还有一道兜底断言 —— 只要产物里出现 `*.md`、`*.py`、`*.sh`、`*.yml`、`package*.json`、`*.test.js`，构建立刻失败。这样做是因为此前直接以 `path: '.'` 发布整个仓库，导致 `/AGENTS.md`、`/deploy.sh`、`/sync_posts.py`、`/tests/*`、`/templates/*` 以及 **`/posts/*.md` 原始 Markdown** 全部可被公开下载（多出约 336K），而 `robots.txt` 是 `Allow: /`，这些文件还会被搜索引擎索引。
+
+另外两步产物处理：
+
+- **`404.html` 注入站点根**：GitHub Pages 会把 `404.html` 原样返回给任意深度的未知物理路径，且**不重写 URL**，因此页内的相对路径在深层路径下必然解析错。CI 按 Pages 规则推导站点根（项目站点 `/<repo>/`、用户站点 `/`）并用 `sed` 注入 `__SITE_BASE__`，注入失败会直接报错。
+- **`og-image.png` 不重新生成**：分享图只在本地用 `npm run build:og` 生成并随仓库提交（文案取自 `blog.config.js`），CI 只做拷贝，避免部署依赖无头浏览器。
+
+仍使用 Hash 路由，独立静态页面与 SSG 属于后续路由迁移，不在本次改造内。
 
 > **仓库设置**：GitHub 仓库 → **Settings** → **Pages** → **Build and deployment / Source** 选择 **GitHub Actions**。
 

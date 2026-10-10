@@ -15,6 +15,14 @@ window.BlogNavbar = {
     if (descriptionEl && site.description) {
       descriptionEl.setAttribute('content', site.description);
     }
+    // 分享卡片的描述与页面描述同源。静态 HTML 里三处 description 是逐字相同的文本，
+    // 这里一并刷新，避免只更新 meta description 而让 og / twitter 停在旧文案上。
+    if (site.description) {
+      ['meta[property="og:description"]', 'meta[name="twitter:description"]'].forEach(function(selector) {
+        var el = document.querySelector(selector);
+        if (el) el.setAttribute('content', site.description);
+      });
+    }
 
     // 2. 顶部 Brand 标识
     var brandLinkEl = document.getElementById('brand-link');

@@ -261,6 +261,7 @@ SlidePlayer.prototype.buildDOM = function() {
     fsCurrPage: fsIsland.querySelector('.fs-curr'),
     fsTotalPage: fsIsland.querySelector('.fs-total'),
     progressFill: progressFill,
+    progressTrack: progressTrack,
     fsIsland: fsIsland
   };
 
@@ -350,10 +351,11 @@ SlidePlayer.prototype.renderPage = function(num) {
 
     var calcScale;
     if (self.isFullscreen) {
-      // 全屏模式下自适应窗口宽高最大化居中 (留出安全边距)
-      var maxW = window.innerWidth * 0.95;
-      var maxH = window.innerHeight * 0.92;
-      calcScale = Math.min(maxW / unscaledViewport.width, maxH / unscaledViewport.height);
+      // 放映模式（对齐 PowerPoint 的幻灯片放映）：画布严格铺满视口的某一轴，
+      // 宽高比绝不拉伸 —— 另一轴富余的部分就是「信箱边」，由深色舞台背景充当。
+      // 不要在这里留 5% / 8% 的"安全边距"：那会让幻灯片浮在屏幕中央、四周一圈黑边，
+      // 看起来像嵌在取景框里，而不是放映。
+      calcScale = Math.min(window.innerWidth / unscaledViewport.width, window.innerHeight / unscaledViewport.height);
     } else {
       // 常态模式下根据版心容器宽度自适应
       var availableWidth = Math.min(stageWidth - 32, 960);
@@ -483,6 +485,11 @@ SlidePlayer.prototype.exitFullscreen = function() {
   if (root) {
     root.classList.remove('theater-presentation-mode');
     root.classList.remove('is-presentation-active');
+    root.classList.remove('slide-cursor-hidden');
+  }
+  // 退出放映后进度线回到常态：脱离贴底悬浮层、不再随控制岛淡出。
+  if (this.elements.progressTrack) {
+    this.elements.progressTrack.classList.remove('slide-chrome-hidden');
   }
   this.isFullscreen = false;
   if (this.elements.fsIsland) {
@@ -496,15 +503,25 @@ SlidePlayer.prototype.handleFullscreenChange = function() {
   var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
   if (!isFs && this.isFullscreen) {
     this.exitFullscreen();
+    return;
   }
+  // 原生全屏在事件到达时视口尺寸才最终确定（enterFullscreen 里那次渲染可能
+  // 用的是过渡期尺寸），这里按最终尺寸再排一次，保证画布精确铺满。
+  if (isFs && this.isFullscreen) this.queueRenderPage(this.pageNum);
 };
 
 SlidePlayer.prototype.showFullscreenIsland = function() {
   var island = this.elements.fsIsland;
+  var root = this.elements.root;
+  var track = this.elements.progressTrack;
   if (!island || !this.isFullscreen) return;
 
   island.classList.remove('opacity-0', 'pointer-events-none');
   island.classList.add('opacity-100', 'pointer-events-auto');
+  // 放映模式的「演出控件」是同一组：控制岛、底部进度线、鼠标指针。
+  // 一起出现、一起隐藏，行为对齐 PowerPoint —— 观众视线不被静止的光标钉住。
+  if (root) root.classList.remove('slide-cursor-hidden');
+  if (track) track.classList.remove('slide-chrome-hidden');
 
   clearTimeout(this.hideControlsTimer);
   var self = this;
@@ -512,6 +529,8 @@ SlidePlayer.prototype.showFullscreenIsland = function() {
     if (self.isFullscreen && island) {
       island.classList.remove('opacity-100', 'pointer-events-auto');
       island.classList.add('opacity-0', 'pointer-events-none');
+      if (self.elements.root) self.elements.root.classList.add('slide-cursor-hidden');
+      if (self.elements.progressTrack) self.elements.progressTrack.classList.add('slide-chrome-hidden');
     }
   }, 2500);
 };

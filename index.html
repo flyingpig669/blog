@@ -1,25 +1,42 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="dark">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aurora Notes</title>
-  <meta name="description" content="全栈架构、量子前沿计算、统计物理与深度自注意力同构。冷静、克制、严谨。">
+  <meta name="description" content="Personal technical blog focused on modern computing architecture, elegant systems, and clean code.">
   <!--
     分享 / SEO 元信息。本站为 Hash 路由 SPA（每条路由共享同一个物理 URL），
     因此 canonical 与 og:url 一律指向站点根；配置了 blog.config.js 的 site.url 后，
     app.js#setDocumentTitle 会把它改写成绝对地址。
+
+    两条约定：
+    1) 下面三处 description 必须与 blog.config.js 的 site.description 逐字一致。
+       js/components/navbar.js 启动时会把 <meta name="description"> 覆盖成配置值，
+       两边文本不同的话，同一个标签在 hydration 前后是两个值（爬虫与读者看到的不一致）。
+    2) lang 声明的是「页面主要语言」。本页外壳 —— 导航、标题、页脚、加载与错误态 ——
+       全部是英文，因此声明 en；中文正文属于文章内容，不改变外壳的语言。
+       若希望整站按中文声明，改这一处即可（并把上面的 description 换成中文）。
   -->
   <link rel="canonical" id="canonical-link" href="./">
   <meta name="theme-color" content="#0A0A0B">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Aurora Notes">
   <meta property="og:title" content="Aurora Notes">
-  <meta property="og:description" content="全栈架构、量子前沿计算、统计物理与深度自注意力同构。冷静、克制、严谨。">
+  <meta property="og:description" content="Personal technical blog focused on modern computing architecture, elegant systems, and clean code.">
   <meta property="og:url" content="./">
-  <meta name="twitter:card" content="summary">
+  <!--
+    og:image 由 `npm run build:og` 生成（scripts/generate-og-image.js，文案取自 blog.config.js）。
+    这里写相对地址作静态兜底，app.js#setDocumentTitle 启动后会改写成绝对地址。
+  -->
+  <meta property="og:image" content="./og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Aurora Notes">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Aurora Notes">
-  <meta name="twitter:description" content="全栈架构、量子前沿计算、统计物理与深度自注意力同构。冷静、克制、严谨。">
+  <meta name="twitter:description" content="Personal technical blog focused on modern computing architecture, elegant systems, and clean code.">
+  <meta name="twitter:image" content="./og-image.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0A0B'/%3E%3Cpath d='M39 10 22 54' stroke='%233B82F6' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
 
   <!--
@@ -104,7 +121,9 @@
   <footer class="mt-24 border-t border-divider py-10 relative z-10">
     <div class="shell mx-auto px-4 sm:px-6 flex items-center justify-between text-[12px] text-muted font-mono">
       <div id="footer-copyright">
-        © 2026 Alex Chen · All rights reserved.
+        <!-- 无 JS 时的静态兜底；启动后由 js/components/footer.js 用 blog.config.js 的
+             site.footerText 覆盖，两处必须一致。 -->
+        © 2026 CCC · All rights reserved.
       </div>
     </div>
   </footer>
@@ -129,6 +148,8 @@
        样式在构建时生成，vendor 与应用脚本依次 defer 加载。
        PDF.js（约 1.3MB）与 slide-viewer 体积较大，改为按需懒加载（见 app.js#ensureSlideViewer）。 -->
   <script defer src="js/icons.js"></script>
+  <!-- 路由声明表必须早于 blog.config.js：后者的 routes / nav 由它派生。 -->
+  <script defer src="js/lib/routes.js"></script>
   <script defer src="blog.config.js"></script>
   <script defer src="js/posts-data.js"></script>
   <script defer src="js/lib/html.js"></script>

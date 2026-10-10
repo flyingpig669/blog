@@ -11,6 +11,7 @@
 | **`template-standard-post.md`** | 常规技术博客 | 完整代码高亮、数学公式、Callout 提示框、标签分类 |
 | **`template-column-chapter.md`** | 专栏 / 系列连载章节 | 包含 `column` 与 `order` 标识，专栏内部上下篇定向翻页，系列全景侧边栏 |
 | **`template-slide-presentation.md`** | PPT / PDF 演示文稿课件 | 支持 `::: slide` 嵌入本地 PDF 课件，具备 Retina 矢量放映与真全屏演播 |
+| **`template-media-attachments.md`** | 图片 / 下载 / 音视频嵌入 | 正文配图与题注、行内下载链接、FrontMatter 附件区、video/audio 标签、路径与白名单全部边界情况 |
 | **`template-independent-page.md`** | 结构化独立页 (type: post) | 声明 `type: "post"`，支持时间线/关注领域/社交等区块，可被导航 `target: "file:xxx.md"` 绑定为独立页 |
 | **`template-publications-page.md`** | 论著 / 学术产出页 | `publications` 按年份分组、卡片展开摘要与 PDF 预览；`timeline[].links.paper` 与论著形成可点闭环 |
 | **`template-math-physics-paper.md`** | 理论数学与物理推导长文 | 严格兼容 Codex 双美元符号 KaTeX，狄拉克符号、矩阵与多行对齐方程推导 |

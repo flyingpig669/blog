@@ -4,20 +4,15 @@
  * ==============================================================================
  * 所有站点名称、作者资料、社交媒体链接、导航菜单与显示选项均在此集中配置。
  * 修改此处即可全站生效，无需翻找繁琐的 HTML 或 JS 模板。
+ *
+ * 注意：`routes` 与 `nav` 不再手写 —— 它们由 js/lib/routes.js 的声明式路由表派生。
+ * 新增页面或改路由请改那张表（一个模块一行）；本文件只保留「不对应站内路由」的
+ * 即席导航项（见下方 nav 的 concat 部分）。
  */
 
-window.BlogRoutes = Object.freeze({
-  home: "/",
-  posts: "/posts",
-  columns: "/columns",
-  archive: "/archive",
-  tags: "/tags",
-  about: "/about",
-  roadmap: "/roadmap"
-});
-
 window.BlogConfig = {
-  // 统一路由字典：导航与页面链接均从这里读取。
+  // 统一路由字典：由 js/lib/routes.js 的声明表派生（name -> path）。
+  // 这里不再手写字面量 —— 新增/改名请改那张表，路由、导航、校验会一起跟上。
   routes: window.BlogRoutes,
 
   // 默认路由：访问空 Hash (#) 或根地址时落到哪里
@@ -33,11 +28,12 @@ window.BlogConfig = {
     tagline: "Curated research essays, system architecture notes, and computing fundamentals.",
     // SEO 与元描述
     description: "Personal technical blog focused on modern computing architecture, elegant systems, and clean code.",
-    // 页脚版权说明
-    footerText: "© 2026 Alex Chen · All rights reserved.",
+    // 页脚版权说明。此前这里沿用了模板自带的 "Alex Chen"，与下面 author.name 不是同一个人，
+    // 属于上线前必须清掉的模板残留；署名统一以 author.name 为准。
+    footerText: "© 2026 CCC · All rights reserved.",
     // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。
-    // 例：https://<用户名>.github.io/<仓库名> ；留空则跳过 sitemap 生成。
-    url: "",
+    // 填好后 sync_posts.py 会产出 sitemap.xml，app.js#absoluteSiteUrl 也会用它作 canonical。
+    url: "https://flyingpig669.github.io/blog",
     // 文章预估阅读速度 (每分钟字数)：由 sync_posts.py 在编译期读取，用于估算 readTime
     wordsPerMinute: 300,
   },
@@ -55,25 +51,14 @@ window.BlogConfig = {
   },
 
   // 3. 顶部主导航菜单 (Navigation Menu)
-  // 统一用 target 描述导航目标，新增导航「只需改这一处」即可生效，支持三种写法：
-  //   target: "/archive"                  → 绑定一个路由（默认路由）
-  //   target: "dir:posts/群论"             → 绑定一个目录，渲染该目录下的文章列表
-  //   target: "file:about.md"             → 绑定一个 Markdown 文件（normal 文章 或 post 独立页）
+  // 主体由路由声明表派生：每个模块的 label / 分组 / 目标都写在 js/lib/routes.js 里，
+  // 这里只补「有导航项但不对应任何站内路由」的即席入口，例如外部链接。
   // 单个对象 = 普通导航项；数组 = 下拉菜单（展示第一项，其余折叠进下拉）。
-  // 仍兼容旧的 route / file / dir 字段（未提供 target 时自动回退识别）。
-  nav: [
-    { id: "home",     label: "Home",     target: window.BlogRoutes.home },
-    { id: "columns",  label: "Columns",  target: window.BlogRoutes.columns },
-    { id: "archive",  label: "Archive",  target: window.BlogRoutes.archive },
-    { id: "tags",     label: "Tags",     target: window.BlogRoutes.tags },
-    // 目录绑定示例（取消注释即可新增一个「按目录聚合文章」的导航项，无需改动其它任何代码）：
-    // { id: "notes", label: "Notes", target: "dir:posts/群论" },
-    // 数组形式 = 下拉菜单：展示第一个 (About)，其余项折叠进下拉菜单，可绑定任意单页文件
-    [
-      { id: "about",   label: "About",   target: "file:about.md" },
-      { id: "roadmap", label: "Roadmap", target: "file:posts/roadmap.md" }
-    ]
-  ],
+  // 站内新模块请改路由表，不要写在这里；写法参考 js/lib/routes.js 顶部的「怎么加一个新模块」。
+  // 外部链接项用 href 而不是 target（target 会被当作站内路由解析）。
+  nav: window.BlogRouteRegistry.buildNav().concat([
+    // { id: "rss", label: "RSS", href: "https://example.com/feed.xml" },
+  ]),
 
   // 4. 社交媒体链接 (Social Links - 预留：关于页社交信息统一在 about.md 的 social 字段维护)
   // social: [
@@ -103,8 +88,9 @@ window.BlogConfig = {
 
   // 6. 过滤与排除规则 (Exclude & Filter Settings)
   exclude: {
-    // 测试文档显示开关：为 false 时过滤隐藏所有带 test 标签或 test: true 的测试文档，为 true 时展示
-    showTest: true,
+    // 测试文档显示开关：为 false 时过滤隐藏所有带 test 标签或 test: true 的测试文档，为 true 时展示。
+    // 生产环境必须是 false —— 被隐藏的文档不会进入 js/posts-data.js，也不会生成 data/documents/*.json。
+    showTest: false,
 
     // 根据文件名排除指定文档 (例如: ["secret.md", "draft-1.md"])
     files: [],

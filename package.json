@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -i styles/utilities.css -o css/utilities.css --minify",
+    "build:og": "node scripts/generate-og-image.js",
     "build": "node scripts/build.js",
     "test": "node --test tests/*.test.js",
     "check": "bash check.sh"

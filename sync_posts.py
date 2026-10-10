@@ -51,7 +51,19 @@ def load_config():
     config_path = os.path.join(BASE_DIR, "blog.config.js")
     if not os.path.exists(config_path):
         return cfg
-    script = 'const fs=require("fs"),vm=require("vm"),ctx={window:{}};vm.runInNewContext(fs.readFileSync(process.argv[1],"utf8"),ctx,{timeout:1000});process.stdout.write(JSON.stringify(ctx.window.BlogConfig));'
+    # blog.config.js 的 routes / nav 由 js/lib/routes.js 的声明表派生，
+    # 因此解析配置前必须先把路由表加载进同一个 vm 上下文，否则 window 上没有
+    # BlogRoutes / BlogRouteRegistry，配置会直接抛错。
+    script = """
+const fs = require('fs'), path = require('path'), vm = require('vm');
+const configPath = process.argv[1];
+const context = { window: {} };
+vm.createContext(context);
+for (const file of [path.join(path.dirname(configPath), 'js/lib/routes.js'), configPath]) {
+  vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file, timeout: 1000 });
+}
+process.stdout.write(JSON.stringify(context.window.BlogConfig));
+"""
     result = subprocess.run(['node', '-e', script, config_path], capture_output=True, text=True, check=True)
     config = json.loads(result.stdout)
     site = config.get('site', {})
@@ -93,6 +105,7 @@ def parse_md_file(filepath, words_per_minute=300):
     pinned = False
     excerpt = ""
     slide = ""
+    slide_explicit = False
     attachments = []
     is_test = False
     doc_type = "normal"
@@ -135,6 +148,9 @@ def parse_md_file(filepath, words_per_minute=300):
                 doc_type = normalize_doc_type(val)
             elif key in ["slide", "slides", "pdf", "deck"]:
                 slide = val
+                # 标记该值来自 FrontMatter 显式声明（而非从正文 ::: slide 反推）。
+                # 前端据此决定优先级：显式声明永远挂载在正文最上方，见 app.js#renderPostView。
+                slide_explicit = True
             elif key in ["attachment", "attachments"]:
                 attachments = value if isinstance(value, list) else [value] if value else []
             elif key in ["order", "chapter"]:
@@ -210,6 +226,7 @@ def parse_md_file(filepath, words_per_minute=300):
         "type": doc_type,
         "isTest": is_test,
         "slide": slide,
+        "slideExplicit": slide_explicit,
         "attachments": attachments,
         "tocLevels": toc_levels,
         "excerpt": excerpt,
@@ -455,6 +472,31 @@ def sync():
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, 'w', encoding='utf-8') as file:
             file.write(body)
+
+    # 清理孤立产物。正文文件以「slug.内容哈希.json」命名，正文一变就是一个新文件名，
+    # 旧文件永远不会被覆盖；文档被删除、改名或被 exclude.showTest 屏蔽后，其旧产物
+    # 同样会留在磁盘上。而 data/ 属于发布白名单 —— 结果就是「已隐藏」的文档正文
+    # 仍可被公开下载，隐藏形同虚设。因此每次同步后按生成规则显式删除未在本次产物
+    # 集合中的文件（只匹配本脚本自己的命名规则，不碰任何其它文件）。
+    keep_names = {os.path.basename(url) for url in bodies}
+    stale_targets = [
+        (os.path.join(BASE_DIR, 'data', 'documents'), re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*\.[0-9a-f]{16}\.json$')),
+        (os.path.join(BASE_DIR, 'data'), re.compile(r'^search\.[0-9a-f]{16}\.json$')),
+    ]
+    removed = []
+    for directory, pattern in stale_targets:
+        if not os.path.isdir(directory):
+            continue
+        for name in sorted(os.listdir(directory)):
+            if name in keep_names or not pattern.match(name):
+                continue
+            os.remove(os.path.join(directory, name))
+            removed.append(os.path.relpath(os.path.join(directory, name), BASE_DIR))
+    if removed:
+        print(f"\n🧹 清理了 {len(removed)} 个孤立产物（源文档已删除、改名或被 showTest 屏蔽）：")
+        for name in removed:
+            print(f" -> 已删除: {name}")
+
     for column in columns_list:
         column['postIds'] = [post['slug'] for post in column.pop('posts')]
     payload = {

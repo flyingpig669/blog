@@ -36,6 +36,8 @@ window.BlogRouter = {
     return list;
   },
 
+  // 路由字典：直接来自 js/lib/routes.js 由声明表派生的 window.BlogRoutes。
+  // config.routes 只是同一个对象的引用，优先读它以便测试注入。
   getRoutes: function() {
     var config = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};
     return config.routes || window.BlogRoutes || {};
@@ -141,12 +143,14 @@ window.BlogRouter = {
 
     if (path === postsRoute) {
       // #/posts 与 #/archive 此前渲染的是同一个视图，等于同一内容有两个 URL。
-      // 现统一收敛到 #/archive（导航中的正式入口），用 replaceState 不留历史记录，
-      // 既保证旧链接仍然可用，也让「文章总览」只有一个规范地址。
-      var archiveRoute = routes.archive || '/archive';
-      history.replaceState(null, '', window.location.pathname + window.location.search + '#' + archiveRoute);
-      this.setActiveNav('archive');
-      this.currentRoute = { name: 'archive', params: {} };
+      // 收敛目标取自路由声明表的 alias 字段（见 js/lib/routes.js 的 posts 条目），
+      // 不再硬编码 '/archive'。用 replaceState 不留历史记录，保证旧链接仍可用，
+      // 也让「文章总览」只有一个规范地址。
+      var aliased = window.BlogRouteRegistry.aliasOf('posts');
+      var aliasPath = (aliased && aliased.path) || routes.archive || '/archive';
+      history.replaceState(null, '', window.location.pathname + window.location.search + '#' + aliasPath);
+      this.setActiveNav((aliased && aliased.name) || 'archive');
+      this.currentRoute = { name: (aliased && aliased.view) || 'archive', params: {} };
       this.renderArchivesView();
       return;
     }
@@ -260,24 +264,33 @@ window.BlogRouter = {
       return;
     }
 
-    // route 模式：优先命中系统内置视图，其余交给通用动态栏目渲染器
-    var routes = this.getRoutes();
-    if (navId === 'home' || path === (routes.home || '/')) {
+    // route 模式：走哪个渲染器由路由声明表的 view 字段决定。
+    // 此前这里是一串 `navId === 'home' || 'columns' || 'archive' || 'tags'` 的字符串比较，
+    // 等于把导航项的 id 当成了隐式 API —— 把 id 从 archive 改成 timeline 会让归档视图
+    // 静默失效。现在 id 只是查表的键，改 id 必须连带改表，构建期会报错。
+    // 表里没有登记的导航项（即席的 href 外链等）落到通用动态栏目渲染器。
+    var registry = window.BlogRouteRegistry;
+    var def = registry ? (registry.get(navId) || registry.byPath(path)) : null;
+    var view = def && def.view;
+
+    if (view === 'home') {
       this.currentRoute = { name: 'home', params: {} };
       this.renderHomeView();
-    } else if (navId === 'columns' || path === routes.columns) {
+    } else if (view === 'columns') {
       this.currentRoute = { name: 'columns', params: {} };
       this.renderColumnsView();
-    } else if (navId === 'archive' || path === routes.archive) {
+    } else if (view === 'archive') {
       this.currentRoute = { name: 'archive', params: {} };
       this.renderArchivesView();
-    } else if (navId === 'tags' || path === routes.tags) {
+    } else if (view === 'tags') {
       this.currentRoute = { name: 'tags', params: {} };
       this.selectedSortedTags = new Set();
       this.renderTagsView();
-    } else if (navId === 'about') {
-      this.currentRoute = { name: 'about', params: {} };
-      this.renderPageView('about.md', item);
+    } else if (view === 'page') {
+      // 结构化独立页。正常路径由 nav 的 file: 目标提前接管，这里是兜底：
+      // 表里声明了 page 文档名就直接渲染它，否则退回 <模块名>.md。
+      this.currentRoute = { name: navId, params: {}, navItem: item };
+      this.renderPageView((def && def.page) || (navId + '.md'), item);
     } else {
       this.currentRoute = { name: navId, params: {}, navItem: item };
       this.renderDynamicNavView(item);
@@ -297,8 +310,6 @@ window.BlogRouter = {
     } else {
       this.renderNotFoundView(file);
     }
-  },
-
-  // 目录视图：列出 posts/ 下某目录（含子目录）内的普通文章，供 target: "dir:..." 使用
+  }
 
 };

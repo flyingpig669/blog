@@ -2,35 +2,10 @@
 window.BlogPostsData = {
   "schemaVersion": 2,
   "documents": {
-    "group-theory-basics": {
-      "id": "post-col-group-theory-group-theory-basics",
-      "slug": "group-theory-basics",
-      "title": "02 群论基础概念测试文档",
-      "type": "normal",
-      "sourcePath": "posts/02-群论测试.md",
-      "relPath": "02-群论测试.md",
-      "date": "2026-10-09",
-      "category": "general",
-      "tags": [
-        "test",
-        "algebra"
-      ],
-      "column": "group-theory",
-      "columnName": "抽象代数与群论导引",
-      "columnDesc": "",
-      "order": 2,
-      "readTime": "1 min read",
-      "words": 207,
-      "pinned": false,
-      "isTest": true,
-      "excerpt": "这是一篇包含 test 标签的专栏测试文档，用于验证专栏路由与测试文档过滤开关。",
-      "tocLevels": null,
-      "bodyUrl": "data/documents/group-theory-basics.76c36ec8d195693b.json"
-    },
     "hello-world": {
       "id": "post-hello-world",
       "slug": "hello-world",
-      "title": "Hello World: Welcome to Your Aurora Blog",
+      "title": "Hello World: Welcome to Aurora Notes",
       "type": "normal",
       "sourcePath": "posts/hello-world.md",
       "relPath": "hello-world.md",
@@ -46,12 +21,12 @@ window.BlogPostsData = {
       "columnDesc": "",
       "order": 999,
       "readTime": "1 min read",
-      "words": 188,
+      "words": 362,
       "pinned": true,
       "isTest": false,
-      "excerpt": "Welcome to your new personal blog, designed with Linear and Vercel-inspired dark minimalism.   Getting Started  Writing a new article is as...",
+      "excerpt": "Aurora Notes is a place for long-form technical writing: system architecture notes, computing fundamentals, and the occasional detour into p...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/hello-world.0aa2edc4b8daf4a9.json"
+      "bodyUrl": "data/documents/hello-world.2c8f820efcaccdfc.json"
     },
     "quantum-simulator": {
       "id": "post-quantum-simulator",
@@ -64,20 +39,19 @@ window.BlogPostsData = {
       "category": "physics",
       "tags": [
         "quantum",
-        "systems",
-        "test"
+        "systems"
       ],
       "column": "",
       "columnName": "",
       "columnDesc": "",
       "order": 999,
       "readTime": "1 min read",
-      "words": 157,
+      "words": 133,
       "pinned": false,
-      "isTest": true,
+      "isTest": false,
       "excerpt": "基于高维复希尔伯特空间演化的轻量级量子计算仿真核心架构，附带演讲幻灯片展示。",
       "tocLevels": null,
-      "bodyUrl": "data/documents/quantum-simulator.4c1db1ae3ad83752.json"
+      "bodyUrl": "data/documents/quantum-simulator.3de6154a041ba0d4.json"
     },
     "roadmap": {
       "id": "post-roadmap",
@@ -86,7 +60,7 @@ window.BlogPostsData = {
       "type": "post",
       "sourcePath": "posts/roadmap.md",
       "relPath": "roadmap.md",
-      "date": "2026-10-10",
+      "date": "2026-10-11",
       "category": "general",
       "tags": [
         "general"
@@ -104,7 +78,7 @@ window.BlogPostsData = {
         2,
         3
       ],
-      "bodyUrl": "data/documents/roadmap.034b878b519e9de0.json"
+      "bodyUrl": "data/documents/roadmap.08483b028d897352.json"
     },
     "group-theory-intro": {
       "id": "post-col-group-theory-group-theory-intro",
@@ -129,7 +103,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "抽象代数研究代数结构及其公理化体系，从对称性到群环域。",
       "tocLevels": null,
-      "bodyUrl": "data/documents/group-theory-intro.cca052151aaf2dfa.json"
+      "bodyUrl": "data/documents/group-theory-intro.008c8150dd828501.json"
     },
     "about": {
       "slug": "about",
@@ -145,10 +119,6 @@ window.BlogPostsData = {
     "about.md": "about",
     "roadmap": "roadmap",
     "roadmap.md": "roadmap",
-    "group-theory-basics": "group-theory-basics",
-    "post-col-group-theory-group-theory-basics": "group-theory-basics",
-    "posts/02-群论测试.md": "group-theory-basics",
-    "02-群论测试.md": "group-theory-basics",
     "hello-world": "hello-world",
     "post-hello-world": "hello-world",
     "posts/hello-world.md": "hello-world",
@@ -165,7 +135,6 @@ window.BlogPostsData = {
     "群论/01-简介.md": "group-theory-intro"
   },
   "posts": [
-    "group-theory-basics",
     "hello-world",
     "quantum-simulator",
     "roadmap",
@@ -177,14 +146,13 @@ window.BlogPostsData = {
       "name": "抽象代数与群论导引",
       "desc": "从代数结构出发，系统梳理群、环、域的公理化体系与典型同态构造。",
       "icon": "layers",
-      "postsCount": 2,
-      "totalWords": 342,
+      "postsCount": 1,
+      "totalWords": 135,
       "postIds": [
-        "group-theory-intro",
-        "group-theory-basics"
+        "group-theory-intro"
       ]
     }
   ],
   "about": "about",
-  "searchUrl": "data/search.fdafb06bf0a45f19.json"
+  "searchUrl": "data/search.8f33dc08c9bdce1f.json"
 };
