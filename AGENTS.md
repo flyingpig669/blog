@@ -58,18 +58,20 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 严禁在任何页面引入自定义的随意外层宽度（如 `max-w-4xl`、`max-w-screen-xl` 等）：
 
-0. **版心唯一来源**：`css/main.css` 中的三级版心令牌。页面只能挂 `.shell-read` / `.shell-detail` / `.shell-wide`，**禁止**再写裸 `max-w-[...]`（改档位只需改 CSS 里的 `--shell-read` / `--shell-detail` / `--shell-wide`）：
-   - `--shell-read: 720px` —— 阅读向：首页、About 叙述、目录绑定页、页脚、专栏详情。
-   - `--shell-detail: 1000px` —— 内容详情双栏（正文 + 常驻 Outline）。
-   - `--shell-wide: 1080px` —— 索引平铺向：Archive / Tags / Columns 列表页。
+0. **版心唯一来源**：`css/main.css` 中的版心令牌。**全站标准页面必须统一为同一宽度**，页面只能挂 `.shell` / `.shell-detail`，**禁止**再写裸 `max-w-[...]`（改宽度只需改 CSS 里的 `--shell` / `--shell-detail`）：
+   - `--shell: 720px` —— **全站所有标准页面的统一宽度**：首页、About、Posts 列表、Archive、Tags、Columns 列表与详情、页脚。
+   - `--shell-detail: 1000px` —— **仅文章详情页**。它要在同一行内放下「正文列 680px + 常驻目录 230px」，720px 装不下（会把正文挤成 402px 窄栏）。
+   - **不得再引入第三档宽度**。历史上曾有过 1080px 的「平铺档」，导致标准页宽度在 720/1000/1080 之间跳变，已被移除 —— 页面之间宽度不一致比密度不足更伤观感。
 1. **标准单栏页面 (Home, About 及动态栏目)**：
-   - 外层版心：`shell-read mx-auto px-4 sm:px-6`。
+   - 外层版心：`shell mx-auto px-4 sm:px-6`。
    - 垂直留白：顶部 `pt-16 md:pt-20`（首页可增至 `pt-20 md:pt-24`），底部 `pb-20`。
-2. **索引平铺页面 (Archive, Tags, Columns 列表)**：
-   - 外层版心：`shell-wide mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20`。
-   - **栅格必须挂在叶子条目上，不得挂在外层分组上**：外层分组通常只有 1–2 个（Archive 常年只有 1 个年份），挂在外层会让右半屏整片留白，版心越宽越难看。正确做法是分组标题横跨整行、条目本身两栏（Archive 用 `.tile-list` + `.archive-row`；Tags 用 `.tile-list` + `.post-item`）。
-   - **这三个平铺页只允许「细线分隔」语言**：容器型块一律不加底色、不加边框、不加圆角，横向分隔线统一用 1px `--divider`。方框与圆角只留给可交互控件（标签磁贴 `.tag-tile`、条目内标签 chip）。
-   - Columns 条目用 `.tile-grid`（`auto-fit`）：条目数 ≥2 时并排，只有 1 条时轨道折叠、条目自然撑满，此时条内 `.series-parts` 自动横排两栏（由 `data-count` 驱动）。
+2. **列表页面 (Archive, Tags, Columns 列表)**：
+   - 外层版心同样是 `shell mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20` —— **与其它标准页完全一致，不得加宽**。
+   - **列表一律单栏堆叠**，容器统一用 `.ruled-list`（单轨道 grid，子项 `min-width: 0`）。禁止做多栏平铺：720px 版心的可用内容宽只有 672px，两栏会压成 316px 窄栏、标题被迫折行，得不偿失。
+   - 横向分隔线由**条目自身**的 `border-bottom: 1px solid var(--divider)` 提供（`.archive-row` 9px 内距、`.post-item` / `.series-item` 18px 内距），容器不画线。
+   - 分组标题（如 Archive 的年份）横跨整行，用 `border-b border-white/[0.06]` 与条目区分层级。
+   - **只允许「细线分隔」语言**：容器型块一律不加底色、不加边框、不加圆角。方框与圆角只留给可交互控件（标签胶囊 `.tag-tile`、条目内标签 chip、`SERIES 01` 之类元信息徽章）。
+   - **标签云必须保持紧凑胶囊**（`.tag-cloud` 为 flex 换行、`.tag-tile` 为 9999px 圆角小胶囊、按内容收缩）。禁止做成整行磁贴 —— 那会撑出一排占满整行的大方框。
 3. **文章详情双栏阅读页面 (Post View)**：
    - 双栏总容器：`shell-detail mx-auto px-4 sm:px-6`。
    - 左侧正文列：`flex-1 max-w-[680px] min-w-0`。
@@ -82,7 +84,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
    - 毛玻璃背景：`bg-[#0A0A0B]/72 backdrop-blur-md border-b border-white/[0.06]`。
 5. **页脚 (Footer)**：
    - 顶部间距：`mt-24`，上边框 `border-t border-white/[0.06]`，垂直内边距 `py-10`。
-   - 版心对齐：`shell-read mx-auto px-4 sm:px-6`。
+   - 版心对齐：`shell mx-auto px-4 sm:px-6`。
    - 极简原则：页脚仅展示单行版权信息（如 `© 2026 Alex Chen · All rights reserved.`），严禁在页脚添加社交媒体图标或多列链接群。
 6. **快捷搜索弹窗 (Cmd+K Modal)**：
    - 宽度严格限制为 `max-w-[560px]`（弹窗非版心，属独立浮层，不受第 0 条约束），背景色 `#111113`，边框 `border-white/[0.12]`，圆角 `rounded-xl`。
@@ -220,8 +222,8 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 路由对应的页面容器必须严格遵循第 4 节版心几何约束：
 
-- 阅读档路由（`/`、`/about`、`/columns/:id`、`/posts`）：使用 `shell-read`（720px）。
-- 平铺档路由（`/columns`、`/tags`、`/archive`）：使用 `shell-wide`（1080px），栅格挂叶子条目。
+- 标准页面（`/`、`/about`、`/posts`、`/columns`、`/columns/:id`、`/tags`、`/archive`）：使用 `shell`（720px）。**全站标准页必须同宽。**
+- 文章详情页（`/posts/:slug`）：使用 `shell-detail`（1000px），唯一例外，因为它要并排放下正文列与常驻目录。
 - 双栏档路由（`/posts/:slug`）：使用 `shell-detail`（1000px）。
 
 ---
@@ -264,7 +266,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 1. **命名延续性**：新增路由必须延续既有命名风格。若新模块为集合型，使用复数名词（如 `/series`、`/notes`、`/books`）；若为单页展示型，使用单数名词（如 `/now`、`/uses`、`/stats`）。
 2. **层级延续性**：新增路由必须遵循 `模块集合 -> 模块详情` 的层级。例如新增 Series 模块后，必须同时定义 `/series` 与 `/series/:slug` 两级，禁止出现只定义详情不定义列表的情况。
 3. **参数延续性**：新增路由的资源唯一标识必须使用语义化 slug，禁止使用数字 ID；筛选、分页等必须使用查询参数。
-4. **版心延续性**：新增路由必须归入第 4 节的三档版心之一（`shell-read` 720px / `shell-detail` 1000px / `shell-wide` 1080px），禁止定义第四类版心宽度，也禁止写裸 `max-w-[...]`。若新页面确需特殊布局（如全宽画布），必须在文档中显式申报并说明理由。
+4. **版心延续性**：新增路由必须使用全站统一的 `shell`（720px）；只有确需并排放置「正文 + 常驻目录」的详情页才可用 `shell-detail`（1000px）。禁止定义第三档宽度，也禁止写裸 `max-w-[...]`。若新页面确需特殊布局（如全宽画布），必须在文档中显式申报并说明理由。
 5. **配置驱动**：新增路由上线时，必须同步在统一配置文件中登记（导航项、路由字典、版本号），禁止散落在页面内硬编码。
 
 ### 7.5 路由字典的扩展模板
@@ -292,7 +294,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 Agent 进行前端编写时，以下行为一律判定为违规：
 
 1. **严禁引入杂色**：严禁使用未经定义的 Tailwind 色值（如 `bg-gray-800`、`bg-zinc-900`、`text-slate-300` 等），必须收敛在 `#0A0A0B`、`#111113`、`#161618` 与三级文本令牌内。
-2. **严禁破坏版心几何**：只能挂第 4 节的 `.shell-read` / `.shell-detail` / `.shell-wide`，禁止写裸 `max-w-[...]`，严禁随意铺满屏幕。
+2. **严禁破坏版心统一**：全站标准页一律挂 `.shell`（720px），只有文章详情页可用 `.shell-detail`（1000px）。禁止写裸 `max-w-[...]`，禁止引入第三档宽度，严禁随意铺满屏幕。
 3. **严禁使用实心彩色标签**：标签必须是微边框空心胶囊，禁止出现 `bg-blue-500 text-white`、`bg-purple-600` 等实心高饱和标签。
 4. **严禁在全局页脚添加社交链接**：社交媒体卡片仅在 About 页面专栏展示，全站页脚严禁新增社交图标、友情链接或复杂布局。
 5. **严禁混淆无衬线与等宽字体**：所有日期、数字、代码、徽标、键位、前缀编号必须严格使用 `font-mono`。
@@ -306,8 +308,10 @@ Agent 进行前端编写时，以下行为一律判定为违规：
 13. **严禁在 `<head>` 同步引入大体积依赖**：PDF.js（约 1.3MB）与 `slide-viewer.js` 必须通过 `app.js#ensureSlideViewer()` 按需注入。新增任何 >100KB 的依赖都必须走同样的懒加载路径，禁止直接写 `<script src>` 阻塞首屏。
 14. **严禁把运行期产物纳入文件监听**：`server.py` 的 `scan_tree()` 必须排除 `server.log` 及 `WATCH_IGNORED_SUFFIXES` 中的一切扩展名。监听器一旦覆盖到服务端自己会写的文件（日志、缓存、临时锁），就会形成「请求 → 文件变化 → 广播刷新 → 浏览器再请求」的无限重载循环。
 15. **严禁用 `display` 属性覆盖 `hidden`**：折叠面板依赖 `hidden` 属性表达状态。给 `.pub-panel` / `.entry-panel` 之类元素写 `display: flex/grid` 会静默让 `hidden` 失效、面板永远可见。需要布局时在内部再包一层。
-16. **严禁在三个平铺页（Archive / Tags / Columns 列表）给容器型块加底色、边框或圆角**：这三页共用「1px `--divider` 细线分隔」语言，任何 `bg-[#111113]` + `border` + `rounded-*` 的组合都会立刻让页面看起来像另一套设计。方框与圆角只允许出现在可交互控件（标签磁贴 `.tag-tile`、条目内标签 chip）上，且必须在文档中保持一致。
 16. **严禁在移动端隐藏必要控件**：缩放、翻页、展开等操作入口不得用 `hidden md:inline-flex` 之类的断点类移除 —— 窄屏恰恰是最需要它们的场景（历史缺陷：幻灯片缩放按钮在移动端完全不可用）。
+17. **严禁在 Archive / Tags / Columns 等列表页给容器型块加底色、边框或圆角**：这些页面共用「1px `--divider` 细线分隔 + 单栏堆叠」语言，任何 `bg-[#111113]` + `border` + `rounded-*` 的组合都会立刻让页面看起来像另一套设计。方框与圆角只允许出现在可交互控件（标签胶囊 `.tag-tile`、条目内标签 chip、元信息徽章）上。
+18. **严禁给列表页做多栏平铺**：Archive / Tags / Columns 的所有列表（`.ruled-list`）必须单栏堆叠。曾经做过桌面端两栏平铺，既让页面宽度在 720/1000/1080 之间跳变，也把条目压成 316px 窄栏、标题被迫折行，已废弃。
+19. **严禁把标签云做成整行磁贴**：`.tag-cloud` 必须是 flex 换行的紧凑胶囊（`.tag-tile` 圆角 9999px、按内容收缩，不得 `width: 100%`）。
 
 ---
 

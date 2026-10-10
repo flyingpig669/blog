@@ -16,10 +16,9 @@
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
   --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* 版心分级：唯一宽度来源，详见下方 .shell-* 注释与 AGENTS.md 第 4 节 */
-  --shell-read: 720px;
+  /* 版心宽度：唯一来源，详见下方 .shell 注释与 AGENTS.md 第 4 节 */
+  --shell: 720px;
   --shell-detail: 1000px;
-  --shell-wide: 1080px;
 }
 
 * {
@@ -69,65 +68,28 @@ html, body {
 }
 
 /* ---------------------------------------------------------------------------
-   版心分级与平铺栅格 (Layout Shell Tiers & Tile Grid)
+   版心宽度与列表布局 (Layout Shell & List Layout)
    ---------------------------------------------------------------------------
-   三级版心是全站唯一的宽度来源。页面里禁止再写裸 max-w-[...] —— 改档位只需改这里。
-     shell-read    720px  —— 阅读向：首页、About 叙述、目录绑定页、页脚、专栏详情
-     shell-detail 1000px  —— 内容详情双栏（正文 + 常驻 Outline）
-     shell-wide   1080px  —— 索引平铺向：Archive / Tags / Columns 列表
-   栅格只在 ≥1024px 展开；低于该断点与移动端完全一致（单栏），移动端不受影响。
+   版心宽度只有两档，页面里禁止再写裸 max-w-[...] —— 改宽度只需改这里。
+     .shell         720px  —— 全站所有标准页面的统一宽度：首页、About、Posts 列表、
+                              Archive、Tags、Columns 列表与详情、页脚。
+     .shell-detail 1000px  —— 仅文章详情页。它要在同一行内放下「正文列 680px +
+                              常驻目录 230px」，720px 装不下（会把正文挤成 402px 窄栏）。
+   除文章详情页外，全站版心必须保持一致，不得再新增第三档宽度。
 
-   栅格要挂在「叶子条目」而不是「外层分组」上：外层分组通常只有 1–2 个
-   （比如 Archive 常年只有 1 个年份），挂在外层会右半屏整片留白，版心越宽越难看。
-   Archive 的做法是年份标题横跨整行，文章条目两栏；Tags 同理（标签云 + 文章两栏）。
+   列表页一律单栏堆叠（.ruled-list）—— 不做多栏平铺。
 */
-.shell-read   { max-width: var(--shell-read); }
+.shell        { max-width: var(--shell); }
 .shell-detail { max-width: var(--shell-detail); }
-.shell-wide   { max-width: var(--shell-wide); }
 
-.tile-grid,
-.tile-list {
+/* 细线列表：单栏堆叠，横向分隔线由条目自身的 border-bottom（1px --divider）提供。
+   Archive / Tags / Columns 三个列表页共用这一个容器。
+   子项必须 min-width:0，否则长标题会把容器撑破。 */
+.ruled-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 }
-/* 子项必须 min-width:0，否则栅格列会被长标题撑破（grid 默认 min-width:auto） */
-.tile-grid > *,
-.tile-list > * { min-width: 0; }
-
-/* 卡片型栅格：块与块之间靠间距分离，故留出行间距；高度按内容对齐，
-   避免章节数少的卡片被拉长成一片空白 */
-.tile-grid {
-  align-items: start;
-  row-gap: 32px;
-  column-gap: 40px;
-}
-
-/* 列表型栅格：分隔线由条目自身（.post-item / .archive-row 的 border-bottom）提供，
-   两栏下同一行的两条细线自然接成一条横向分割线，无需额外规则 */
-.tile-list { column-gap: 40px; }
-
-/* auto-fit 而非固定两栏：固定两栏时若卡片只有 1 张，右半屏会整片留白，
-   1080px 版心越宽越难看。auto-fit 会在轨道空置时折叠，让独苗卡片自然撑满。
-   340px 下限保证 1080px 版心内最多 2 栏（1080-48=1032；340×3+80=1100 > 1032）。 */
-@media (min-width: 1024px) {
-  .tile-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
-  .tile-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-/* 单个专栏撑满版心时，章节列表横排两栏 —— 否则宽条目内部会拖出大段右向留白。
-   基线态是单栏 grid（不是 space-y），两栏只是换列数，不再需要另一套标记。 */
-.series-parts {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  row-gap: 8px;
-}
-@media (min-width: 1024px) {
-  .tile-grid[data-count="1"] > .series-item > .series-parts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 28px;
-    row-gap: 4px;
-  }
-}
+.ruled-list > * { min-width: 0; }
 
 /* 归档条目：单行「日期 + 标题」，与 .post-item 共用同一套分隔线语言，
    但纵向内距收紧到 9px —— 归档是扫读型列表，密度优先 */
@@ -139,7 +101,9 @@ html, body {
   border-bottom: 1px solid var(--divider);
 }
 
-/* 标签云：移动端保持紧凑的胶囊换行，桌面端展开为两栏整行磁贴（同一套标记，仅换盒模型） */
+/* 标签云：紧凑胶囊，换行排列（与全站 720px 统一版心下的密度匹配）。
+   曾经尝试过桌面端整行磁贴形态，会撑出一排「大方框」，已废弃 —— 标签是控件，
+   保持小尺寸胶囊，不要变成占满整行的容器。 */
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
@@ -148,46 +112,33 @@ html, body {
 .tag-tile {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 4px 10px;
   border-radius: 9999px;
   border: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-secondary);
-  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 12px;
   cursor: pointer;
   transition: all 150ms ease-out;
 }
 .tag-tile:hover {
   border-color: var(--border-hover);
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
+  transform: translateY(-1px);
 }
 .tag-tile.is-active {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
   background: rgba(59, 130, 246, 0.08);
 }
-@media (min-width: 1024px) {
-  .tag-cloud {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 12px;
-    row-gap: 8px;
-  }
-  .tag-tile {
-    justify-content: space-between;
-    width: 100%;
-    padding: 9px 12px;
-    border-radius: 8px;
-  }
-}
 
-/* 专栏条目：与 Archive / Tags 完全同构的「细线分隔」语言 —— 无底色、无边框、无圆角。
-   三个平铺页必须共用同一套线条语言；容器型块一律不加框，方框/圆角只留给可交互控件
-   （如标签磁贴 .tag-tile）。因此这里不做卡片抬升，悬浮反馈交给标题链接自身变色。 */
+/* 专栏条目：与 Archive / Tags 同构的「细线分隔」语言 —— 无底色、无边框、无圆角。
+   列表页的容器型块一律不加框，方框/圆角只留给可交互控件（如标签胶囊 .tag-tile）。
+   因此这里不做卡片抬升，悬浮反馈交给标题链接自身变色。内距与 .post-item 对齐。 */
 .series-item {
-  padding: 0 0 20px;
+  padding: 18px 0;
   border-bottom: 1px solid var(--divider);
 }
 
