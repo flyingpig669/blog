@@ -83,23 +83,14 @@ html, body {
 .shell-detail { max-width: var(--shell-detail); }
 
 /* 细线列表：单栏堆叠，横向分隔线由条目自身的 border-bottom（1px --divider）提供。
-   Archive / Tags / Columns 三个列表页共用这一个容器。
+   目前 Tags（.post-item）与 Columns（.series-item）使用；Archive 刻意不画任何分割线，
+   直接用 Tailwind 的 space-y + flex 排布，不套这个容器。
    子项必须 min-width:0，否则长标题会把容器撑破。 */
 .ruled-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 }
 .ruled-list > * { min-width: 0; }
-
-/* 归档条目：单行「日期 + 标题」，与 .post-item 共用同一套分隔线语言，
-   但纵向内距收紧到 9px —— 归档是扫读型列表，密度优先 */
-.archive-row {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--divider);
-}
 
 /* 标签云：紧凑胶囊，换行排列（与全站 720px 统一版心下的密度匹配）。
    曾经尝试过桌面端整行磁贴形态，会撑出一排「大方框」，已废弃 —— 标签是控件，
@@ -134,9 +125,10 @@ html, body {
   background: rgba(59, 130, 246, 0.08);
 }
 
-/* 专栏条目：与 Archive / Tags 同构的「细线分隔」语言 —— 无底色、无边框、无圆角。
+/* 专栏条目：与 Tags 列表同构的「细线分隔」语言 —— 无底色、无边框、无圆角。
    列表页的容器型块一律不加框，方框/圆角只留给可交互控件（如标签胶囊 .tag-tile）。
-   因此这里不做卡片抬升，悬浮反馈交给标题链接自身变色。内距与 .post-item 对齐。 */
+   因此这里不做卡片抬升，悬浮反馈交给标题链接自身变色。内距与 .post-item 对齐。
+   （Archive 页是唯一例外：它整页不画分割线，见 js/app.js#renderArchivesView 注释。） */
 .series-item {
   padding: 18px 0;
   border-bottom: 1px solid var(--divider);

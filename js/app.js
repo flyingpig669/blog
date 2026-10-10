@@ -1855,33 +1855,27 @@ window.BlogApp = {
 
     this.setDocumentTitle('Archive');
     var html = '<div class="shell mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
-    html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
+    // 归档页不使用任何横向分割线（页面头部、年份分组、条目行都不画线）：
+    // 层次完全靠字号、等宽体与留白建立，与全站「细线」语言区分开，是本页既有的设计语言。
+    html += '  <header class="mb-10">';
     html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">Archive</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E]">Chronological timeline of research essays, architecture notes, and publications.</p>';
     html += '  </header>';
 
-    // 年份是分组标题（横跨整行作分隔线），下面是该年份的文章条目单栏堆叠。
-    // 分隔线由每行的 .archive-row 自身提供，无需额外规则。
-    html += '  <div class="space-y-10">';
     years.forEach(function(yr) {
-      var items = yearMap[yr];
-      html += '    <section class="archive-year">';
-      html += '      <div class="flex items-baseline justify-between gap-3 pb-3 mb-2 border-b border-white/[0.06]">';
-      html += '        <span class="font-mono text-[22px] font-bold text-[#5A5A5E] leading-none">' + yr + '</span>';
-      html += '        <span class="font-mono text-[11px] text-[#5A5A5E] tracking-wider shrink-0">' + items.length + (items.length === 1 ? ' POST' : ' POSTS') + '</span>';
-      html += '      </div>';
-      html += '      <div class="ruled-list">';
-      items.forEach(function(p) {
+      html += '  <div class="mb-12">';
+      html += '    <div class="font-mono text-[22px] font-bold text-[#5A5A5E] mb-4">' + yr + '</div>';
+      html += '    <div class="space-y-3">';
+      yearMap[yr].forEach(function(p) {
         var dateFormatted = (p.date || '').slice(5);
-        html += '        <a href="' + window.BlogApp.postHref(p) + '" class="archive-row group">';
-        html += '          <span class="font-mono text-[12.5px] text-[#5A5A5E] shrink-0">' + dateFormatted + '</span>';
-        html += '          <span class="min-w-0 text-[15px] leading-snug text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
-        html += '        </a>';
+        html += '      <a href="' + window.BlogApp.postHref(p) + '" class="flex items-baseline gap-4 py-1.5 group">';
+        html += '        <span class="font-mono text-[12.5px] text-[#5A5A5E] shrink-0">' + dateFormatted + '</span>';
+        html += '        <span class="min-w-0 text-[15px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
+        html += '      </a>';
       });
-      html += '      </div>';
-      html += '    </section>';
+      html += '    </div>';
+      html += '  </div>';
     });
-    html += '  </div>';
 
     html += '</div>';
     container.innerHTML = html;
