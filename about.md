@@ -1,8 +1,9 @@
 ---
 # 状态标签与个人座右铭
+author: "CCC"
 status: "Physics, Math & Computer Science"
 quote: "Turning complexity into clean order through rigorous logic, mathematics, and craft."
-bio: "热爱理论物理与计算机科学的交叉前沿。致力于从高维希尔伯特空间、哈密顿量演化与微观统计力学的物理视角，理解并构建现代大规模计算架构与复杂分布式系统。坚持极简主义与深度心流开发，崇尚用严谨的数学推导与干净的代码建立秩序。"
+bio: "Physics, Math, and Computer Science Enthusiast. Exploring the frontiers of quantum computing, system architecture, and elegant engineering."
 
 # 论著与学术产出 (Publications) - 按年份倒序自动分组，卡片可点击展开摘要与 PDF 预览
 # 字段：title / slug / authors / venue / year / citations / links{pdf,doi,arxiv,code,...} / abstract
