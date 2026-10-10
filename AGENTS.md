@@ -58,25 +58,34 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 严禁在任何页面引入自定义的随意外层宽度（如 `max-w-4xl`、`max-w-screen-xl` 等）：
 
-1. **标准单栏页面 (Home, Columns, Archive, Tags, About 及动态栏目)**：
-   - 外层版心宽度：严格为 `max-w-[720px] mx-auto px-4 sm:px-6`。
+0. **版心唯一来源**：`css/main.css` 中的三级版心令牌。页面只能挂 `.shell-read` / `.shell-detail` / `.shell-wide`，**禁止**再写裸 `max-w-[...]`（改档位只需改 CSS 里的 `--shell-read` / `--shell-detail` / `--shell-wide`）：
+   - `--shell-read: 720px` —— 阅读向：首页、About 叙述、目录绑定页、页脚、专栏详情。
+   - `--shell-detail: 1000px` —— 内容详情双栏（正文 + 常驻 Outline）。
+   - `--shell-wide: 1080px` —— 索引平铺向：Archive / Tags / Columns 列表页。
+1. **标准单栏页面 (Home, About 及动态栏目)**：
+   - 外层版心：`shell-read mx-auto px-4 sm:px-6`。
    - 垂直留白：顶部 `pt-16 md:pt-20`（首页可增至 `pt-20 md:pt-24`），底部 `pb-20`。
-2. **文章详情双栏阅读页面 (Post View)**：
-   - 双栏总容器：`max-w-[1000px] mx-auto px-4 sm:px-6`。
+2. **索引平铺页面 (Archive, Tags, Columns 列表)**：
+   - 外层版心：`shell-wide mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20`。
+   - **栅格必须挂在叶子条目上，不得挂在外层分组上**：外层分组通常只有 1–2 个（Archive 常年只有 1 个年份），挂在外层会让右半屏整片留白，版心越宽越难看。正确做法是分组标题横跨整行、条目本身两栏（Archive 用 `.tile-list` + `.archive-row`；Tags 用 `.tile-list` + `.post-item`）。
+   - **这三个平铺页只允许「细线分隔」语言**：容器型块一律不加底色、不加边框、不加圆角，横向分隔线统一用 1px `--divider`。方框与圆角只留给可交互控件（标签磁贴 `.tag-tile`、条目内标签 chip）。
+   - Columns 条目用 `.tile-grid`（`auto-fit`）：条目数 ≥2 时并排，只有 1 条时轨道折叠、条目自然撑满，此时条内 `.series-parts` 自动横排两栏（由 `data-count` 驱动）。
+3. **文章详情双栏阅读页面 (Post View)**：
+   - 双栏总容器：`shell-detail mx-auto px-4 sm:px-6`。
    - 左侧正文列：`flex-1 max-w-[680px] min-w-0`。
    - 右侧常驻悬浮目录 (Outline)：宽度约 220px 级固定侧边栏，桌面端悬浮滚动联动，移动端隐藏并降级为浮动操作圆钮。
-3. **顶部导航栏 (Navbar)**：
+4. **顶部导航栏 (Navbar)**：
    - 高度固定 56px (`h-14`)，采用全宽占据页面方式 (`w-full px-4 sm:px-6 md:px-8 lg:px-12`)，支持缩放与自适应断点（`md:` 768px 折叠抽屉）。
    - 左侧为 Logo（等宽 `shrink-0`）与主导航项（`hidden md:flex gap-4 lg:gap-6 whitespace-nowrap`），两组保持充裕间距（`gap-6 lg:gap-8`），物理杜绝重叠粘连。
    - **严禁在导航容器上使用 `overflow-*`**：`overflow-x-auto` 会同时把 `overflow-y` 变为 `auto`，从而裁掉绝对定位的下拉菜单面板（`.nav-dropdown-panel`）。下拉菜单必须使用 `css/main.css` 中的 `.nav-dropdown` / `.nav-dropdown-panel` 显式类，禁止依赖 Tailwind 命名 group 变体（动态注入的 HTML 可能无法生成对应样式）。
    - 右侧为搜索快捷按钮（`Search ⌘K`）与移动端抽屉开关（`md:hidden`），统一 `shrink-0`。
    - 毛玻璃背景：`bg-[#0A0A0B]/72 backdrop-blur-md border-b border-white/[0.06]`。
-4. **页脚 (Footer)**：
+5. **页脚 (Footer)**：
    - 顶部间距：`mt-24`，上边框 `border-t border-white/[0.06]`，垂直内边距 `py-10`。
-   - 版心对齐：`max-w-[720px] mx-auto px-4 sm:px-6`。
+   - 版心对齐：`shell-read mx-auto px-4 sm:px-6`。
    - 极简原则：页脚仅展示单行版权信息（如 `© 2026 Alex Chen · All rights reserved.`），严禁在页脚添加社交媒体图标或多列链接群。
-5. **快捷搜索弹窗 (Cmd+K Modal)**：
-   - 宽度严格限制为 `max-w-[560px]`，背景色 `#111113`，边框 `border-white/[0.12]`，圆角 `rounded-xl`。
+6. **快捷搜索弹窗 (Cmd+K Modal)**：
+   - 宽度严格限制为 `max-w-[560px]`（弹窗非版心，属独立浮层，不受第 0 条约束），背景色 `#111113`，边框 `border-white/[0.12]`，圆角 `rounded-xl`。
 
 ---
 
@@ -211,8 +220,9 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 路由对应的页面容器必须严格遵循第 4 节版心几何约束：
 
-- 单栏路由（`/`、`/columns`、`/tags`、`/archive`、`/about`）：使用 `max-w-[720px]`。
-- 双栏路由（`/posts/:slug`）：使用 `max-w-[1000px]`。
+- 阅读档路由（`/`、`/about`、`/columns/:id`、`/posts`）：使用 `shell-read`（720px）。
+- 平铺档路由（`/columns`、`/tags`、`/archive`）：使用 `shell-wide`（1080px），栅格挂叶子条目。
+- 双栏档路由（`/posts/:slug`）：使用 `shell-detail`（1000px）。
 
 ---
 
@@ -254,7 +264,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 1. **命名延续性**：新增路由必须延续既有命名风格。若新模块为集合型，使用复数名词（如 `/series`、`/notes`、`/books`）；若为单页展示型，使用单数名词（如 `/now`、`/uses`、`/stats`）。
 2. **层级延续性**：新增路由必须遵循 `模块集合 -> 模块详情` 的层级。例如新增 Series 模块后，必须同时定义 `/series` 与 `/series/:slug` 两级，禁止出现只定义详情不定义列表的情况。
 3. **参数延续性**：新增路由的资源唯一标识必须使用语义化 slug，禁止使用数字 ID；筛选、分页等必须使用查询参数。
-4. **版心延续性**：新增路由必须归入第 4 节的两类版心之一（单栏 `max-w-[720px]` 或双栏 `max-w-[1000px]`），禁止定义第三类版心宽度。若新页面确需特殊布局（如全宽画布），必须在文档中显式申报并说明理由。
+4. **版心延续性**：新增路由必须归入第 4 节的三档版心之一（`shell-read` 720px / `shell-detail` 1000px / `shell-wide` 1080px），禁止定义第四类版心宽度，也禁止写裸 `max-w-[...]`。若新页面确需特殊布局（如全宽画布），必须在文档中显式申报并说明理由。
 5. **配置驱动**：新增路由上线时，必须同步在统一配置文件中登记（导航项、路由字典、版本号），禁止散落在页面内硬编码。
 
 ### 7.5 路由字典的扩展模板
@@ -282,7 +292,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 Agent 进行前端编写时，以下行为一律判定为违规：
 
 1. **严禁引入杂色**：严禁使用未经定义的 Tailwind 色值（如 `bg-gray-800`、`bg-zinc-900`、`text-slate-300` 等），必须收敛在 `#0A0A0B`、`#111113`、`#161618` 与三级文本令牌内。
-2. **严禁破坏版心几何**：单栏统一 `max-w-[720px]`，双栏统一 `max-w-[1000px]`，严禁随意铺满屏幕。
+2. **严禁破坏版心几何**：只能挂第 4 节的 `.shell-read` / `.shell-detail` / `.shell-wide`，禁止写裸 `max-w-[...]`，严禁随意铺满屏幕。
 3. **严禁使用实心彩色标签**：标签必须是微边框空心胶囊，禁止出现 `bg-blue-500 text-white`、`bg-purple-600` 等实心高饱和标签。
 4. **严禁在全局页脚添加社交链接**：社交媒体卡片仅在 About 页面专栏展示，全站页脚严禁新增社交图标、友情链接或复杂布局。
 5. **严禁混淆无衬线与等宽字体**：所有日期、数字、代码、徽标、键位、前缀编号必须严格使用 `font-mono`。
@@ -296,6 +306,7 @@ Agent 进行前端编写时，以下行为一律判定为违规：
 13. **严禁在 `<head>` 同步引入大体积依赖**：PDF.js（约 1.3MB）与 `slide-viewer.js` 必须通过 `app.js#ensureSlideViewer()` 按需注入。新增任何 >100KB 的依赖都必须走同样的懒加载路径，禁止直接写 `<script src>` 阻塞首屏。
 14. **严禁把运行期产物纳入文件监听**：`server.py` 的 `scan_tree()` 必须排除 `server.log` 及 `WATCH_IGNORED_SUFFIXES` 中的一切扩展名。监听器一旦覆盖到服务端自己会写的文件（日志、缓存、临时锁），就会形成「请求 → 文件变化 → 广播刷新 → 浏览器再请求」的无限重载循环。
 15. **严禁用 `display` 属性覆盖 `hidden`**：折叠面板依赖 `hidden` 属性表达状态。给 `.pub-panel` / `.entry-panel` 之类元素写 `display: flex/grid` 会静默让 `hidden` 失效、面板永远可见。需要布局时在内部再包一层。
+16. **严禁在三个平铺页（Archive / Tags / Columns 列表）给容器型块加底色、边框或圆角**：这三页共用「1px `--divider` 细线分隔」语言，任何 `bg-[#111113]` + `border` + `rounded-*` 的组合都会立刻让页面看起来像另一套设计。方框与圆角只允许出现在可交互控件（标签磁贴 `.tag-tile`、条目内标签 chip）上，且必须在文档中保持一致。
 16. **严禁在移动端隐藏必要控件**：缩放、翻页、展开等操作入口不得用 `hidden md:inline-flex` 之类的断点类移除 —— 窄屏恰恰是最需要它们的场景（历史缺陷：幻灯片缩放按钮在移动端完全不可用）。
 
 ---

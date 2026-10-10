@@ -183,7 +183,7 @@ window.BlogApp = {
     var container = document.getElementById('app-main');
     if (!container) return;
     container.innerHTML =
-      '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-20 pb-20 text-center">' +
+      '<div class="shell-read mx-auto px-4 sm:px-6 pt-20 pb-20 text-center">' +
       '<div class="text-[12px] font-mono text-[#5A5A5E] mb-3">INITIALIZATION ERROR</div>' +
       '<h1 class="text-[26px] font-bold text-[#EDEDED] mb-3 font-sans">页面加载失败</h1>' +
       '<p class="text-[15px] text-[#8B8B8E] mb-6">' + this.escapeHtml(message) + '</p>' +
@@ -776,7 +776,7 @@ window.BlogApp = {
     var title = (navItem && navItem.label) || norm.split('/').filter(Boolean).pop() || 'Notes';
     this.setDocumentTitle(title);
 
-    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    var html = '<div class="shell-read mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + this.escapeHtml(title) + '</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px]">' + posts.length + ' article' + (posts.length === 1 ? '' : 's') + ' under <code class="font-mono text-[#8B8B8E]">posts/' + this.escapeHtml(norm) + '/</code></p>';
@@ -822,7 +822,7 @@ window.BlogApp = {
   renderNotFoundView: function(path) {
     var container = document.getElementById('app-main');
     this.setDocumentTitle('Page Not Found');
-    container.innerHTML = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-20 pb-20 text-center">' +
+    container.innerHTML = '<div class="shell-read mx-auto px-4 sm:px-6 pt-20 pb-20 text-center">' +
       '<div class="text-[12px] font-mono text-[#5A5A5E] mb-3">404 · ' + this.escapeHtml(path || '/') + '</div>' +
       '<h1 class="text-[32px] font-bold text-[#EDEDED] mb-3 font-sans">Page not found</h1>' +
       '<p class="text-[15px] text-[#8B8B8E] mb-6">The requested route does not exist or has moved.</p>' +
@@ -1370,7 +1370,7 @@ window.BlogApp = {
     var posts = window.BlogStore.getPosts();
 
     this.setDocumentTitle(site.title);
-    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6">';
+    var html = '<div class="shell-read mx-auto px-4 sm:px-6">';
 
     // Hero Section
     html += '<section class="pt-10 md:pt-14 pb-8 border-b border-white/[0.06] mb-2">';
@@ -1510,7 +1510,7 @@ window.BlogApp = {
     var totalParts = colPosts.length || (columnInfo ? columnInfo.postsCount : 1);
 
     // 双栏布局容器: 紧凑高信息密度版心 (pt-8 md:pt-10 pb-16)
-    var html = '<div class="max-w-[1000px] mx-auto px-4 sm:px-6 pt-8 md:pt-10 pb-16 flex justify-between items-start gap-6 lg:gap-10 relative">';
+    var html = '<div class="shell-detail mx-auto px-4 sm:px-6 pt-8 md:pt-10 pb-16 flex justify-between items-start gap-6 lg:gap-10 relative">';
 
     // 左侧正文列: 自适应 680px 宽度
     html += '<div class="flex-1 max-w-[680px] min-w-0">';
@@ -1748,7 +1748,9 @@ window.BlogApp = {
     var container = document.getElementById('app-main');
     var columns = window.BlogStore.getColumns() || [];
 
-    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    // 列表页是索引（平铺档），详情页是阅读（阅读档）：同一函数两套版心，按路由分档
+    var shellClass = selectedColId ? 'shell-read' : 'shell-wide';
+    var html = '<div class="' + shellClass + ' mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
 
     if (selectedColId) {
       var col = window.BlogStore.getColumnById(selectedColId);
@@ -1797,36 +1799,40 @@ window.BlogApp = {
       html += '  <p class="text-[12px]">Add Markdown posts to <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/columns/&lt;series-name&gt;/</code> to form a series automatically.</p>';
       html += '</div>';
     } else {
-      html += '<div class="space-y-12">';
+      // 每个专栏是一个条目，桌面端平铺：多个系列的章节数/规模可横向比较。
+      // 用「细线分隔」而非卡片 —— 三个平铺页（Archive / Tags / Columns）必须共用同一套
+      // 线条语言，方框与圆角只留给可交互控件。data-count 交给 CSS 判断「是否独苗」：
+      // 只有一条时栅格会折叠成满宽，此时条内章节改横排两栏，避免右半边空掉。
+      html += '<div class="tile-grid" data-count="' + columns.length + '">';
       columns.forEach(function(col, idx) {
         var num = idx + 1 < 10 ? '0' + (idx + 1) : (idx + 1);
-        html += '<section class="border-b border-white/[0.06] pb-10 last:border-b-0">';
-        html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
-        html += '    <span>SERIES ' + num + '</span>';
-        html += '    <span>·</span>';
-        html += '    <span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
+        html += '  <section class="series-item">';
+        html += '    <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+        html += '      <span class="px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">SERIES ' + num + '</span>';
+        html += '      <span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
         if (col.totalWords) {
-          html += '    <span>·</span>';
-          html += '    <span>' + window.BlogApp.formatWordCount(col.totalWords) + '</span>';
+          html += '      <span>·</span>';
+          html += '      <span>' + window.BlogApp.formatWordCount(col.totalWords) + '</span>';
         }
-        html += '  </div>';
+        html += '    </div>';
 
-        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2"><a href="' + window.BlogApp.routeHref('columns', col.id) + '" class="hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(col.name) + '</a></h2>';
+        html += '    <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2"><a href="' + window.BlogApp.routeHref('columns', col.id) + '" class="hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(col.name) + '</a></h2>';
         if (col.desc) {
-          html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + window.BlogApp.escapeHtml(col.desc) + '</p>';
+          // line-clamp-2：两栏并排时描述长短不一会把卡片撑成不等高，截断保证栅格节奏一致
+          html += '    <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-4 line-clamp-2">' + window.BlogApp.escapeHtml(col.desc) + '</p>';
         }
 
-        html += '  <div class="space-y-2 border-l border-white/[0.08] pl-4">';
+        html += '    <div class="series-parts border-l border-white/[0.08] pl-4">';
         (col.posts || []).forEach(function(p) {
           var partNum = p.order < 10 ? '0' + p.order : p.order;
-          html += '    <a href="' + window.BlogApp.postHref(p) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
-          html += '      <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
-          html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
-          if (p.slide) html += '  <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
-          html += '    </a>';
+          html += '      <a href="' + window.BlogApp.postHref(p) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+          html += '        <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
+          html += '        <span class="min-w-0 font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
+          if (p.slide) html += '        <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6] shrink-0">SLIDE</span>';
+          html += '      </a>';
         });
-        html += '  </div>';
-        html += '</section>';
+        html += '    </div>';
+        html += '  </section>';
       });
       html += '</div>';
     }
@@ -1850,26 +1856,35 @@ window.BlogApp = {
     var years = Object.keys(yearMap).sort().reverse();
 
     this.setDocumentTitle('Archive');
-    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    var html = '<div class="shell-wide mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">Archive</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E]">Chronological timeline of research essays, architecture notes, and publications.</p>';
     html += '  </header>';
 
+    // 栅格的下沉位置决定密度：年份分组数量少（常年 1-3 个）而条目数量多，
+    // 所以年份标题横跨整行作分隔线，真正平铺的是「该年份下的文章条目」。
+    // 若把栅格挂在年份上，只有一个年份时右半屏会整片留白 —— 版心越宽越难看。
+    html += '  <div class="space-y-10">';
     years.forEach(function(yr) {
-      html += '<div class="mb-12">';
-      html += '  <div class="font-mono text-[22px] font-bold text-[#5A5A5E] mb-4">' + yr + '</div>';
-      html += '  <div class="space-y-3">';
-      yearMap[yr].forEach(function(p) {
+      var items = yearMap[yr];
+      html += '    <section class="archive-year">';
+      html += '      <div class="flex items-baseline justify-between gap-3 pb-3 mb-2 border-b border-white/[0.06]">';
+      html += '        <span class="font-mono text-[22px] font-bold text-[#5A5A5E] leading-none">' + yr + '</span>';
+      html += '        <span class="font-mono text-[11px] text-[#5A5A5E] tracking-wider shrink-0">' + items.length + (items.length === 1 ? ' POST' : ' POSTS') + '</span>';
+      html += '      </div>';
+      html += '      <div class="tile-list">';
+      items.forEach(function(p) {
         var dateFormatted = (p.date || '').slice(5);
-        html += '<a href="' + window.BlogApp.postHref(p) + '" class="flex items-baseline gap-4 py-1.5 group">';
-        html += '  <span class="font-mono text-[12.5px] text-[#5A5A5E] shrink-0">' + dateFormatted + '</span>';
-        html += '  <span class="text-[15px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
-        html += '</a>';
+        html += '        <a href="' + window.BlogApp.postHref(p) + '" class="archive-row group">';
+        html += '          <span class="font-mono text-[12.5px] text-[#5A5A5E] shrink-0">' + dateFormatted + '</span>';
+        html += '          <span class="min-w-0 text-[15px] leading-snug text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
+        html += '        </a>';
       });
-      html += '  </div>';
-      html += '</div>';
+      html += '      </div>';
+      html += '    </section>';
     });
+    html += '  </div>';
 
     html += '</div>';
     container.innerHTML = html;
@@ -1940,13 +1955,13 @@ window.BlogApp = {
     }
 
     this.setDocumentTitle('Tags');
-    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    var html = '<div class="shell-wide mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-8 pb-6 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Tags & Sorted Topics</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E]">Select single or multiple tags to filter articles with precise multi-dimensional intersection.</p>';
     html += '  </header>';
 
-    // 可多选标签胶囊云
+    // 标签索引：移动端是紧凑胶囊云，桌面端展开为两栏整行磁贴（.tag-cloud 换盒模型，标记不变）
     html += '  <div class="mb-8">';
     html += '    <div class="flex items-center justify-between mb-3">';
     html += '      <span class="text-[12px] font-mono text-[#5A5A5E] uppercase tracking-wider">Available Tags (' + allTags.length + ')</span>';
@@ -1954,20 +1969,20 @@ window.BlogApp = {
       html += '      <button type="button" onclick="window.BlogApp.clearSortedTags()" class="text-[12px] font-mono text-[#3B82F6] hover:underline cursor-pointer">Clear Selection (' + selected.size + ')</button>';
     }
     html += '    </div>';
-    html += '    <div class="flex flex-wrap gap-2">';
+    html += '    <div class="tag-cloud">';
     allTags.forEach(function(item) {
       var tagName = item.name || item;
       var count = item.count || 1;
       var isAct = selected.has(tagName);
       var enc = encodeURIComponent(tagName);
-      html += '<button type="button" data-tag="' + enc + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="tag-filter-pill ' + (isAct ? "active" : "") + '"><span class="font-mono">#' + window.BlogApp.escapeHtml(tagName) + '</span> <span class="opacity-60 text-[10px] font-mono">' + count + '</span></button>';
+      html += '<button type="button" data-tag="' + enc + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="tag-tile' + (isAct ? ' is-active' : '') + '" aria-pressed="' + (isAct ? 'true' : 'false') + '"><span class="font-mono text-[12px] truncate">#' + window.BlogApp.escapeHtml(tagName) + '</span><span class="font-mono text-[11px] opacity-60 shrink-0">' + count + '</span></button>';
     });
     html += '    </div>';
     html += '  </div>';
 
-    // 筛选结果列表
+    // 筛选结果列表：桌面端两栏平铺，横向细线由 .post-item 自身的 border-bottom 提供
     html += '  <section class="pt-6 border-t border-white/[0.06]">';
-    html += '    <div class="flex items-center justify-between mb-6">';
+    html += '    <div class="flex items-center justify-between mb-4">';
     html += '      <div class="text-[13px] font-mono text-[#8B8B8E]">';
     if (selected.size > 0) {
       html += '        <span>Matching <span class="text-[#3B82F6] font-semibold">' + filteredPosts.length + '</span> articles for: </span>';
@@ -1981,12 +1996,12 @@ window.BlogApp = {
     html += '    </div>';
 
     if (filteredPosts.length === 0) {
-      html += '    <div class="py-16 text-center text-[#5A5A5E] font-mono text-[14px] bg-[#111113] rounded-xl border border-white/[0.08] p-8">';
+      html += '    <div class="py-16 text-center text-[#5A5A5E] font-mono text-[14px] border-y border-white/[0.06]">';
       html += '      <p class="mb-2 text-[#8B8B8E]">No articles match all selected tags.</p>';
       html += '      <button type="button" onclick="window.BlogApp.clearSortedTags()" class="text-[12px] text-[#3B82F6] hover:underline cursor-pointer">Reset filters</button>';
       html += '    </div>';
     } else {
-      html += '    <div class="divide-y divide-white/[0.06]">';
+      html += '    <div class="tile-list">';
       filteredPosts.forEach(function(post) {
         html += '      <article class="post-item group">';
         html += '        <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
@@ -2003,13 +2018,13 @@ window.BlogApp = {
         html += '          <a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + window.BlogApp.escapeHtml(post.title) + '</a>';
         html += '        </h2>';
         if (post.excerpt) {
-          html += '        <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + window.BlogApp.escapeHtml(post.excerpt) + '</p>';
+          html += '        <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3">' + window.BlogApp.escapeHtml(post.excerpt) + '</p>';
         }
         if ((post.tags || []).length > 0) {
           html += '        <div class="flex flex-wrap items-center gap-1.5">';
           post.tags.forEach(function(t) {
             var isSel = selected.has(t);
-          html += '<button type="button" data-tag="' + encodeURIComponent(t) + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="text-[11px] font-mono px-2 py-0.5 rounded-full border transition-all ' + (isSel ? "border-[#3B82F6] text-[#3B82F6] bg-[#3B82F6]/10" : "border-white/[0.08] text-[#8B8B8E] hover:border-white/[0.16] hover:text-[#EDEDED]") + '">#' + window.BlogApp.escapeHtml(t) + '</button>';
+          html += '<button type="button" data-tag="' + encodeURIComponent(t) + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="text-[11px] font-mono px-2 py-0.5 rounded-full border transition-all cursor-pointer ' + (isSel ? "border-[#3B82F6] text-[#3B82F6] bg-[#3B82F6]/10" : "border-white/[0.08] text-[#8B8B8E] hover:border-white/[0.16] hover:text-[#EDEDED]") + '">#' + window.BlogApp.escapeHtml(t) + '</button>';
           });
           html += '        </div>';
         }
@@ -2064,7 +2079,7 @@ window.BlogApp = {
     var rawMarkdown = pageData.content || pageData.notes || '';
 
     this.setDocumentTitle(title);
-    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    var html = '<div class="shell-read mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
 
     // 1. 顶部 Hero / 名片区
     html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
@@ -2215,7 +2230,7 @@ window.BlogApp = {
     var customPages = (window.BlogPostsData && window.BlogPostsData.customPages) || {};
 
     this.setDocumentTitle(title);
-    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    var html = '<div class="shell-read mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
 
     // 统一页面头部 (严格遵循整站留白、字号与 1px 分割线规范)
     html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
