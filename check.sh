@@ -11,7 +11,7 @@ echo "[1/4] Rebuilding the content index..."
 python3 sync_posts.py
 
 echo "[2/4] Checking JavaScript syntax..."
-for file in blog.config.js js/*.js; do
+for file in blog.config.js js/*.js js/components/*.js js/lib/*.js; do
   node --check "$file"
 done
 

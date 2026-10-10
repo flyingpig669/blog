@@ -21,6 +21,7 @@ window.BlogApp = {
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
+    window.BlogScrollState.init();
 
     // 初始化数据层
     window.BlogStore.init();
@@ -159,8 +160,10 @@ window.BlogApp = {
         script.src = files[i];
         script.onload = function() { loadNext(i + 1); };
         script.onerror = function() {
+          var queue = self._slideQueue || [];
           self._slideQueue = null;
-          console.error('[slide] 依赖加载失败: ' + files[i]);
+          script.remove();
+          queue.forEach(function(fn) { fn(new Error('Unable to load ' + files[i])); });
         };
         document.head.appendChild(script);
       };
@@ -576,7 +579,8 @@ window.BlogApp = {
     var self = this;
     this.routeRevision = (this.routeRevision || 0) + 1;
     var revision = this.routeRevision;
-    window.scrollTo(0, 0);
+    window.BlogScrollState.restore(function() { return self.routeRevision === revision; });
+    window.scrollTo({ top: 0, behavior: 'instant' });
     this.closeMobileDrawer();
     this.closeMobileOutline();
     this.closeNavDropdowns();
@@ -769,9 +773,7 @@ window.BlogApp = {
       this.currentRoute = { name: 'post', params: { id: pid }, navItem: item };
       this.renderPostView(pid);
     } else {
-      // 未命中索引：仍按独立页渲染，兼容裸文件路径
-      this.currentRoute = { name: 'page', params: { file: file }, navItem: item };
-      this.renderPageView(file, item);
+      this.renderNotFoundView(file);
     }
   },
 
@@ -1739,10 +1741,18 @@ window.BlogApp = {
     if (slideMounts.length > 0) {
       var self = this;
       var revision = this.routeRevision;
-      this.ensureSlideViewer(function() {
-        if (!window.BlogSlideViewer || self.routeRevision !== revision) return;
+      var mountSlides = function(error) {
+        if (self.routeRevision !== revision) return;
         slideMounts.forEach(function(mountEl) {
           if (!mountEl.isConnected) return;
+          if (error) {
+            mountEl.innerHTML = '<p class="search-status">PDF viewer could not load. Check your connection.</p><button type="button" class="btn-secondary">Retry</button>';
+            mountEl.querySelector('button').onclick = function() {
+              mountEl.innerHTML = '<p class="search-status">Loading PDF viewer…</p>';
+              self.ensureSlideViewer(mountSlides);
+            };
+            return;
+          }
           var url = mountEl.getAttribute('data-slide-url');
           if (!url) return;
           window.BlogSlideViewer.mount(mountEl, {
@@ -1750,7 +1760,9 @@ window.BlogApp = {
             title: mountEl.getAttribute('data-slide-title') || post.title
           });
         });
-      });
+      };
+      slideMounts.forEach(function(el) { el.innerHTML = '<p class="search-status">Loading PDF viewer…</p>'; });
+      this.ensureSlideViewer(mountSlides);
     }
   },
 
@@ -1853,7 +1865,7 @@ window.BlogApp = {
   // 5.4 归档时间线视图 (Archives View)
   renderArchivesView: function() {
     var container = document.getElementById('app-main');
-    var posts = window.BlogStore.getPosts();
+    var posts = window.BlogStore.getPosts({ sort: 'date' });
 
     var yearMap = {};
     posts.forEach(function(p) {
@@ -2165,61 +2177,10 @@ window.BlogApp = {
   // ----------------------------------------------------------------------------
   // 6. 搜索弹窗逻辑 (Search Modal Cmd+K)
   // ----------------------------------------------------------------------------
-  openSearchModal: function() {
-    var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
-    if (features.searchModal === false) return;
-    var modal = document.getElementById('search-modal');
-    if (modal) {
-      this.searchReturnFocus = document.activeElement;
-      modal.classList.remove('hidden');
-      var input = document.getElementById('search-modal-input');
-      if (input) {
-        input.value = '';
-        input.focus();
-        this.runModalSearch('');
-      }
-    }
-  },
-
-  closeSearchModal: function() {
-    var modal = document.getElementById('search-modal');
-    if (modal && !modal.classList.contains('hidden')) {
-      modal.classList.add('hidden');
-      if (this.searchReturnFocus && typeof this.searchReturnFocus.focus === 'function') {
-        this.searchReturnFocus.focus();
-      }
-    }
-  },
-
-  // 输入防抖：搜索会对每篇文章的标题/摘要/正文/标签做全量匹配，
-  // 若每次按键都同步执行，长文库下会产生明显的输入卡顿。
-  runModalSearchDebounced: function(query) {
-    var self = this;
-    clearTimeout(this.searchDebounceTimer);
-    this.searchDebounceTimer = setTimeout(function() {
-      self.runModalSearch(query);
-    }, 120);
-  },
-
-  runModalSearch: function(query) {
-    var resultsEl = document.getElementById('search-modal-results');
-    if (!resultsEl) return;
-
-    var posts = window.BlogStore.getPosts({ query: query });
-    if (posts.length === 0) {
-      resultsEl.innerHTML = '<div class="py-8 text-center text-[#5A5A5E] font-mono text-[13px]">No matching articles found.</div>';
-      return;
-    }
-
-    var html = '';
-    posts.slice(0, 8).forEach(function(p) {
-      html += '<a href="' + window.BlogApp.postHref(p) + '" onclick="window.BlogApp.closeSearchModal()" class="block p-2.5 rounded-[6px] hover:bg-white/[0.04] transition-colors group">';
-      html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors truncate">' + window.BlogApp.escapeHtml(p.title) + '</div>';
-      html += '  <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + window.BlogApp.escapeHtml(p.date) + ' · ' + window.BlogApp.escapeHtml(p.readTime || '3 min read') + '</div>';
-      html += '</a>';
-    });
-    resultsEl.innerHTML = html;
-  },
+  openSearchModal: function() { window.BlogSearch.open(); },
+  closeSearchModal: function() { window.BlogSearch.close(); },
+  runModalSearchDebounced: function(query) { window.BlogSearch.debounce(query); },
+  runModalSearch: function(query) { window.BlogSearch.search(query); },
 
   // ----------------------------------------------------------------------------
   // 5.8 统一通用动态栏目渲染器 (Zero-Code Dynamic Section View)

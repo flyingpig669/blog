@@ -268,16 +268,21 @@ window.BlogMarkdown = {
       }
 
       var toc = [];
-      if (targetLevels.length > 0) {
-        var headingSelector = targetLevels.map(function(lvl) { return 'h' + lvl; }).join(', ');
-        var headings = tempDiv.querySelectorAll(headingSelector);
+      {
+        var usedIds = Object.create(null);
+        var headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
         headings.forEach(function(h, index) {
           var headingText = h.textContent.trim();
-          var id = 'section-' + (index + 1);
+          // Content-based, ASCII-safe IDs remain stable when unrelated headings are inserted.
+          var hash = 2166136261;
+          for (var i = 0; i < headingText.length; i++) hash = Math.imul(hash ^ headingText.charCodeAt(i), 16777619);
+          var base = 'heading-' + (hash >>> 0).toString(16);
+          usedIds[base] = (usedIds[base] || 0) + 1;
+          var id = base + (usedIds[base] > 1 ? '-' + usedIds[base] : '');
           h.setAttribute('id', id);
           h.classList.add('scroll-mt-20');
           var level = parseInt(h.tagName.substring(1), 10);
-          toc.push({ id: id, text: headingText, level: level });
+          if (targetLevels.includes(level)) toc.push({ id: id, text: headingText, level: level });
         });
       }
 

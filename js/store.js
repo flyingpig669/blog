@@ -84,12 +84,28 @@ window.BlogStore = {
     }
 
     list.sort(function(a, b) {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
+      if (filter.sort !== 'date' && a.pinned && !b.pinned) return -1;
+      if (filter.sort !== 'date' && !a.pinned && b.pinned) return 1;
       return new Date(b.date) - new Date(a.date);
     });
 
     return list;
+  },
+
+  // 目录查询：列出 posts/ 下指定目录（含其子目录）内的普通文章，按日期倒序
+  searchPosts: function(query) {
+    var q = String(query || '').trim().toLowerCase();
+    var posts = this.getPosts({ query: q, sort: 'date' });
+    function score(post) {
+      var title = String(post.title || '').toLowerCase();
+      if (title === q) return 5;
+      if (title.startsWith(q)) return 4;
+      if (title.includes(q)) return 3;
+      if ((post.tags || []).some(function(tag) { return tag.toLowerCase().includes(q); })) return 2;
+      if (String(post.excerpt || '').toLowerCase().includes(q)) return 1;
+      return 0;
+    }
+    return q ? posts.sort(function(a, b) { return score(b) - score(a); }) : posts;
   },
 
   // 目录查询：列出 posts/ 下指定目录（含其子目录）内的普通文章，按日期倒序

@@ -42,3 +42,15 @@ test('post identifiers do not match arbitrary suffixes', () => {
   assert.equal(store.getPostById('demo'), null);
   assert.equal(store.getPostById('other-roadmap').relPath, 'demo/roadmap.md');
 });
+
+test('archive ignores pinning and search ranks title above body', () => {
+  const store = createStore();
+  store.posts = [
+    { title: 'Old', slug: 'old', date: '2026-01-01', pinned: true, content: 'needle' },
+    { title: 'Newest', slug: 'new', date: '2026-10-10', content: 'needle' },
+    { title: 'Needle', slug: 'needle', date: '2026-06-01' }
+  ];
+  assert.equal(store.getPosts()[0].slug, 'old');
+  assert.equal(store.getPosts({sort: 'date'})[0].slug, 'new');
+  assert.equal(store.searchPosts('needle')[0].slug, 'needle');
+});

@@ -170,15 +170,26 @@ def parse_md_file(filepath, words_per_minute=300):
         fm = fm_match.group(1)
         content = fm_match.group(2).strip()
 
-        for raw_line in fm.splitlines():
+        lines = fm.splitlines()
+        index = 0
+        while index < len(lines):
+            raw_line = lines[index]
+            index += 1
             if not raw_line.strip() or raw_line.startswith(" ") or raw_line.startswith("	") or raw_line.strip().startswith("-"):
                 continue
             line = raw_line.strip()
+            if line.startswith('#'):
+                continue
             if ":" not in line:
                 continue
             key, val = line.split(":", 1)
             key = key.strip().lower()
-            val = re.split(r'\s+#', val)[0].strip().strip(chr(39) + chr(34))
+            value, index = read_frontmatter_value(lines, index - 1, val)
+            if key in ['tags', 'attachment', 'attachments'] and not (
+                isinstance(value, str) or isinstance(value, list) and all(isinstance(item, str) for item in value)
+            ):
+                raise ValueError(f"{rel_path}: {key} 必须是文本或文本数组")
+            val = str(value)
             if key == "title":
                 title = val
             elif key == "date":
@@ -202,23 +213,17 @@ def parse_md_file(filepath, words_per_minute=300):
             elif key in ["slide", "slides", "pdf", "deck"]:
                 slide = val
             elif key in ["attachment", "attachments"]:
-                clean_att = val.strip("[]")
-                attachments = [t.strip().strip("'\"") for t in clean_att.split(",") if t.strip()]
+                attachments = value if isinstance(value, list) else [value] if value else []
             elif key in ["order", "chapter"]:
                 if val.isdigit(): order = int(val)
             elif key in ["toclevels", "toc_levels", "toc"]:
-                if val.lower() in ["false", "off", "none", "0"]:
-                    toc_levels = []
-                else:
-                    clean_toc = val.strip("[]")
-                    toc_levels = [int(t.strip().strip(chr(39) + chr(34))) for t in clean_toc.split(",") if t.strip() and t.strip().strip(chr(39) + chr(34)).isdigit()]
+                toc_levels = normalize_toc_levels(value)
             elif key == "pinned":
                 pinned = (val.lower() == "true")
             elif key == "excerpt":
                 excerpt = val
             elif key == "tags":
-                clean_tags = val.strip("[]")
-                tags = [t.strip().strip("'\"") for t in clean_tags.split(",") if t.strip()]
+                tags = value if isinstance(value, list) else [value] if value else []
     else:
         h1_m = re.search(r"^#\s+(.+)$", content, re.M)
         if h1_m:
@@ -289,6 +294,49 @@ def parse_md_file(filepath, words_per_minute=300):
         "content": content
     }
 
+def normalize_toc_levels(value):
+    if value is None:
+        return None
+    if str(value).lower() in ['false', 'off', 'none', '0']:
+        return []
+    values = value if isinstance(value, list) else str(value).split(',')
+    if any(not str(level).strip().isdigit() or not 1 <= int(level) <= 6 for level in values):
+        raise ValueError("FrontMatter: tocLevels 必须是 1 到 6 的层级数组或 false")
+    return list(dict.fromkeys(int(level) for level in values))
+
+
+def strip_yaml_comment(text):
+    """只去除引号之外的注释，保留字符串内的 # 与转义引号。"""
+    quote = None
+    escaped = False
+    for i, ch in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if quote == '"' and ch == '\\':
+            escaped = True
+        elif ch == quote:
+            quote = None
+        elif not quote and ch in "\"'":
+            quote = ch
+        elif not quote and ch == '#' and (i == 0 or text[i - 1].isspace()):
+            return text[:i].rstrip()
+    return text.strip()
+
+
+def parse_scalar(text):
+    text = strip_yaml_comment(text).strip()
+    if text.startswith('"'):
+        if not text.endswith('"'):
+            raise ValueError("FrontMatter: 未闭合的双引号")
+        return json.loads(text)
+    if text.startswith("'"):
+        if not text.endswith("'"):
+            raise ValueError("FrontMatter: 未闭合的单引号")
+        return text[1:-1].replace("''", "'")
+    return text
+
+
 def split_flow_entries(inner):
     """按「引号感知」的逗号切分 flow 容器内部文本。
 
@@ -298,20 +346,29 @@ def split_flow_entries(inner):
     items = []
     buf = ""
     quote = None
+    escaped = False
     for ch in inner:
+        if escaped:
+            buf += ch
+            escaped = False
+            continue
         if quote:
+            buf += ch
+            if quote == '"' and ch == '\\':
+                escaped = True
             if ch == quote:
                 quote = None
-            else:
-                buf += ch
         elif ch in "\"'":
             quote = ch
+            buf += ch
         elif ch == ",":
             if buf.strip():
                 items.append(buf.strip())
             buf = ""
         else:
             buf += ch
+    if quote:
+        raise ValueError("FrontMatter: 未闭合的数组引号")
     if buf.strip():
         items.append(buf.strip())
     return items
@@ -325,7 +382,7 @@ def parse_flow_list(text):
     inner = t[1:-1].strip()
     if not inner:
         return []
-    return [i.strip().strip("\"'") for i in split_flow_entries(inner) if i.strip()]
+    return [parse_scalar(i) for i in split_flow_entries(inner) if i.strip()]
 
 
 def parse_flow_map(text):
@@ -348,7 +405,7 @@ def parse_flow_map(text):
         k = k.strip().strip("\"'")
         if not k:
             continue
-        out[k] = re.split(r"\s+#", v.strip())[0].strip().strip("\"'")
+        out[k] = parse_scalar(v)
     return out
 
 
@@ -380,7 +437,7 @@ def read_frontmatter_value(lines, idx, inline):
     以 `- ` 开头的是序列，形如 `name: value` 的是映射。判据必须是「相对本行缩进更深」，
     否则 `links:` 的映射会一路吞掉紧随其后的兄弟字段（abstract / year 等）。
     """
-    head = re.split(r"\s+#", (inline or "").strip())[0].strip()
+    head = strip_yaml_comment(inline or "")
 
     # 情况 1：本行没有值，值全部在缩进更深的后续行里
     if head == "":
@@ -396,7 +453,7 @@ def read_frontmatter_value(lines, idx, inline):
                     m = re.match(r"^\s+-\s+(.*)$", lines[k])
                     if not m or line_indent(lines[k]) < item_indent:
                         break
-                    block.append(m.group(1).strip().strip("\"'"))
+                    block.append(parse_scalar(m.group(1)))
                     k += 1
                 if block:
                     return block, k
@@ -423,11 +480,11 @@ def read_frontmatter_value(lines, idx, inline):
         j = idx
         while not buf.rstrip().endswith("]") and j + 1 < len(lines):
             j += 1
-            buf += " " + lines[j].strip()
+            buf += " " + strip_yaml_comment(lines[j])
         parsed = parse_flow_list(buf)
         if parsed is not None:
             return parsed, j + 1
-        return head.strip("\"'"), j + 1
+        raise ValueError("FrontMatter: 未闭合的数组")
 
     # 情况 3：flow 映射（单行 `{ k: v, ... }`）
     if head.startswith("{"):
@@ -435,14 +492,14 @@ def read_frontmatter_value(lines, idx, inline):
         j = idx
         while not buf.rstrip().endswith("}") and j + 1 < len(lines):
             j += 1
-            buf += " " + lines[j].strip()
+            buf += " " + strip_yaml_comment(lines[j])
         parsed_map = parse_flow_map(buf)
         if parsed_map is not None:
             return parsed_map, j + 1
-        return head.strip("\"'"), j + 1
+        raise ValueError("FrontMatter: 未闭合的映射")
 
     # 情况 4：普通标量
-    return head.strip("\"'"), idx + 1
+    return parse_scalar(head), idx + 1
 
 
 def parse_structured_page_file(filepath):
@@ -539,12 +596,9 @@ def parse_structured_page_file(filepath):
 
         i += 1
 
-    # tocLevels 与 parse_md_file 保持一致：统一为 int 列表（无有效层级时为 None），
-    # 避免同一份数据在不同文档类型下出现 ['2','3'] 与 [2, 3] 两种形态。
-    toc = data.get("tocLevels")
-    if isinstance(toc, list):
-        levels = [int(t) for t in toc if str(t).strip().isdigit()]
-        data["tocLevels"] = levels or None
+    # 缺省、显式禁用与层级校验在两类文档中使用同一入口。
+    toc = next((data[key] for key in ['tocLevels', 'toclevels', 'toc_levels', 'toc'] if data.get(key) is not None), None)
+    data['tocLevels'] = normalize_toc_levels(toc)
 
     return data
 
