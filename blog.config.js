@@ -6,7 +6,22 @@
  * 修改此处即可全站生效，无需翻找繁琐的 HTML 或 JS 模板。
  */
 
+window.BlogRoutes = Object.freeze({
+  home: "/",
+  posts: "/posts",
+  columns: "/columns",
+  archive: "/archive",
+  tags: "/tags",
+  about: "/about"
+});
+
 window.BlogConfig = {
+  // 统一路由字典：导航与页面链接均从这里读取。
+  routes: window.BlogRoutes,
+
+  // 默认路由：访问空 Hash (#) 或根地址时落到哪里
+  defaultRoute: window.BlogRoutes.home,
+
   // 1. 站点基础信息 (Site Metadata)
   site: {
     // 博客标题 (显示在浏览器标签页与顶部 Logo)
@@ -38,47 +53,37 @@ window.BlogConfig = {
   },
 
   // 3. 顶部主导航菜单 (Navigation Menu)
-  // 支持单项、直接关联指定 Markdown 文件 (file: "xxx.md")、以及数组语法（前端直接展示第一个，其余项折叠进下拉菜单）
+  // 统一用 target 描述导航目标，新增导航「只需改这一处」即可生效，支持三种写法：
+  //   target: "/archive"                  → 绑定一个路由（默认路由）
+  //   target: "dir:posts/群论"             → 绑定一个目录，渲染该目录下的文章列表
+  //   target: "file:about.md"             → 绑定一个 Markdown 文件（normal 文章 或 post 独立页）
+  // 单个对象 = 普通导航项；数组 = 下拉菜单（展示第一项，其余折叠进下拉）。
+  // 仍兼容旧的 route / file / dir 字段（未提供 target 时自动回退识别）。
   nav: [
-    { id: "home", label: "Home", route: "/" },
-    { id: "columns", label: "Columns", route: "/columns" },
-    { id: "archives", label: "Archive", route: "/archives" },
-    { id: "categories", label: "Tags", route: "/categories" },
-    // 数组形式：前端展示第一个 (About)，其余项折叠进下拉菜单，可绑定任意指定 .md 单页
+    { id: "home",     label: "Home",     target: window.BlogRoutes.home },
+    { id: "columns",  label: "Columns",  target: window.BlogRoutes.columns },
+    { id: "archive",  label: "Archive",  target: window.BlogRoutes.archive },
+    { id: "tags",     label: "Tags",     target: window.BlogRoutes.tags },
+    // 目录绑定示例（取消注释即可新增一个「按目录聚合文章」的导航项，无需改动其它任何代码）：
+    // { id: "notes", label: "Notes", target: "dir:posts/群论" },
+    // 数组形式 = 下拉菜单：展示第一个 (About)，其余项折叠进下拉菜单，可绑定任意单页文件
     [
-      { id: "about", label: "About", route: "/about", file: "about.md" },
-      { id: "roadmap", label: "Roadmap", route: "/roadmap", file: "posts/page看看啥回事.md" }
+      { id: "about",   label: "About",   target: "file:about.md" },
+      { id: "roadmap", label: "Roadmap", target: "file:posts/roadmap.md" }
     ]
   ],
 
-  // 4. 页脚与关于页社交链接 (Social Links)
+  // 4. 社交媒体链接 (Social Links - 预留：关于页社交信息统一在 about.md 的 social 字段维护)
   // social: [
   //   { name: "GitHub", url: "https://github.com/flyingpig669", icon: "github" },
   //   { name: "Twitter", url: "https://twitter.com", icon: "twitter" },
   //   { name: "Email", url: "mailto:flyingpig06@outlook.com", icon: "mail" },
   // ],
 
-  // 5. 专栏 / 系列默认元信息 (Series Metadata Fallback)
-  // 当 posts/columns/<folder-name> 缺少自定义元数据时，将自动匹配此处的名称与描述
-  columns: {
-    "system-design": {
-      name: "System Design & Distributed Architecture",
-      desc: "Deep dives into high-availability systems, consensus algorithms, and cloud infrastructure.",
-      icon: "terminal"
-    },
-    "algorithms": {
-      name: "Algorithms & Mathematical Computing",
-      desc: "Exploring computational complexity, graphs, dynamic programming, and numeric derivations.",
-      icon: "atom"
-    },
-    "frontend-engineering": {
-      name: "Modern Frontend Engineering",
-      desc: "Deep insights into reactivity runtimes, compiler pipelines, and user experience design.",
-      icon: "code"
-    }
-  },
+  // 说明：专栏 / 系列无需在此登记，完全由文章 FrontMatter 驱动
+  // （column / columnSlug / columnName / columnDesc）。
 
-  // 6. 功能开关 (Feature Toggles)
+  // 5. 功能开关 (Feature Toggles)
   features: {
     // 启用顶部平滑阅读进度条
     readingProgress: true,
@@ -94,7 +99,7 @@ window.BlogConfig = {
     codeHighlight: true
   },
 
-  // 7. 过滤与排除规则 (Exclude & Filter Settings)
+  // 6. 过滤与排除规则 (Exclude & Filter Settings)
   exclude: {
     // 测试文档显示开关：为 false 时过滤隐藏所有带 test 标签或 test: true 的测试文档，为 true 时展示
     showTest: true,

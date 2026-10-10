@@ -1,6 +1,6 @@
 ---
 title: "独立路线图与白皮书模板"
-type: "page"              # 开启独立高级单页模式 (去除博客流水账时间与底部翻页，版心纯净)
+type: "post"              # 结构化独立页：支持 status/quote/bio/timeline/focusAreas/social 等区块，可被导航 target:file: 绑定为独立页
 excerpt: "本页面展示独立高级单页 (Page Mode) 的完整排版特性：时间线、关注领域与富文本规范。"
 tocLevels: [2, 3]
 

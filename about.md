@@ -33,19 +33,4 @@ social:
     url: "https://twitter.com"
   - name: "Email"
     url: "mailto:flyingpig06@outlook.com"
-
-# 精选项目 (Selected Projects)
-projects:
-  - name: "Aurora Notes"
-    tag: "Open Source"
-    desc: "冷静、克制、严谨的深色科技风个人博客系统。"
-    url: "https://github.com/flyingpig669/blog"
-  - name: "Distributed Engine"
-    tag: "Go / Systems"
-    desc: "基于 Raft 协议构建的高性能分布式键值存储系统。"
-    url: "https://github.com/flyingpig669"
-  - name: "Quantum Simulator"
-    tag: "Python / Physics"
-    desc: "轻量级态矢量仿真器与 Bloch 球面演化工具。"
-    url: "https://github.com/flyingpig669"
 ---

@@ -31,6 +31,15 @@ window.BlogSlideViewer = {
     this.instances[id] = viewer;
     viewer.load();
     return viewer;
+  },
+
+  destroyAll: function() {
+    var self = this;
+    Object.keys(this.instances).forEach(function(id) {
+      var viewer = self.instances[id];
+      if (viewer && typeof viewer.destroy === 'function') viewer.destroy();
+      delete self.instances[id];
+    });
   }
 };
 
@@ -42,6 +51,7 @@ function SlidePlayer(container, options, id) {
   this.id = id;
 
   this.pdfDoc = null;
+  this.loadingTask = null;
   this.pageNum = 1;
   this.pageRendering = false;
   this.pageNumPending = null;
@@ -49,11 +59,13 @@ function SlidePlayer(container, options, id) {
   this.baseViewport = null;
   this.fitMode = 'auto'; // 'auto', 'width', 'custom'
   this.isFullscreen = false;
+  this.destroyed = false;
   this.hideControlsTimer = null;
 
   this.elements = {};
   this.boundKeyHandler = this.handleKeyDown.bind(this);
   this.boundFullscreenChange = this.handleFullscreenChange.bind(this);
+  this.boundResizeHandler = null;
 }
 
 SlidePlayer.prototype.buildDOM = function() {
@@ -62,7 +74,7 @@ SlidePlayer.prototype.buildDOM = function() {
   this.container.className = 'slide-deck-player-wrapper select-none my-8';
 
   var root = document.createElement('div');
-  root.className = 'slide-player-root bg-[#0B0B0C] border border-white/[0.08] rounded-xl overflow-hidden relative flex flex-col transition-all';
+  root.className = 'slide-player-root bg-[#0A0A0B] border border-white/[0.08] rounded-xl overflow-hidden relative flex flex-col transition-all';
   root.id = this.id;
 
   // 1. 顶部专业工具栏 (Header Toolbar)
@@ -157,7 +169,7 @@ SlidePlayer.prototype.buildDOM = function() {
 
   // 2. 核心演示舞台 (Stage Viewport)
   var stage = document.createElement('div');
-  stage.className = 'slide-stage relative w-full flex items-center justify-center bg-[#070708] overflow-hidden min-h-[360px] sm:min-h-[440px] md:min-h-[480px]';
+  stage.className = 'slide-stage relative w-full flex items-center justify-center bg-[#0A0A0B] overflow-hidden min-h-[360px] sm:min-h-[440px] md:min-h-[480px]';
 
   // 左右热区 (Hotspots - 点击左侧上一页，点击右侧下一页)
   var leftHotspot = document.createElement('div');
@@ -180,7 +192,7 @@ SlidePlayer.prototype.buildDOM = function() {
 
   // 加载中指示器 (Loader / Skeleton)
   var loader = document.createElement('div');
-  loader.className = 'slide-loader absolute inset-0 flex flex-col items-center justify-center bg-[#070708]/80 backdrop-blur-sm z-30 transition-opacity';
+  loader.className = 'slide-loader absolute inset-0 flex flex-col items-center justify-center bg-[#0A0A0B]/80 backdrop-blur-sm z-30 transition-opacity';
   loader.innerHTML = '<div class="w-6 h-6 border-2 border-white/[0.15] border-t-[#3B82F6] rounded-full animate-spin"></div>' +
     '<span class="text-[12px] font-mono text-[#8B8B8E] mt-3">Loading presentation...</span>';
 
@@ -244,14 +256,15 @@ SlidePlayer.prototype.buildDOM = function() {
 
   // 窗口自适应重排
   var resizeTimer;
-  window.addEventListener('resize', function() {
+  this.boundResizeHandler = function() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function() {
       if (self.pdfDoc && !self.pageRendering) {
         self.renderPage(self.pageNum);
       }
     }, 150);
-  });
+  };
+  window.addEventListener('resize', this.boundResizeHandler);
 };
 
 SlidePlayer.prototype.load = function() {
@@ -270,8 +283,13 @@ SlidePlayer.prototype.load = function() {
     cMapUrl: 'vendor/pdfjs/cmaps/',
     cMapPacked: true
   });
+  this.loadingTask = loadingTask;
 
   loadingTask.promise.then(function(doc) {
+    if (self.destroyed) {
+      if (doc && typeof doc.destroy === 'function') doc.destroy();
+      return;
+    }
     self.pdfDoc = doc;
     var total = doc.numPages;
     var totalStr = total < 10 ? '0' + total : '' + total;
@@ -280,6 +298,7 @@ SlidePlayer.prototype.load = function() {
 
     self.renderPage(self.pageNum);
   }).catch(function(err) {
+    if (self.destroyed) return;
     console.error('PDF Load Error:', err);
     self.renderFallback();
   });
@@ -287,7 +306,7 @@ SlidePlayer.prototype.load = function() {
 
 SlidePlayer.prototype.renderPage = function(num) {
   var self = this;
-  if (!this.pdfDoc) return;
+  if (this.destroyed || !this.pdfDoc) return;
   this.pageRendering = true;
 
   if (this.elements.loader) {
@@ -502,6 +521,25 @@ SlidePlayer.prototype.handleKeyDown = function(e) {
     this.pageNum = this.pdfDoc.numPages;
     this.queueRenderPage(this.pageNum);
   }
+};
+
+SlidePlayer.prototype.destroy = function() {
+  this.destroyed = true;
+  clearTimeout(this.hideControlsTimer);
+  window.removeEventListener('keydown', this.boundKeyHandler);
+  document.removeEventListener('fullscreenchange', this.boundFullscreenChange);
+  document.removeEventListener('webkitfullscreenchange', this.boundFullscreenChange);
+  if (this.boundResizeHandler) window.removeEventListener('resize', this.boundResizeHandler);
+
+  if (this.loadingTask && typeof this.loadingTask.destroy === 'function') {
+    try { this.loadingTask.destroy(); } catch (e) {}
+  } else if (this.pdfDoc && typeof this.pdfDoc.destroy === 'function') {
+    try { this.pdfDoc.destroy(); } catch (e) {}
+  }
+
+  this.loadingTask = null;
+  this.pdfDoc = null;
+  this.elements = {};
 };
 
 SlidePlayer.prototype.renderFallback = function() {

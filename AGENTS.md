@@ -67,7 +67,8 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
    - 右侧常驻悬浮目录 (Outline)：宽度约 220px 级固定侧边栏，桌面端悬浮滚动联动，移动端隐藏并降级为浮动操作圆钮。
 3. **顶部导航栏 (Navbar)**：
    - 高度固定 56px (`h-14`)，采用全宽占据页面方式 (`w-full px-4 sm:px-6 md:px-8 lg:px-12`)，支持缩放与自适应断点（`md:` 768px 折叠抽屉）。
-   - 左侧为 Logo（等宽 `shrink-0`）与主导航项（`hidden md:flex gap-4 lg:gap-6 whitespace-nowrap overflow-x-auto no-scrollbar`），两组保持充裕间距（`gap-6 lg:gap-8`），物理杜绝重叠粘连。
+   - 左侧为 Logo（等宽 `shrink-0`）与主导航项（`hidden md:flex gap-4 lg:gap-6 whitespace-nowrap`），两组保持充裕间距（`gap-6 lg:gap-8`），物理杜绝重叠粘连。
+   - **严禁在导航容器上使用 `overflow-*`**：`overflow-x-auto` 会同时把 `overflow-y` 变为 `auto`，从而裁掉绝对定位的下拉菜单面板（`.nav-dropdown-panel`）。下拉菜单必须使用 `css/main.css` 中的 `.nav-dropdown` / `.nav-dropdown-panel` 显式类，禁止依赖 Tailwind 命名 group 变体（动态注入的 HTML 可能无法生成对应样式）。
    - 右侧为搜索快捷按钮（`Search ⌘K`）与移动端抽屉开关（`md:hidden`），统一 `shrink-0`。
    - 毛玻璃背景：`bg-[#0A0A0B]/72 backdrop-blur-md border-b border-white/[0.06]`。
 4. **页脚 (Footer)**：
@@ -145,8 +146,8 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 ### 6.2 语义结构约束
 
 1. 路由层级必须与实际内容层级严格对应。一级路径表示模块，二级路径表示具体资源。
-2. 资源集合必须使用**复数名词**（如 `/columns`、`/tags`、`/projects`），单条资源详情使用 `/资源集合/唯一标识` 的形式（如 `/columns/frontend`、`/tags/react`）。
-3. 路由路径中禁止出现动词（如 `/getPost`、`/createProject`、`/searchArticle`）。动作语义必须由 HTTP 方法（GET、POST、PUT、DELETE）或页面功能承担。
+2. 资源集合必须使用**复数名词**（如 `/columns`、`/tags`），单条资源详情使用 `/资源集合/唯一标识` 的形式（如 `/columns/frontend`、`/tags/react`）。
+3. 路由路径中禁止出现动词（如 `/getPost`、`/createPost`、`/searchArticle`）。动作语义必须由 HTTP 方法（GET、POST、PUT、DELETE）或页面功能承担。
 4. `Search`（搜索）属于全局交互操作，通过快捷键 ⌘K / Ctrl+K 弹出模态窗口，不占用主展示路由。
 
 ### 6.3 参数传递约束
@@ -182,8 +183,6 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 | Column Detail | `/columns/:categorySlug` | 某专栏下的文章列表 |
 | Tags | `/tags` | 标签列表 |
 | Tag Detail | `/tags/:tagName` | 某标签下的文章列表 |
-| Projects | `/projects` | 项目列表 |
-| Project Detail | `/projects/:projectSlug` | 项目详情 |
 | Archive | `/archive` | 独立归档页（若复用 `/posts` 则无需单独存在） |
 | Search | `/search?q=...` | 搜索页，关键词作为查询参数 |
 
@@ -191,7 +190,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 路由对应的页面容器必须严格遵循第 4 节版心几何约束：
 
-- 单栏路由（`/`、`/columns`、`/tags`、`/archive`、`/about`、`/projects`）：使用 `max-w-[720px]`。
+- 单栏路由（`/`、`/columns`、`/tags`、`/archive`、`/about`）：使用 `max-w-[720px]`。
 - 双栏路由（`/posts/:slug`）：使用 `max-w-[1000px]`。
 
 ---
@@ -204,7 +203,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 导航栏分为两个逻辑组，新增项必须归入对应组，禁止无归属地散插：
 
-1. **主导航组 (Primary Navigation)**：承载核心展示型模块，位于 Logo 右侧。当前包含 Home、Columns、Projects、Archive、Tags。
+1. **主导航组 (Primary Navigation)**：承载核心展示型模块，位于 Logo 右侧。当前包含 Home、Columns、Archive、Tags，以及 About 折叠组（About / Roadmap）。
    - 新展示型模块（如 Series、Notes、Books）必须追加至主导航组末尾。
    - 主导航项建议控制在 7 项以内，超出后必须将低频项折叠至 `More` 下拉菜单（`More` 下拉内的项仍遵循相同命名规范）。
 2. **操作组 (Action Navigation)**：承载搜索、写作、主题切换等操作型功能，位于导航栏右侧。

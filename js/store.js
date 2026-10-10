@@ -46,12 +46,10 @@ window.BlogStore = {
     this.nav = config.nav || [];
 
     // 3. 载入编译生成的博文索引 (来自 posts/ 目录)
-    var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [], projects: [] };
+    var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [] };
     var compiledPosts = Array.isArray(postsData.posts) ? JSON.parse(JSON.stringify(postsData.posts)) : [];
     this.rawColumns = Array.isArray(postsData.columns) ? JSON.parse(JSON.stringify(postsData.columns)) : [];
-    this.rawProjects = Array.isArray(postsData.projects) ? JSON.parse(JSON.stringify(postsData.projects)) : [];
     this.columns = this.rawColumns;
-    this.projects = this.rawProjects;
     this.about = postsData.about || {};
     this.customPages = postsData.customPages || {};
     this.pages = postsData.pages || {};
@@ -96,11 +94,12 @@ window.BlogStore = {
   },
 
   // 获取全部博文 (支持多维筛选与排序)
+  // 结构化独立页 (type: post / page) 不进入博文流，仅通过导航 target:file: 单独访问。
   getPosts: function(filter) {
     var self = this;
     filter = filter || {};
     var list = this.posts.filter(function(p) {
-      if (p.type === 'page') return false;
+      if (p.type === 'post' || p.type === 'page') return false;
       return !self.isPostExcluded(p);
     });
 
@@ -139,16 +138,47 @@ window.BlogStore = {
     return list;
   },
 
+  // 目录查询：列出 posts/ 下指定目录（含其子目录）内的普通文章，按日期倒序
+  // 供导航项 target: "dir:posts/xxx" 使用
+  getPostsByDir: function(dir) {
+    var self = this;
+    var norm = String(dir || '').trim().replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
+    if (norm.indexOf('posts/') === 0) norm = norm.slice('posts/'.length);
+    if (!norm) return [];
+    var prefix = norm + '/';
+    return this.posts
+      .filter(function(p) {
+        if (p.type === 'post' || p.type === 'page') return false;
+        if (self.isPostExcluded(p)) return false;
+        var rel = String(p.relPath || '').replace(/^\.\//, '');
+        return rel.indexOf(prefix) === 0;
+      })
+      .sort(function(a, b) {
+        return new Date(b.date) - new Date(a.date);
+      });
+  },
+
   getPostById: function(id) {
     if (!id) return null;
-    var norm = decodeURIComponent(id).toLowerCase().trim();
+    var decoded = id;
+    try { decoded = decodeURIComponent(id); } catch (e) {}
+    var raw = String(decoded).toLowerCase().trim();
+    var norm = raw.replace(/^\.?\//, '');
+    // relPath 是相对 posts/ 的路径，故同时派生去掉 posts/ 前缀与 .md 后缀的候选
+    var relNorm = norm.indexOf('posts/') === 0 ? norm.slice('posts/'.length) : norm;
+    var relNoExt = relNorm.replace(/\.md$/i, '');
+    var keys = [raw, norm, relNorm, relNoExt].filter(function(v, i, a) { return v && a.indexOf(v) === i; });
     return this.posts.find(function(p) {
-      if (p.id && p.id.toLowerCase() === norm) return true;
-      if (p.slug && p.slug.toLowerCase() === norm) return true;
-      if (p.relPath && p.relPath.toLowerCase() === norm) return true;
-      if (p.relPath && p.relPath.replace(/\.md$/i, '').toLowerCase() === norm) return true;
-      if (p.id && ('post-' + norm) === p.id.toLowerCase()) return true;
-      if (p.id && p.id.toLowerCase().endsWith('-' + norm)) return true;
+      var idl = String(p.id || '').toLowerCase();
+      var slugl = String(p.slug || '').toLowerCase();
+      var rel = String(p.relPath || '').toLowerCase();
+      var relNoExt2 = rel.replace(/\.md$/i, '');
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (idl === k || slugl === k || rel === k || relNoExt2 === k) return true;
+        if (idl && idl === 'post-' + k) return true;
+        if (idl && idl.slice(-(k.length + 1)) === '-' + k) return true;
+      }
       return false;
     });
   },
@@ -156,11 +186,13 @@ window.BlogStore = {
   // 获取独立单页数据对象 (支持关于页、自定义 Markdown 单页等)
   getPage: function(key) {
     if (!key) return null;
-    var norm = decodeURIComponent(key).toLowerCase().trim();
+    var decoded = key;
+    try { decoded = decodeURIComponent(key); } catch (e) {}
+    var norm = String(decoded).toLowerCase().trim();
     if (this.pages) {
       if (this.pages[key]) return this.pages[key];
       if (this.pages[norm]) return this.pages[norm];
-      var base = norm.split("/").pop().replace(/.md$/i, "");
+      var base = norm.split("/").pop().replace(/\.md$/i, "");
       if (this.pages[base]) return this.pages[base];
       if (this.pages[base + ".md"]) return this.pages[base + ".md"];
     }
@@ -177,10 +209,36 @@ window.BlogStore = {
     if (postMatch) return postMatch;
     if (this.customPages) {
       if (this.customPages[key]) return { content: this.customPages[key], raw: this.customPages[key], title: key };
-      var base2 = norm.split("/").pop().replace(/.md$/i, "");
+      var base2 = norm.split("/").pop().replace(/\.md$/i, "");
       if (this.customPages[base2]) return { content: this.customPages[base2], raw: this.customPages[base2], title: base2 };
     }
     return null;
+  },
+
+  // 文档解析：按路径 / slug 解析出文档类型与数据
+  // kind = 'page' 表示结构化独立页(type: post)，'post' 表示普通文章(type: normal)
+  getDoc: function(key) {
+    if (!key) return { kind: null, data: null };
+    var decoded = key;
+    try { decoded = decodeURIComponent(key); } catch (e) {}
+    var norm = String(decoded).toLowerCase().trim();
+    var relNorm = norm.indexOf('posts/') === 0 ? norm.slice('posts/'.length) : norm;
+    var base = norm.split('/').pop();
+    var baseNoExt = base.replace(/\.md$/i, '');
+    if (this.pages) {
+      var pg = this.pages[key] || this.pages[norm] || this.pages[relNorm] ||
+               this.pages[base] || this.pages[baseNoExt] || this.pages[baseNoExt + '.md'];
+      if (pg) return { kind: 'page', data: pg };
+    }
+    var post = this.getPostById(key);
+    if (post) {
+      var rich = (post.type === 'post' || post.type === 'page');
+      return { kind: rich ? 'page' : 'post', data: post };
+    }
+    if (norm === 'about' || norm === 'about.md') {
+      if (this.about) return { kind: 'page', data: this.about };
+    }
+    return { kind: null, data: null };
   },
 
   incrementView: function(id) {
@@ -279,40 +337,18 @@ window.BlogStore = {
 
   getColumnById: function(colId) {
     if (!colId) return null;
-    var norm = decodeURIComponent(colId).toLowerCase().trim();
+    var decoded = colId;
+    try { decoded = decodeURIComponent(colId); } catch (e) {}
+    var norm = String(decoded).toLowerCase().trim();
     return this.getColumns().find(function(c) {
-      return c.id.toLowerCase() === norm || (c.name && c.name.toLowerCase() === norm);
-    });
-  },
-
-  // 项目集合获取
-  getProjects: function() {
-    var self = this;
-    return (this.rawProjects || this.projects || []).map(function(proj) {
-      var filteredPosts = (proj.posts || []).filter(function(p) {
-        return !self.isPostExcluded(p);
-      });
-      var copy = Object.assign({}, proj);
-      copy.posts = filteredPosts;
-      copy.postsCount = filteredPosts.length;
-      return copy;
-    }).filter(function(proj) {
-      return proj.postsCount > 0;
-    });
-  },
-
-  getProjectById: function(projId) {
-    if (!projId) return null;
-    var norm = decodeURIComponent(projId).toLowerCase().trim();
-    return this.getProjects().find(function(p) {
-      return p.id.toLowerCase() === norm || (p.name && p.name.toLowerCase() === norm);
+      return String(c.id || '').toLowerCase() === norm || (c.name && c.name.toLowerCase() === norm);
     });
   },
 
   // 聚合全站标签
   getAllTags: function() {
     var tagCount = {};
-    this.posts.forEach(function(p) {
+    this.getPosts().forEach(function(p) {
       if (p.tags && Array.isArray(p.tags)) {
         p.tags.forEach(function(t) {
           tagCount[t] = (tagCount[t] || 0) + 1;
@@ -326,12 +362,13 @@ window.BlogStore = {
 
   // 全站统计指标
   getStats: function() {
-    var totalWords = this.posts.reduce(function(sum, p) { return sum + (p.words || 0); }, 0);
-    var totalViews = this.posts.reduce(function(sum, p) { return sum + (p.views || 0); }, 0);
+    var visiblePosts = this.getPosts();
+    var totalWords = visiblePosts.reduce(function(sum, p) { return sum + (p.words || 0); }, 0);
+    var totalViews = visiblePosts.reduce(function(sum, p) { return sum + (p.views || 0); }, 0);
 
     return {
-      postsCount: this.posts.length,
-      columnsCount: this.columns.length,
+      postsCount: visiblePosts.length,
+      columnsCount: this.getColumns().length,
       tagsCount: this.getAllTags().length,
       wordsCount: totalWords,
       viewsCount: totalViews

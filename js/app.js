@@ -15,6 +15,11 @@ window.BlogApp = {
   // 1. 初始化与全局 Chrome 渲染
   // ----------------------------------------------------------------------------
   init: function() {
+    // 依赖健康检查：若核心数据/配置模块缺失（脚本加载失败），给出可读提示而非白屏
+    if (!window.BlogConfig || !window.BlogStore || typeof window.BlogStore.init !== 'function') {
+      this.renderFatalError('核心脚本 (blog.config.js / js/store.js) 未能加载，请刷新页面重试。');
+      return;
+    }
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
@@ -38,19 +43,23 @@ window.BlogApp = {
   },
 
   // 辅助函数: 扁平化多级导航菜单 (展开数组折叠项与 items/children)
+  // 为每个导航项预计算 _route（实际路由路径），供 handleRoute 匹配与高亮使用。
   getFlattenedNav: function() {
     var raw = (window.BlogStore.config && window.BlogStore.config.nav) || (window.BlogConfig && window.BlogConfig.nav) || [];
     var list = [];
+    var self = this;
     raw.forEach(function(item) {
       if (Array.isArray(item)) {
         item.forEach(function(sub, idx) {
           var copy = Object.assign({}, sub);
           copy._parentGroup = item[0].id;
           copy._isFolded = idx > 0;
+          copy._route = self.navItemRoute(copy);
           list.push(copy);
         });
       } else if (item && (item.items || item.children)) {
         var copyParent = Object.assign({}, item);
+        copyParent._route = self.navItemRoute(copyParent);
         list.push(copyParent);
         var subs = item.items || item.children;
         if (Array.isArray(subs)) {
@@ -58,14 +67,129 @@ window.BlogApp = {
             var copySub = Object.assign({}, sub);
             copySub._parentGroup = item.id;
             copySub._isFolded = true;
+            copySub._route = self.navItemRoute(copySub);
             list.push(copySub);
           });
         }
       } else if (item) {
-        list.push(item);
+        var single = Object.assign({}, item);
+        single._route = self.navItemRoute(single);
+        list.push(single);
       }
     });
     return list;
+  },
+
+  getRoutes: function() {
+    var config = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};
+    return config.routes || window.BlogRoutes || {};
+  },
+
+  // ---------------------------------------------------------------------------
+  // 1.1 统一导航目标解析 (Unified Nav Target)
+  // 导航项统一用 target 描述目标，三种模式：
+  //   target: "/archive"        → route 模式：一个普通路由（默认路由）
+  //   target: "dir:posts/群论"   → dir 模式：渲染该目录下的文章列表
+  //   target: "file:about.md"   → file 模式：渲染该 Markdown 文档(普通文章或结构化独立页)
+  // 单个对象 = 普通导航项；数组 = 下拉菜单（第一项常显，其余折叠）。
+  // ---------------------------------------------------------------------------
+  normalizePath: function(value) {
+    var p = String(value == null ? '' : value).trim();
+    if (p.indexOf('#') === 0) p = p.slice(1);
+    if (p === '') p = '/';
+    if (p.charAt(0) !== '/') p = '/' + p;
+    return p;
+  },
+
+  parseTarget: function(item) {
+    item = item || {};
+    var t = item.target;
+    if (t === undefined || t === null || String(t).trim() === '') {
+      // 兼容旧字段 route / file / dir
+      if (item.file) return { mode: 'file', value: String(item.file) };
+      if (item.dir) return { mode: 'dir', value: String(item.dir) };
+      if (item.route) return { mode: 'route', value: String(item.route) };
+      return { mode: 'route', value: '/' };
+    }
+    t = String(t).trim();
+    if (t.indexOf('file:') === 0) return { mode: 'file', value: t.slice(5).trim() };
+    if (t.indexOf('dir:') === 0) return { mode: 'dir', value: t.slice(4).trim() };
+    if (t.indexOf('route:') === 0) return { mode: 'route', value: t.slice(6).trim() };
+    if (t.charAt(0) === '/') return { mode: 'route', value: t };
+    // 非斜杠开头视为路由字典键 (如 "tags"、"columns")
+    var routes = this.getRoutes();
+    return { mode: 'route', value: routes[t] !== undefined ? routes[t] : ('/' + t) };
+  },
+
+  // 导航项对应的实际路由路径：file/dir 模式用 id 派生，显式 route 可覆盖
+  navItemRoute: function(item) {
+    item = item || {};
+    var parsed = this.parseTarget(item);
+    if (item.route) return this.normalizePath(item.route);
+    if (parsed.mode === 'route') return this.normalizePath(parsed.value);
+    return this.normalizePath(item.id || '/');
+  },
+
+  navItemHref: function(item) {
+    item = item || {};
+    var raw = item.href ? String(item.href) : '';
+    if (raw.indexOf('http') === 0 || raw.indexOf('#') === 0) return raw;
+    return '#' + this.navItemRoute(item);
+  },
+
+  // 安全的 Markdown 渲染：解析器脚本加载失败时降级为纯文本，避免整页崩溃
+  safeMarkdown: function(markdownText, options) {
+    if (window.BlogMarkdown && typeof window.BlogMarkdown.render === 'function') {
+      return window.BlogMarkdown.render(markdownText, options);
+    }
+    var fallback = '<pre class="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#8B8B8E] m-0 font-mono">' +
+      this.escapeHtml(String(markdownText == null ? '' : markdownText)) + '</pre>';
+    return { html: fallback, toc: [] };
+  },
+
+  // 致命错误兜底视图：依赖缺失或初始化异常时避免空白页
+  renderFatalError: function(message) {
+    var container = document.getElementById('app-main');
+    if (!container) return;
+    container.innerHTML =
+      '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-20 pb-20 text-center">' +
+      '<div class="text-[12px] font-mono text-[#5A5A5E] mb-3">INITIALIZATION ERROR</div>' +
+      '<h1 class="text-[26px] font-bold text-[#EDEDED] mb-3 font-sans">页面加载失败</h1>' +
+      '<p class="text-[15px] text-[#8B8B8E] mb-6">' + this.escapeHtml(message) + '</p>' +
+      '<button type="button" onclick="window.location.reload()" class="btn-primary inline-flex cursor-pointer">重新加载</button>' +
+      '</div>';
+  },
+
+  routeHref: function(name, value) {
+    var routes = this.getRoutes();
+    var base = routes[name] || '/';
+    if (value !== undefined && value !== null && value !== '') {
+      base = base.replace(/\/$/, '') + '/' + encodeURIComponent(value);
+    }
+    return '#' + base;
+  },
+
+  postHref: function(post) {
+    var slug = typeof post === 'string' ? post : (post.slug || post.id);
+    return this.routeHref('posts', slug);
+  },
+
+  tagHref: function(tag) {
+    return this.routeHref('tags', tag);
+  },
+
+  safeDecode: function(value) {
+    try {
+      return decodeURIComponent(value || '');
+    } catch (e) {
+      return value || '';
+    }
+  },
+
+  setDocumentTitle: function(title) {
+    var site = (window.BlogStore && window.BlogStore.site) || {};
+    var siteTitle = site.title || 'Aurora Notes';
+    document.title = title && title !== siteTitle ? title + ' · ' + siteTitle : siteTitle;
   },
 
   // 渲染全局导航、页脚与品牌标识 (数据源自 blog.config.js)
@@ -73,113 +197,112 @@ window.BlogApp = {
     var config = window.BlogStore.config || window.BlogConfig || {};
     var site = config.site || {};
     var nav = config.nav || [];
-    var social = config.social || [];
+    var features = config.features || {};
+    var self = this;
+    var itemHref = function(it) { return self.navItemHref(it); };
 
     // 1. 设置网页标题
     if (site.title) {
       document.title = site.title;
     }
+    var descriptionEl = document.querySelector('meta[name="description"]');
+    if (descriptionEl && site.description) {
+      descriptionEl.setAttribute('content', site.description);
+    }
 
     // 2. 顶部 Brand 标识
-    var brandLogoEl = document.querySelector('header a[href="#/"] span:last-child');
+    var brandLinkEl = document.getElementById('brand-link');
+    var brandLogoEl = brandLinkEl ? brandLinkEl.querySelector('span:last-child') : null;
     if (brandLogoEl && site.brand) {
       brandLogoEl.textContent = site.brand;
     }
+    if (brandLinkEl) brandLinkEl.href = this.routeHref('home');
 
-    // 3. 桌面端导航菜单 (支持单项与数组语法: 数组展示首项，其余折叠在下拉菜单)
+    var searchActionEl = document.getElementById('search-action');
+    if (searchActionEl && features.searchModal === false) {
+      searchActionEl.classList.add('hidden');
+    }
+
+    // 3. 桌面端导航菜单 (支持单项与数组语法: 数组展示首项，其余折叠为下拉菜单)
     var desktopNavEl = document.querySelector('header nav');
     if (desktopNavEl && nav.length > 0) {
       var navHtml = '';
       nav.forEach(function(item) {
+        var group = null;
         if (Array.isArray(item)) {
           if (item.length === 0) return;
-          var first = item[0];
-          var folded = item.slice(1);
-          var firstHref = first.href || (first.route ? '#' + (first.route.startsWith('/') ? first.route : '/' + first.route) : '#/' + first.id);
-          var isExt = firstHref.indexOf('http') === 0;
-
-          if (folded.length === 0) {
-            navHtml += '<a href="' + firstHref + '" data-nav-link="' + first.id + '" ' + (isExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + first.label + '</a>';
-          } else {
-            navHtml += '<div class="relative group/navdrop inline-flex items-center">';
-            navHtml += '  <a href="' + firstHref + '" data-nav-link="' + first.id + '" ' + (isExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link pr-1">' + first.label + '</a>';
-            navHtml += '  <button type="button" class="p-1 text-[#8B8B8E] hover:text-[#EDEDED] transition-colors cursor-pointer group-hover/navdrop:text-[#3B82F6]" aria-label="More ' + first.label + ' links">';
-            navHtml += '    <svg class="w-3 h-3 transition-transform duration-150 group-hover/navdrop:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-            navHtml += '  </button>';
-            navHtml += '  <div class="absolute top-full left-0 pt-1.5 hidden group-hover/navdrop:block z-50">';
-            navHtml += '    <div class="bg-[#111113]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl p-1.5 min-w-[150px] space-y-0.5">';
-            folded.forEach(function(sub) {
-              var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
-              var isSubExt = subHref.indexOf('http') === 0;
-              navHtml += '      <a href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (isSubExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="block px-3 py-1.5 rounded-lg text-[13px] font-sans text-[#8B8B8E] hover:text-[#EDEDED] hover:bg-white/[0.04] transition-all truncate">' + sub.label + '</a>';
-            });
-            navHtml += '    </div>';
-            navHtml += '  </div>';
-            navHtml += '</div>';
-          }
+          group = { head: item[0], folded: item.slice(1) };
         } else if (item && (item.items || item.children)) {
-          var firstHref = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
-          var isExt = firstHref.indexOf('http') === 0;
-          var folded = item.items || item.children || [];
-          navHtml += '<div class="relative group/navdrop inline-flex items-center">';
-          navHtml += '  <a href="' + firstHref + '" data-nav-link="' + item.id + '" ' + (isExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link pr-1">' + item.label + '</a>';
-          navHtml += '  <button type="button" class="p-1 text-[#8B8B8E] hover:text-[#EDEDED] transition-colors cursor-pointer group-hover/navdrop:text-[#3B82F6]" aria-label="More ' + item.label + ' links">';
-          navHtml += '    <svg class="w-3 h-3 transition-transform duration-150 group-hover/navdrop:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-          navHtml += '  </button>';
-          navHtml += '  <div class="absolute top-full left-0 pt-1.5 hidden group-hover/navdrop:block z-50">';
-          navHtml += '    <div class="bg-[#111113]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl p-1.5 min-w-[150px] space-y-0.5">';
-          folded.forEach(function(sub) {
-            var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
-            var isSubExt = subHref.indexOf('http') === 0;
-            navHtml += '      <a href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (isSubExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="block px-3 py-1.5 rounded-lg text-[13px] font-sans text-[#8B8B8E] hover:text-[#EDEDED] hover:bg-white/[0.04] transition-all truncate">' + sub.label + '</a>';
-          });
-          navHtml += '    </div>';
-          navHtml += '  </div>';
-          navHtml += '</div>';
-        } else {
-          var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+          group = { head: item, folded: (item.items || item.children || []) };
+        }
+
+        // 普通导航项
+        if (!group) {
+          var href = itemHref(item);
           var isExternal = href.indexOf('http') === 0;
           navHtml += '<a href="' + href + '" data-nav-link="' + item.id + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + item.label + '</a>';
+          return;
         }
+
+        var headHref = itemHref(group.head);
+        var headExt = headHref.indexOf('http') === 0;
+
+        // 折叠项为空时退化为普通链接
+        if (group.folded.length === 0) {
+          navHtml += '<a href="' + headHref + '" data-nav-link="' + group.head.id + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + group.head.label + '</a>';
+          return;
+        }
+
+        navHtml += '<div class="nav-dropdown" data-nav-group="' + group.head.id + '">';
+        navHtml += '  <a href="' + headHref + '" data-nav-link="' + group.head.id + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + group.head.label + '</a>';
+        navHtml += '  <button type="button" class="nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false" aria-label="展开 ' + group.head.label + ' 更多链接">';
+        navHtml += '    <svg class="nav-dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+        navHtml += '  </button>';
+        navHtml += '  <div class="nav-dropdown-panel">';
+        navHtml += '    <div class="nav-dropdown-menu" role="menu">';
+        group.folded.forEach(function(sub) {
+          var subHref = itemHref(sub);
+          var subExt = subHref.indexOf('http') === 0;
+          navHtml += '      <a role="menuitem" href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (subExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-dropdown-item">' + sub.label + '</a>';
+        });
+        navHtml += '    </div>';
+        navHtml += '  </div>';
+        navHtml += '</div>';
       });
       desktopNavEl.innerHTML = navHtml;
     }
 
-    // 4. 移动端抽屉菜单 (支持折叠子项分级展示)
+    // 4. 移动端抽屉菜单 (数组折叠项以缩进子列表展示)
     var mobileDrawerEl = document.getElementById('mobile-drawer');
     if (mobileDrawerEl && nav.length > 0) {
       var drawerHtml = '';
       nav.forEach(function(item) {
+        var group = null;
         if (Array.isArray(item)) {
           if (item.length === 0) return;
-          var first = item[0];
-          var folded = item.slice(1);
-          var firstHref = first.href || (first.route ? '#' + (first.route.startsWith('/') ? first.route : '/' + first.route) : '#/' + first.id);
-          drawerHtml += '<a href="' + firstHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#EDEDED] font-medium transition-colors">' + first.label + '</a>';
-          if (folded.length > 0) {
-            drawerHtml += '<div class="pl-3.5 space-y-1 border-l border-white/[0.06] my-1 mb-2">';
-            folded.forEach(function(sub) {
-              var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
-              drawerHtml += '  <a href="' + subHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1 text-[13px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + sub.label + '</a>';
-            });
-            drawerHtml += '</div>';
-          }
+          group = { head: item[0], folded: item.slice(1) };
         } else if (item && (item.items || item.children)) {
-          var firstHref = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
-          var folded = item.items || item.children || [];
-          drawerHtml += '<a href="' + firstHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#EDEDED] font-medium transition-colors">' + item.label + '</a>';
-          if (folded.length > 0) {
-            drawerHtml += '<div class="pl-3.5 space-y-1 border-l border-white/[0.06] my-1 mb-2">';
-            folded.forEach(function(sub) {
-              var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
-              drawerHtml += '  <a href="' + subHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1 text-[13px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + sub.label + '</a>';
-            });
-            drawerHtml += '</div>';
-          }
-        } else {
-          var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+          group = { head: item, folded: (item.items || item.children || []) };
+        }
+
+        if (!group) {
+          var href = itemHref(item);
           var isExternal = href.indexOf('http') === 0;
-          drawerHtml += '<a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
+          drawerHtml += '<a href="' + href + '" data-nav-link="' + item.id + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-3 text-[15px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
+          return;
+        }
+
+        var headHref = itemHref(group.head);
+        var headExt = headHref.indexOf('http') === 0;
+        drawerHtml += '<a href="' + headHref + '" data-nav-link="' + group.head.id + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-3 text-[15px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + group.head.label + '</a>';
+        if (group.folded.length > 0) {
+          drawerHtml += '<div class="pl-3.5 space-y-1 border-l border-white/[0.06] my-1 mb-2">';
+          group.folded.forEach(function(sub) {
+            var subHref = itemHref(sub);
+            var subExt = subHref.indexOf('http') === 0;
+            drawerHtml += '  <a href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (subExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-2 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + sub.label + '</a>';
+          });
+          drawerHtml += '</div>';
         }
       });
       mobileDrawerEl.innerHTML = drawerHtml;
@@ -226,6 +349,21 @@ window.BlogApp = {
       }
     });
 
+    // Delegated 导航下拉菜单开关：点击箭头展开/收起（兼顾触屏与键盘），点击外部自动收起
+    document.addEventListener('click', function(e) {
+      var toggle = e.target.closest('.nav-dropdown-toggle');
+      if (toggle) {
+        e.preventDefault();
+        var dropdown = toggle.closest('.nav-dropdown');
+        var opened = dropdown.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
+        return;
+      }
+      if (!e.target.closest('.nav-dropdown')) {
+        self.closeNavDropdowns();
+      }
+    });
+
     // Delegated 代码块一键复制处理器
     document.addEventListener('click', function(e) {
       var copyBtn = e.target.closest('.code-copy-btn');
@@ -247,8 +385,9 @@ window.BlogApp = {
       var progressBar = document.getElementById('reading-progress-bar');
       var container = document.getElementById('reading-progress-container');
       var total = document.documentElement.scrollHeight - window.innerHeight;
+      var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
       if (progressBar && container) {
-        if (total > 200 && self.currentRoute.name === 'post') {
+        if (features.readingProgress !== false && total > 200 && self.currentRoute.name === 'post') {
           container.classList.remove('hidden');
           var progress = Math.min(100, Math.max(0, (window.scrollY / total) * 100));
           progressBar.style.width = progress + '%';
@@ -259,7 +398,7 @@ window.BlogApp = {
 
       // 2. Active Outline Scrollspy (右侧悬浮目录高亮指示)
       if (self.currentRoute.name === 'post') {
-        var headings = document.querySelectorAll('.markdown-body h1, .markdown-body h2, .markdown-body h3');
+        var headings = document.querySelectorAll('.markdown-body [id^="section-"]');
         if (headings && headings.length > 0) {
           var currentId = '';
           headings.forEach(function(h) {
@@ -329,8 +468,29 @@ window.BlogApp = {
     }
   },
 
-  toggleMobileDrawer: function() { var d = document.getElementById('mobile-drawer'); if (d) d.classList.toggle('hidden'); },
-  closeMobileDrawer: function() { var d = document.getElementById('mobile-drawer'); if (d) d.classList.add('hidden'); },
+  toggleMobileDrawer: function() {
+    var drawer = document.getElementById('mobile-drawer');
+    var toggle = document.getElementById('mobile-nav-toggle');
+    if (!drawer) return;
+    drawer.classList.toggle('hidden');
+    if (toggle) toggle.setAttribute('aria-expanded', drawer.classList.contains('hidden') ? 'false' : 'true');
+  },
+
+  closeMobileDrawer: function() {
+    var drawer = document.getElementById('mobile-drawer');
+    var toggle = document.getElementById('mobile-nav-toggle');
+    if (drawer) drawer.classList.add('hidden');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  },
+
+  // 收起所有桌面端下拉菜单（路由切换或点击外部时调用）
+  closeNavDropdowns: function() {
+    document.querySelectorAll('.nav-dropdown.open').forEach(function(dropdown) {
+      dropdown.classList.remove('open');
+      var toggle = dropdown.querySelector('.nav-dropdown-toggle');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    });
+  },
 
   closeMobileOutline: function() {
     var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
@@ -348,71 +508,95 @@ window.BlogApp = {
   // ----------------------------------------------------------------------------
   handleRoute: function() {
     window.scrollTo(0, 0);
-    var drawer = document.getElementById('mobile-drawer');
-    if (drawer) drawer.classList.add('hidden');
+    this.closeMobileDrawer();
     this.closeMobileOutline();
+    this.closeNavDropdowns();
 
-    var hash = window.location.hash.slice(1) || '/';
+    if (window.BlogSlideViewer && typeof window.BlogSlideViewer.destroyAll === 'function') {
+      window.BlogSlideViewer.destroyAll();
+    }
+
+    var config = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};
+    var defaultRoute = config.defaultRoute || this.getRoutes().home || '/';
+    var hash = window.location.hash.slice(1) || defaultRoute;
     var path = hash.split('?')[0];
+    var query = hash.indexOf('?') === -1 ? '' : hash.slice(hash.indexOf('?'));
+    var legacyPath = path;
 
-    document.querySelectorAll('.nav-link').forEach(function(link) {
+    // 旧版 Hash 路由兼容：规范化地址但保留既有外链可用性。
+    if (legacyPath.indexOf('/post/') === 0) {
+      path = (this.getRoutes().posts || '/posts') + legacyPath.slice('/post'.length);
+    } else if (legacyPath === '/archives') {
+      path = this.getRoutes().archive || '/archive';
+    } else if (legacyPath === '/categories' || legacyPath.indexOf('/categories/') === 0) {
+      path = (this.getRoutes().tags || '/tags') + legacyPath.slice('/categories'.length);
+    }
+    if (path !== legacyPath) {
+      hash = path + query;
+      history.replaceState(null, '', window.location.pathname + window.location.search + '#' + hash);
+    }
+
+    var routes = this.getRoutes();
+    var postsRoute = routes.posts || '/posts';
+    var columnsRoute = routes.columns || '/columns';
+    var tagsRoute = routes.tags || '/tags';
+
+    document.querySelectorAll('[data-nav-link]').forEach(function(link) {
       link.classList.remove('active');
+      link.removeAttribute('aria-current');
     });
 
-    if (path.indexOf('/post/') === 0) {
-      var id = path.replace('/post/', '');
-      this.currentRoute = { name: 'post', params: { id: id } };
-      this.renderPostView(id);
+    if (path === postsRoute) {
+      this.setActiveNav('archive');
+      this.currentRoute = { name: 'posts', params: {} };
+      this.renderArchivesView();
+      return;
+    }
+
+    if (path.indexOf(postsRoute + '/') === 0) {
+      var id = this.safeDecode(path.slice(postsRoute.length + 1));
+      var detailDoc = window.BlogStore.getDoc(id);
+      if (detailDoc.kind === 'page') {
+        // 结构化独立页 (type: post)：走高级单页渲染，而非普通文章视图
+        this.currentRoute = { name: 'page', params: { file: id } };
+        this.renderPageView(detailDoc.data || id, null);
+      } else {
+        this.currentRoute = { name: 'post', params: { id: id } };
+        this.renderPostView(id);
+      }
       return;
     }
 
     // 专栏统一多级路由: #/columns, #/columns/:colId, #/columns/:colId/:postSlug
-    if (path.indexOf('/columns') === 0) {
-      var colParts = path.replace(/^\/columns\/?/, '').split('/').filter(Boolean);
+    if (path === columnsRoute || path.indexOf(columnsRoute + '/') === 0) {
+      var colParts = path.slice(columnsRoute.length).replace(/^\//, '').split('/').filter(Boolean);
       this.setActiveNav('columns');
       if (colParts.length === 0) {
         this.currentRoute = { name: 'columns', params: {} };
         this.renderColumnsView();
       } else if (colParts.length === 1) {
-        this.currentRoute = { name: 'column-detail', params: { colId: decodeURIComponent(colParts[0]) } };
-        this.renderColumnsView(decodeURIComponent(colParts[0]));
+        var columnId = this.safeDecode(colParts[0]);
+        this.currentRoute = { name: 'column-detail', params: { colId: columnId } };
+        this.renderColumnsView(columnId);
       } else {
-        var postSlug = colParts.slice(1).join('/');
-        this.currentRoute = { name: 'post', params: { id: postSlug, column: decodeURIComponent(colParts[0]) } };
-        this.renderPostView(postSlug);
+        // 兼容旧的 /columns/:column/:post，并收敛为 /posts/:slug。
+        var columnPostSlug = this.safeDecode(colParts.slice(1).join('/'));
+        window.location.replace(this.postHref(columnPostSlug));
       }
       return;
     }
 
-    // 项目统一多级路由: #/projects, #/projects/:projId, #/projects/:projId/:postSlug
-    if (path.indexOf('/projects') === 0) {
-      var projParts = path.replace(/^\/projects\/?/, '').split('/').filter(Boolean);
-      this.setActiveNav('projects');
-      if (projParts.length === 0) {
-        this.currentRoute = { name: 'projects', params: {} };
-        this.renderProjectsView();
-      } else if (projParts.length === 1) {
-        this.currentRoute = { name: 'project-detail', params: { projId: decodeURIComponent(projParts[0]) } };
-        this.renderProjectsView(decodeURIComponent(projParts[0]));
-      } else {
-        var postSlug = projParts.slice(1).join('/');
-        this.currentRoute = { name: 'post', params: { id: postSlug, project: decodeURIComponent(projParts[0]) } };
-        this.renderPostView(postSlug);
-      }
-      return;
-    }
-
-        // 标签分类多维检索路由: #/categories, #/tags, 支持 ?tag=xxx 或 /:tag 参数
-    if (path.indexOf('/categories') === 0 || path.indexOf('/tags') === 0) {
-      this.setActiveNav('categories');
-      var tagParts = path.replace(/^\/(categories|tags)\/?/, '').split('/').filter(Boolean);
+    // 标签分类多维检索路由: #/tags 或 #/tags/:tagName。
+    if (path === tagsRoute || path.indexOf(tagsRoute + '/') === 0) {
+      this.setActiveNav('tags');
+      var tagParts = path.slice(tagsRoute.length).replace(/^\//, '').split('/').filter(Boolean);
       var queryTag = null;
       if (hash.indexOf('?') !== -1) {
         var queryStr = hash.split('?')[1];
         var params = new URLSearchParams(queryStr);
         queryTag = params.get('tag');
       }
-      var targetTag = tagParts.length > 0 ? decodeURIComponent(tagParts[0]) : (queryTag ? decodeURIComponent(queryTag) : null);
+      var targetTag = tagParts.length > 0 ? this.safeDecode(tagParts[0]) : (queryTag ? this.safeDecode(queryTag) : null);
       if (targetTag) {
         this.selectedSortedTags = new Set([targetTag]);
       } else if (!queryTag && tagParts.length === 0 && hash.indexOf('?') === -1) {
@@ -424,61 +608,157 @@ window.BlogApp = {
     }
 
     if (path === '/editor' || path === '/write') {
-      window.location.hash = '#/';
+      window.location.hash = '#' + defaultRoute;
       return;
     }
 
     var flatNav = this.getFlattenedNav();
     var matchedNavItem = flatNav.find(function(item) {
-      var r = item.route || item.href || '';
+      var r = item._route || item.route || '/';
       if (r.indexOf('#') === 0) r = r.slice(1);
-      if (!r.startsWith('/')) r = '/' + r;
+      if (r.charAt(0) !== '/') r = '/' + r;
       return r === path || (r === '/' && (path === '' || path === '/'));
     });
 
     if (matchedNavItem) {
-      var navId = matchedNavItem.id;
-      this.setActiveNav(navId);
+      this.setActiveNav(matchedNavItem.id);
       if (matchedNavItem._parentGroup) {
         this.setActiveNav(matchedNavItem._parentGroup);
       }
-
-      // 如果导航项直接指定了 Markdown 文件 (例如 file: "about.md" 或 file: "posts/page看看啥回事.md")
-      if (matchedNavItem.file) {
-        this.currentRoute = { name: 'page', params: { file: matchedNavItem.file }, navItem: matchedNavItem };
-        this.renderPageView(matchedNavItem.file, matchedNavItem);
-        return;
-      }
-
-      if (navId === 'home') {
-        this.currentRoute = { name: 'home', params: {} };
-        this.renderHomeView();
-      } else if (navId === 'columns') {
-        this.currentRoute = { name: 'columns', params: {} };
-        this.renderColumnsView();
-      } else if (navId === 'archives') {
-        this.currentRoute = { name: 'archives', params: {} };
-        this.renderArchivesView();
-      } else if (navId === 'categories' || navId === 'tags') {
-        this.currentRoute = { name: 'tags', params: {} };
-        this.renderTagsView();
-      } else if (navId === 'about') {
-        this.currentRoute = { name: 'about', params: {} };
-        this.renderPageView('about.md', matchedNavItem);
-      } else {
-        this.currentRoute = { name: navId, params: {}, navItem: matchedNavItem };
-        this.renderDynamicNavView(matchedNavItem);
-      }
+      this.dispatchNavItem(matchedNavItem, path);
       return;
     }
 
-    this.setActiveNav('home');
-    this.renderHomeView();
+    this.currentRoute = { name: 'not-found', params: { path: path } };
+    this.renderNotFoundView(path);
+  },
+
+  // 依据导航项 target 模式分派渲染：route(默认路由) / dir(目录) / file(文件)
+  dispatchNavItem: function(item, path) {
+    var parsed = this.parseTarget(item);
+    var navId = item.id;
+
+    // file 模式：渲染指定 Markdown 文档（自动区分普通文章与结构化独立页）
+    if (parsed.mode === 'file') {
+      this.renderFileTarget(parsed.value, item);
+      return;
+    }
+
+    // dir 模式：渲染该目录下的文章列表
+    if (parsed.mode === 'dir') {
+      this.currentRoute = { name: 'dir', params: { dir: parsed.value }, navItem: item };
+      this.renderDirView(parsed.value, item);
+      return;
+    }
+
+    // route 模式：优先命中系统内置视图，其余交给通用动态栏目渲染器
+    var routes = this.getRoutes();
+    if (navId === 'home' || path === (routes.home || '/')) {
+      this.currentRoute = { name: 'home', params: {} };
+      this.renderHomeView();
+    } else if (navId === 'columns' || path === routes.columns) {
+      this.currentRoute = { name: 'columns', params: {} };
+      this.renderColumnsView();
+    } else if (navId === 'archive' || path === routes.archive) {
+      this.currentRoute = { name: 'archive', params: {} };
+      this.renderArchivesView();
+    } else if (navId === 'tags' || path === routes.tags) {
+      this.currentRoute = { name: 'tags', params: {} };
+      this.selectedSortedTags = new Set();
+      this.renderTagsView();
+    } else if (navId === 'about') {
+      this.currentRoute = { name: 'about', params: {} };
+      this.renderPageView('about.md', item);
+    } else {
+      this.currentRoute = { name: navId, params: {}, navItem: item };
+      this.renderDynamicNavView(item);
+    }
+  },
+
+  // 渲染 file: 目标（对比文档类型自动分流）
+  renderFileTarget: function(file, item) {
+    var doc = window.BlogStore.getDoc(file);
+    if (doc.kind === 'page') {
+      this.currentRoute = { name: 'page', params: { file: file }, navItem: item };
+      this.renderPageView(doc.data || file, item);
+    } else if (doc.kind === 'post') {
+      var pid = (doc.data && (doc.data.slug || doc.data.id)) || file;
+      this.currentRoute = { name: 'post', params: { id: pid }, navItem: item };
+      this.renderPostView(pid);
+    } else {
+      // 未命中索引：仍按独立页渲染，兼容裸文件路径
+      this.currentRoute = { name: 'page', params: { file: file }, navItem: item };
+      this.renderPageView(file, item);
+    }
+  },
+
+  // 目录视图：列出 posts/ 下某目录（含子目录）内的普通文章，供 target: "dir:..." 使用
+  renderDirView: function(dir, navItem) {
+    var container = document.getElementById('app-main');
+    var posts = window.BlogStore.getPostsByDir(dir) || [];
+    var norm = String(dir || '').replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
+    if (norm.indexOf('posts/') === 0) norm = norm.slice('posts/'.length);
+    var title = (navItem && navItem.label) || norm.split('/').filter(Boolean).pop() || 'Notes';
+    this.setDocumentTitle(title);
+
+    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
+    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + this.escapeHtml(title) + '</h1>';
+    html += '    <p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px]">' + posts.length + ' article' + (posts.length === 1 ? '' : 's') + ' under <code class="font-mono text-[#8B8B8E]">posts/' + this.escapeHtml(norm) + '/</code></p>';
+    html += '  </header>';
+
+    if (posts.length === 0) {
+      html += '  <div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
+      html += '    <p class="mb-3 text-[#8B8B8E]">No articles in this directory yet.</p>';
+      html += '    <p class="text-[12px]">Add a Markdown file under <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/' + this.escapeHtml(norm) + '/</code> to list it here.</p>';
+      html += '  </div>';
+    } else {
+      html += '  <section class="divide-y divide-white/[0.06]">';
+      posts.forEach(function(post) {
+        html += '<article class="post-item group">';
+        html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
+        html += '    <span>' + post.date + '</span>';
+        if (post.readTime) html += '    <span>·</span><span>' + post.readTime + '</span>';
+        html += '  </div>';
+        html += '  <h2 class="mb-2"><a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + post.title + '</a></h2>';
+        if (post.excerpt) html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
+        if ((post.tags || []).length > 0) {
+          html += '  <div class="flex flex-wrap items-center gap-2">';
+          post.tags.forEach(function(t) {
+            html += '    <a href="' + window.BlogApp.tagHref(t) + '" class="tag-pill">#' + t + '</a>';
+          });
+          html += '  </div>';
+        }
+        html += '</article>';
+      });
+      html += '  </section>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
   },
 
   setActiveNav: function(id) {
-    var link = document.querySelector('[data-nav-link="' + id + '"]');
-    if (link) link.classList.add('active');
+    document.querySelectorAll('[data-nav-link="' + id + '"]').forEach(function(link) {
+      link.classList.add('active');
+      link.setAttribute('aria-current', 'page');
+    });
+  },
+
+  renderNotFoundView: function(path) {
+    var container = document.getElementById('app-main');
+    this.setDocumentTitle('Page Not Found');
+    container.innerHTML = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-20 pb-20 text-center">' +
+      '<div class="text-[12px] font-mono text-[#5A5A5E] mb-3">404 · ' + this.escapeHtml(path || '/') + '</div>' +
+      '<h1 class="text-[32px] font-bold text-[#EDEDED] mb-3 font-sans">Page not found</h1>' +
+      '<p class="text-[15px] text-[#8B8B8E] mb-6">The requested route does not exist or has moved.</p>' +
+      '<a href="' + this.routeHref('home') + '" class="btn-primary inline-flex">Back to home</a>' +
+      '</div>';
+  },
+
+  escapeHtml: function(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+    });
   },
 
   // 5.1 首页视图 (Home View)
@@ -487,9 +767,8 @@ window.BlogApp = {
     var site = (window.BlogStore.config && window.BlogStore.config.site) || {};
     var posts = window.BlogStore.getPosts();
 
-
-
-    var html = '<div class="max-w-[720px] mx-auto">';
+    this.setDocumentTitle(site.title);
+    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6">';
 
     // Hero Section
     html += '<section class="pt-10 md:pt-14 pb-8 border-b border-white/[0.06] mb-2">';
@@ -523,7 +802,7 @@ window.BlogApp = {
           var colTitle = post.columnName || post.column;
           var partText = post.order ? ('PART ' + (post.order < 10 ? '0' + post.order : post.order)) : 'SERIES';
           html += '    <span>·</span>';
-          html += '    <a href="#/columns/' + encodeURIComponent(post.column) + '" class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20 transition-colors font-medium shrink-0 font-mono">' + partText + ' · ' + colTitle + '</a>';
+          html += '    <a href="' + window.BlogApp.routeHref('columns', post.column) + '" class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20 transition-colors font-medium shrink-0 font-mono">' + partText + ' · ' + colTitle + '</a>';
         }
         if (post.pinned) {
           html += '    <span class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/15 text-[#3B82F6] font-medium">PINNED</span>';
@@ -532,7 +811,7 @@ window.BlogApp = {
 
         // Row 2: Title
         html += '  <h2 class="mb-2">';
-        html += '    <a href="#/post/' + post.id + '" class="post-item-title block leading-snug">';
+        html += '    <a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">';
         html += post.title;
         html += '    </a>';
         html += '  </h2>';
@@ -548,7 +827,7 @@ window.BlogApp = {
         if ((post.tags || []).length > 0) {
           html += '  <div class="flex flex-wrap items-center gap-2">';
           post.tags.forEach(function(tag) {
-            html += '    <a href="#/categories?tag=' + encodeURIComponent(tag) + '" class="tag-pill">#' + tag + '</a>';
+            html += '    <a href="' + window.BlogApp.tagHref(tag) + '" class="tag-pill">#' + tag + '</a>';
           });
           html += '  </div>';
         }
@@ -568,12 +847,24 @@ window.BlogApp = {
     var post = window.BlogStore.getPostById(postId);
 
     if (!post) {
-      container.innerHTML = '<div class="py-24 text-center text-[#8B8B8E]"><h2 class="text-[20px] font-semibold text-[#EDEDED] mb-3 font-sans">Article Not Found</h2><a href="#/" class="text-[#3B82F6] text-[13px] font-mono hover:underline">← Back to home</a></div>';
+      this.currentRoute = { name: 'not-found', params: { path: postId } };
+      this.renderNotFoundView((this.getRoutes().posts || '/posts') + '/' + postId);
       return;
     }
 
     window.BlogStore.incrementView(post.id);
-    var mdResult = window.BlogMarkdown.render(post.content);
+    this.setDocumentTitle(post.title);
+
+    // 结构化独立页 (type: post / page) 直接交给单页渲染器，不走文章排版
+    var isPage = post.type === 'post' || post.type === 'page' || post.layout === 'post' || post.layout === 'page';
+    if (isPage) {
+      this.renderPageView(post);
+      return;
+    }
+
+    var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
+    var tocLevels = post.tocLevels !== null && post.tocLevels !== undefined ? post.tocLevels : features.tocLevels;
+    var mdResult = this.safeMarkdown(post.content, { tocLevels: tocLevels });
     var renderedHtml = mdResult.html;
     var toc = mdResult.toc || [];
 
@@ -614,26 +905,21 @@ window.BlogApp = {
       nextPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
     }
 
-    var isPage = post.type === 'page' || post.layout === 'page';
-    if (isPage) {
-      this.renderPageView(post);
-      return;
-    }
     var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
     var totalParts = colPosts.length || (columnInfo ? columnInfo.postsCount : 1);
 
     // 双栏布局容器: 紧凑高信息密度版心 (pt-8 md:pt-10 pb-16)
-    var html = '<div class="max-w-[1000px] mx-auto pt-8 md:pt-10 pb-16 flex justify-between items-start gap-6 lg:gap-10 relative">';
+    var html = '<div class="max-w-[1000px] mx-auto px-4 sm:px-6 pt-8 md:pt-10 pb-16 flex justify-between items-start gap-6 lg:gap-10 relative">';
 
     // 左侧正文列: 自适应 680px 宽度
     html += '<div class="flex-1 max-w-[680px] min-w-0">';
 
     // 紧凑一体式面包屑导航
     html += '<nav class="mb-4 flex items-center gap-1.5 text-[12px] font-mono text-[#5A5A5E] overflow-x-auto no-scrollbar">';
-    html += '  <a href="#/" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0">Writing</a>';
+    html += '  <a href="' + this.routeHref('home') + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0">Writing</a>';
     if (columnInfo) {
       html += '  <span>/</span>';
-      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors truncate max-w-[220px]" title="' + columnInfo.name.replace(/"/g, '&quot;') + '">' + columnInfo.name + '</a>';
+      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors truncate max-w-[220px]" title="' + columnInfo.name.replace(/"/g, '&quot;') + '">' + columnInfo.name + '</a>';
       html += '  <span>/</span>';
       html += '  <span class="text-[#3B82F6] shrink-0 font-semibold">Part ' + partNumber + '</span>';
     } else {
@@ -649,70 +935,55 @@ window.BlogApp = {
       html += '    <span class="px-1.5 py-0.2 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[10.5px] font-semibold shrink-0">PART ' + partNumber + ' / ' + (totalParts < 10 ? '0' + totalParts : totalParts) + '</span>';
       html += '    <span class="text-[#EDEDED] font-sans truncate">' + columnInfo.name + '</span>';
       html += '  </div>';
-      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3 text-[11px]">Series Index →</a>';
+      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3 text-[11px]">Series Index →</a>';
       html += '</div>';
     }
 
-    // 项目系列横幅 (若属于某个项目)
-    var projectInfo = post.project ? window.BlogStore.getProjectById(post.project) : null;
-    if (projectInfo) {
-      html += '<div class="mb-5 py-2 px-3 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
-      html += '  <div class="flex items-center gap-2 min-w-0">';
-      html += '    <span class="px-1.5 py-0.2 rounded bg-[#22D3EE]/15 text-[#22D3EE] text-[10.5px] font-medium shrink-0">PROJECT</span>';
-      html += '    <span class="text-[#EDEDED] font-sans truncate">' + projectInfo.name + '</span>';
-      html += '  </div>';
-      html += '  <a href="#/projects/' + encodeURIComponent(projectInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3 text-[11px]">Project Index →</a>';
-      html += '</div>';
-    }
-
-    // 文章头部 (根据 isPage 智能排版)
+    // 文章头部
     html += '<header class="mb-6 pb-4 border-b border-white/[0.06]">';
     html += '  <h1 class="text-[26px] sm:text-[30px] md:text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-2.5 font-sans">' + post.title + '</h1>';
-    
-    if (isPage) {
-      if (post.excerpt) {
-        html += '  <p class="text-[15px] text-[#8B8B8E] leading-relaxed max-w-[620px] mb-2">' + post.excerpt + '</p>';
-      }
-    } else {
-      // 普通文章元信息行: 日期 · 阅读时长 · 字数 · 标签
-      html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
-      html += '    <span>' + post.date + '</span>';
+    // 文章元信息行: 日期 · 阅读时长 · 字数 · 标签
+    html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
+    html += '    <span>' + post.date + '</span>';
+    html += '    <span>·</span>';
+    html += '    <span>' + (post.readTime || '3 min read') + '</span>';
+    if (post.words) {
       html += '    <span>·</span>';
-      html += '    <span>' + (post.readTime || '3 min read') + '</span>';
-      if (post.words) {
-        html += '    <span>·</span>';
-        html += '    <span>' + post.words + ' words</span>';
-      }
-      if ((post.tags || []).length > 0) {
-        html += '    <span>·</span>';
-        html += '    <div class="inline-flex flex-wrap gap-1.5">';
-        post.tags.forEach(function(t) {
-          html += '      <a href="#/categories?tag=' + encodeURIComponent(t) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">#' + t + '</a>';
-        });
-        html += '    </div>';
-      }
-      html += '  </div>';
+      html += '    <span>' + post.words + ' words</span>';
     }
+    if ((post.tags || []).length > 0) {
+      html += '    <span>·</span>';
+      html += '    <div class="inline-flex flex-wrap gap-1.5">';
+      post.tags.forEach(function(t) {
+        html += '      <a href="' + window.BlogApp.tagHref(t) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">#' + t + '</a>';
+      });
+      html += '    </div>';
+    }
+    html += '  </div>';
     html += '</header>';
+
+    // FrontMatter 声明的幻灯片 (方式 B)：若正文未内嵌 ::: slide，则在正文前自动挂载播放器
+    if (post.slide && renderedHtml.indexOf('article-slide-player-mount') === -1) {
+      html += '<div class="article-slide-player-mount my-8" data-slide-url="' + String(post.slide).replace(/"/g, '&quot;') + '" data-slide-title="' + String(post.title || '').replace(/"/g, '&quot;') + '"></div>';
+    }
 
     // Markdown 正文 (正文内部可能包含一处或多处 ::: slide 演示文稿)
     html += '<article class="markdown-body mb-12">';
     html += renderedHtml;
     html += '</article>';
 
-    // 上一篇 / 下一篇导航 (仅博客模式展示，独立单页模式自动隐去)
-    if (!isPage) {
+    // 上一篇 / 下一篇导航（专栏内为章节导航，普通文章为相邻文章）
     html += '<div class="pt-6 border-t border-white/[0.06] space-y-3">';
     if (columnInfo && colPosts.length > 0) {
       var currentDisplayPart = colIndex !== -1 ? (colIndex + 1) : (post.order || 1);
       html += '<div class="flex items-center justify-between text-[11px] font-mono text-[#5A5A5E]">';
       html += '  <span class="text-[#3B82F6] font-medium">SERIES · Chapter ' + currentDisplayPart + ' of ' + colPosts.length + ' in ' + columnInfo.name + '</span>';
-      html += '  <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="hover:text-[#3B82F6] transition-colors">All ' + colPosts.length + ' Chapters →</a>';
+      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="hover:text-[#3B82F6] transition-colors">All ' + colPosts.length + ' Chapters →</a>';
       html += '</div>';
     }
     html += '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">';
     if (prevPost) {
-      html += '<a href="#/post/' + (prevPost.slug || prevPost.id) + '" class="linear-card p-3.5 text-left group block">';
+      html += '<a href="' + this.postHref(prevPost) + '" class="linear-card p-3.5 text-left group block">';
       html += '  <div class="text-[10px] font-mono text-[#5A5A5E] mb-1 flex items-center gap-1.5">';
       html += '    <span>' + prevLabel + '</span>';
       if (columnInfo) html += '<span class="text-[#3B82F6]">IN SERIES</span>';
@@ -727,7 +998,7 @@ window.BlogApp = {
     }
 
     if (nextPost) {
-      html += '<a href="#/post/' + (nextPost.slug || nextPost.id) + '" class="linear-card p-3.5 text-right group block">';
+      html += '<a href="' + this.postHref(nextPost) + '" class="linear-card p-3.5 text-right group block">';
       html += '  <div class="text-[10px] font-mono text-[#5A5A5E] mb-1 flex items-center justify-end gap-1.5">';
       if (columnInfo) html += '<span class="text-[#3B82F6]">IN SERIES</span>';
       html += '    <span>' + nextLabel + '</span>';
@@ -742,13 +1013,12 @@ window.BlogApp = {
     }
     html += '</div>';
     html += '</div>';
-    }
 
     html += '</div>'; // 结束左侧列
 
     // 右侧列: 常驻悬浮 Outline 侧边栏 (屏幕宽度 >= 600px 自动展开)
     // 包含系列专栏全景章节 (如有) 与当前文章大纲，大幅提升信息密度
-    var hasSidebar = (columnInfo && colPosts.length > 1) || toc.length > 0;
+    var hasSidebar = features.outlineSidebar !== false && ((columnInfo && colPosts.length > 1) || toc.length > 0);
     if (hasSidebar) {
       html += '<aside class="outline-floating-sidebar toc-floating-sidebar w-[200px] lg:w-[230px] shrink-0 sticky top-20 font-mono text-[12px]">';
       
@@ -757,7 +1027,7 @@ window.BlogApp = {
         html += '<div class="mb-5 pb-4 border-b border-white/[0.06]">';
         html += '  <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#3B82F6] font-semibold mb-2">';
         html += '    <span>Series Chapters</span>';
-        html += '    <a href="#/columns/' + encodeURIComponent(columnInfo.id) + '" class="text-[#5A5A5E] hover:text-[#3B82F6] transition-colors">Index →</a>';
+        html += '    <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-[#5A5A5E] hover:text-[#3B82F6] transition-colors">Index →</a>';
         html += '  </div>';
         html += '  <div class="space-y-1 max-h-[190px] overflow-y-auto no-scrollbar pr-1">';
         colPosts.forEach(function(cp, cidx) {
@@ -766,7 +1036,7 @@ window.BlogApp = {
           var linkClass = isCurrent 
             ? 'bg-[#3B82F6]/10 text-[#3B82F6] font-medium border-l-2 border-[#3B82F6] pl-2 py-1' 
             : 'text-[#8B8B8E] hover:text-[#EDEDED] pl-2.5 py-1 border-l border-white/[0.06] hover:border-white/[0.2]';
-          html += '  <a href="#/post/' + (cp.slug || cp.id) + '" class="flex items-baseline gap-2 text-[11.5px] transition-all block truncate ' + linkClass + '" title="' + cp.title.replace(/"/g, '&quot;') + '">';
+          html += '  <a href="' + window.BlogApp.postHref(cp) + '" class="flex items-baseline gap-2 text-[11.5px] transition-all block truncate ' + linkClass + '" title="' + cp.title.replace(/"/g, '&quot;') + '">';
           html += '    <span class="text-[10px] shrink-0 font-mono opacity-80">' + cOrder + '</span>';
           html += '    <span class="truncate">' + cp.title + '</span>';
           html += '  </a>';
@@ -815,7 +1085,7 @@ window.BlogApp = {
         colPosts.forEach(function(cp, cidx) {
           var isCur = cp.id === post.id || cp.slug === post.slug;
           var ord = cp.order ? (cp.order < 10 ? '0' + cp.order : cp.order) : ('0' + (cidx + 1));
-          html += '<a href="#/post/' + (cp.slug || cp.id) + '" onclick="window.BlogApp.toggleMobileOutline()" class="block py-1 truncate ' + (isCur ? 'text-[#3B82F6] font-semibold' : 'text-[#8B8B8E]') + '">';
+          html += '<a href="' + window.BlogApp.postHref(cp) + '" onclick="window.BlogApp.toggleMobileOutline()" class="block py-1 truncate ' + (isCur ? 'text-[#3B82F6] font-semibold' : 'text-[#8B8B8E]') + '">';
           html += '  <span class="opacity-60 mr-1.5">' + ord + '</span>' + cp.title;
           html += '</a>';
         });
@@ -860,11 +1130,12 @@ window.BlogApp = {
     var container = document.getElementById('app-main');
     var columns = window.BlogStore.getColumns() || [];
 
-    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
 
     if (selectedColId) {
       var col = window.BlogStore.getColumnById(selectedColId);
       if (!col) {
+        this.setDocumentTitle('Series Not Found');
         html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
         html += '  <p class="mb-3 text-[#8B8B8E]">Series not found.</p>';
         html += '  <a href="#/columns" class="text-[#3B82F6] hover:underline">← Back to all series</a>';
@@ -872,6 +1143,7 @@ window.BlogApp = {
         container.innerHTML = html;
         return;
       }
+      this.setDocumentTitle(col.name);
       html += '<a href="#/columns" class="inline-flex items-center gap-1.5 text-[13px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors mb-6">← All Series</a>';
       html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
       html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
@@ -884,7 +1156,7 @@ window.BlogApp = {
       html += '<div class="space-y-3 border-l border-white/[0.08] pl-5">';
       (col.posts || []).forEach(function(p) {
         var partNum = p.order < 10 ? '0' + p.order : p.order;
-        html += '  <a href="#/columns/' + encodeURIComponent(col.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+      html += '  <a href="' + window.BlogApp.postHref(p) + '" class="group flex items-baseline gap-3 py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
         html += '    <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
         html += '    <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
         if (p.slide) html += '<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
@@ -895,9 +1167,10 @@ window.BlogApp = {
       return;
     }
 
-    html += '  <header class="mb-8 pb-8 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">Series</h1>';
-    html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">Curated technical collections and deep dives into computing fundamentals.</p>';
+    this.setDocumentTitle('Columns');
+    html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
+    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">Columns</h1>';
+    html += '    <p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px]">Curated technical collections and deep dives into computing fundamentals.</p>';
     html += '  </header>';
 
     if (columns.length === 0) {
@@ -920,7 +1193,7 @@ window.BlogApp = {
         }
         html += '  </div>';
 
-        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2"><a href="#/columns/' + encodeURIComponent(col.id) + '" class="hover:text-[#3B82F6] transition-colors">' + col.name + '</a></h2>';
+        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2"><a href="' + window.BlogApp.routeHref('columns', col.id) + '" class="hover:text-[#3B82F6] transition-colors">' + col.name + '</a></h2>';
         if (col.desc) {
           html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + col.desc + '</p>';
         }
@@ -928,7 +1201,7 @@ window.BlogApp = {
         html += '  <div class="space-y-2 border-l border-white/[0.08] pl-4">';
         (col.posts || []).forEach(function(p) {
           var partNum = p.order < 10 ? '0' + p.order : p.order;
-          html += '    <a href="#/columns/' + encodeURIComponent(col.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+          html += '    <a href="' + window.BlogApp.postHref(p) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
           html += '      <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
           html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
           if (p.slide) html += '  <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
@@ -938,109 +1211,6 @@ window.BlogApp = {
         html += '</section>';
       });
       html += '</div>';
-    }
-
-    html += '</div>';
-    container.innerHTML = html;
-  },
-
-  // 5.3.1 项目视图 (Projects View - 与 Series / Columns 遵循完全相同架构)
-  renderProjectsView: function(selectedProjId) {
-    var container = document.getElementById('app-main');
-    var projects = window.BlogStore.getProjects() || [];
-    var customPages = (window.BlogPostsData && window.BlogPostsData.customPages) || {};
-    var standaloneProjectsMd = customPages['projects'] || '';
-
-    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
-
-    if (selectedProjId) {
-      var proj = window.BlogStore.getProjectById(selectedProjId);
-      if (!proj) {
-        html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
-        html += '  <p class="mb-3 text-[#8B8B8E]">Project not found.</p>';
-        html += '  <a href="#/projects" class="text-[#3B82F6] hover:underline">← Back to all projects</a>';
-        html += '</div></div>';
-        container.innerHTML = html;
-        return;
-      }
-      html += '<a href="#/projects" class="inline-flex items-center gap-1.5 text-[13px] font-mono text-[#8B8B8E] hover:text-[#3B82F6] transition-colors mb-6">← All Projects</a>';
-      html += '<header class="mb-8 pb-6 border-b border-white/[0.06]">';
-      html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
-      html += '    <span>PROJECT</span><span>·</span><span>' + (proj.postsCount || (proj.posts || []).length) + ' Documents</span>';
-      html += '  </div>';
-      html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + proj.name + '</h1>';
-      if (proj.desc) html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed">' + proj.desc + '</p>';
-      html += '</header>';
-
-      html += '<div class="space-y-3 border-l border-white/[0.08] pl-5">';
-      (proj.posts || []).forEach(function(p) {
-        var partNum = p.order < 10 ? '0' + p.order : p.order;
-        html += '  <a href="#/projects/' + encodeURIComponent(proj.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
-        html += '    <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
-        html += '    <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
-        if (p.slide) html += '<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
-        html += '  </a>';
-      });
-      html += '</div></div>';
-      container.innerHTML = html;
-      return;
-    }
-
-    // All Projects Overview
-    html += '  <header class="mb-8 pb-8 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-4 font-sans">Projects</h1>';
-    html += '    <p class="text-[17px] text-[#8B8B8E] leading-relaxed max-w-[620px]">Selected engineering systems, open-source architectures, and interactive prototypes.</p>';
-    html += '  </header>';
-
-    if (projects.length === 0 && !standaloneProjectsMd) {
-      html += '<div class="py-24 text-center text-[#5A5A5E] font-mono text-[14px]">';
-      html += '  <p class="mb-3 text-[#8B8B8E]">No project collections created yet.</p>';
-      html += '  <p class="text-[12px]">Add Markdown posts to <code class="text-[#EDEDED] bg-white/[0.06] px-1.5 py-0.5 rounded">posts/projects/&lt;project-name&gt;/</code> to form a project showcase automatically.</p>';
-      html += '</div>';
-    } else {
-      if (projects.length > 0) {
-        html += '<div class="space-y-12 mb-16">';
-        projects.forEach(function(proj, idx) {
-          var num = idx + 1 < 10 ? '0' + (idx + 1) : (idx + 1);
-          html += '<section class="border-b border-white/[0.06] pb-10 last:border-b-0">';
-          html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
-          html += '    <span>PROJECT ' + num + '</span>';
-          html += '    <span>·</span>';
-          html += '    <span>' + (proj.postsCount || (proj.posts || []).length) + ' Documents</span>';
-          if (proj.totalWords) {
-            html += '    <span>·</span>';
-            html += '    <span>' + Math.round(proj.totalWords / 1000) + 'k words</span>';
-          }
-          html += '  </div>';
-
-          html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2">';
-          html += '    <a href="#/projects/' + encodeURIComponent(proj.id) + '" class="hover:text-[#3B82F6] transition-colors">' + proj.name + '</a>';
-          html += '  </h2>';
-          if (proj.desc) {
-            html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + proj.desc + '</p>';
-          }
-
-          html += '  <div class="space-y-2 border-l border-white/[0.08] pl-4">';
-          (proj.posts || []).forEach(function(p) {
-            var partNum = p.order < 10 ? '0' + p.order : p.order;
-            html += '    <a href="#/projects/' + encodeURIComponent(proj.id) + '/' + encodeURIComponent(p.slug || p.id) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
-            html += '      <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
-            html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
-            if (p.slide) html += '  <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
-            html += '    </a>';
-          });
-          html += '  </div>';
-          html += '</section>';
-        });
-        html += '</div>';
-      }
-
-      if (standaloneProjectsMd) {
-        var renderedProjMd = window.BlogMarkdown.render(standaloneProjectsMd);
-        html += '<section class="pt-8 border-t border-white/[0.06]">';
-        html += '  <article class="markdown-body mb-12">' + renderedProjMd.html + '</article>';
-        html += '</section>';
-      }
     }
 
     html += '</div>';
@@ -1061,9 +1231,10 @@ window.BlogApp = {
 
     var years = Object.keys(yearMap).sort().reverse();
 
-    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
-    html += '  <header class="mb-12 pb-6 border-b border-white/[0.06]">';
-    html += '    <h1 class="text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Archive</h1>';
+    this.setDocumentTitle('Archive');
+    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
+    html += '  <header class="mb-10 pb-6 border-b border-white/[0.06]">';
+    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">Archive</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E]">Chronological timeline of research essays, architecture notes, and publications.</p>';
     html += '  </header>';
 
@@ -1073,7 +1244,7 @@ window.BlogApp = {
       html += '  <div class="space-y-3">';
       yearMap[yr].forEach(function(p) {
         var dateFormatted = (p.date || '').slice(5);
-        html += '<a href="#/post/' + p.id + '" class="flex items-baseline gap-4 py-1.5 group">';
+        html += '<a href="' + window.BlogApp.postHref(p) + '" class="flex items-baseline gap-4 py-1.5 group">';
         html += '  <span class="font-mono text-[12.5px] text-[#5A5A5E] shrink-0">' + dateFormatted + '</span>';
         html += '  <span class="text-[15px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + p.title + '</span>';
         html += '</a>';
@@ -1086,7 +1257,6 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  // 5.5 标签视图 (Tags View)
   // 5.5 标签多选检索视图 (Sorted / Categories View - 支持多选复合筛选)
   selectedSortedTags: new Set(),
 
@@ -1103,7 +1273,7 @@ window.BlogApp = {
   clearSortedTags: function() {
     if (this.selectedSortedTags) this.selectedSortedTags.clear();
     if (window.location.hash.indexOf('?') !== -1) {
-      window.location.hash = '#/categories';
+      window.location.hash = this.routeHref('tags');
       return;
     }
     this.renderTagsView();
@@ -1126,7 +1296,8 @@ window.BlogApp = {
       });
     }
 
-    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+    this.setDocumentTitle('Tags');
+    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-8 pb-6 border-b border-white/[0.06]">';
     html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] mb-2 font-sans">Tags & Sorted Topics</h1>';
     html += '    <p class="text-[16px] text-[#8B8B8E]">Select single or multiple tags to filter articles with precise multi-dimensional intersection.</p>';
@@ -1181,7 +1352,7 @@ window.BlogApp = {
         if (post.columnName) html += '<span class="text-[#3B82F6]">' + post.columnName + '</span>';
         html += '        </div>';
         html += '        <h2 class="mb-2">';
-        html += '          <a href="#/post/' + (post.slug || post.id) + '" class="post-item-title block leading-snug">' + post.title + '</a>';
+        html += '          <a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + post.title + '</a>';
         html += '        </h2>';
         if (post.excerpt) {
           html += '        <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
@@ -1205,11 +1376,9 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-        // 5.6 独立高级单页渲染器 (Page View - 专有独立页面架构，支持时间线、关注领域、项目卡片与富文本)
+  // 5.6 独立高级单页渲染器 (Page View - 结构化独立页 type: post，支持时间线、关注领域与富文本)
   renderPageView: function(source, navItem) {
     var container = document.getElementById('app-main');
-    var config = window.BlogStore.config || window.BlogConfig || {};
-    var author = window.BlogStore.author || config.author || {};
     var pageData = null;
 
     if (typeof source === 'object' && source !== null) {
@@ -1217,8 +1386,12 @@ window.BlogApp = {
     } else if (typeof source === 'string') {
       pageData = window.BlogStore.getPage(source);
     }
-    if (!pageData && navItem && navItem.file) {
-      pageData = window.BlogStore.getPage(navItem.file);
+    // 导航项未直接给出数据对象时，回退到其 file: 目标
+    if (!pageData && navItem) {
+      var parsed = this.parseTarget(navItem);
+      if (parsed.mode === 'file') {
+        pageData = window.BlogStore.getPage(parsed.value);
+      }
     }
     if (!pageData && (!source || source === 'about' || source === 'about.md')) {
       pageData = window.BlogStore.about || {};
@@ -1232,14 +1405,14 @@ window.BlogApp = {
     var bioText = pageData.bio || pageData.excerpt || '';
     var timeline = Array.isArray(pageData.timeline) ? pageData.timeline : [];
     var focusAreas = Array.isArray(pageData.focusAreas) ? pageData.focusAreas : [];
-    var projects = Array.isArray(pageData.projects) ? pageData.projects : [];
     var contacts = (pageData.social && pageData.social.length > 0) ? pageData.social : ((pageData.contacts && pageData.contacts.length > 0) ? pageData.contacts : (pageData.links || []));
     // `raw` is the complete source file (including front matter). Rendering it
     // here would duplicate the structured page data as visible YAML. Only the
     // parsed Markdown body belongs in the free-form content section.
     var rawMarkdown = pageData.content || pageData.notes || '';
 
-    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+    this.setDocumentTitle(title);
+    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
 
     // 1. 顶部 Hero / 名片区
     html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
@@ -1313,37 +1486,9 @@ window.BlogApp = {
       html += '</section>';
     }
 
-    // 5. 精选项目 / 卡片展示 (Selected Projects)
-    if (projects.length > 0) {
-      html += '<section class="mb-14">';
-      html += '  <div class="about-section-header flex items-center justify-between pb-3 border-b border-white/[0.06] mb-4">';
-      html += '    <h2 class="text-[18px] font-semibold text-[#EDEDED] font-sans">Selected Projects</h2>';
-      html += '  </div>';
-      html += '  <div class="space-y-3">';
-      projects.forEach(function(item) {
-        var isLink = item.url && item.url !== '#';
-        html += '<div class="py-2.5 border-b border-white/[0.04] last:border-b-0">';
-        html += '  <div class="flex items-center justify-between mb-1">';
-        if (isLink) {
-          html += '    <a href="' + item.url + '" target="_blank" rel="noopener noreferrer" class="text-[15px] font-semibold text-[#EDEDED] hover:text-[#3B82F6] transition-colors inline-flex items-center gap-1.5 font-sans group">';
-          html += '      <span>' + item.name + '</span>';
-          html += '      <span class="text-[12px] font-mono text-[#5A5A5E] group-hover:text-[#3B82F6] transition-colors">↗</span>';
-          html += '    </a>';
-        } else {
-          html += '    <span class="text-[15px] font-semibold text-[#EDEDED] font-sans">' + item.name + '</span>';
-        }
-        if (item.tag) html += '<span class="text-[11px] font-mono text-[#5A5A5E] px-2 py-0.5 rounded bg-white/[0.04]">' + item.tag + '</span>';
-        html += '  </div>';
-        if (item.desc) html += '<p class="text-[13.5px] leading-relaxed text-[#8B8B8E] m-0">' + item.desc + '</p>';
-        html += '</div>';
-      });
-      html += '  </div>';
-      html += '</section>';
-    }
-
-    // 6. 自由 Markdown 正文 (支持 KaTeX、Prism 代码高亮与 Callout 提示框)
+    // 5. 自由 Markdown 正文 (支持 KaTeX、Prism 代码高亮与 Callout 提示框)
     if (rawMarkdown && rawMarkdown.trim().length > 0) {
-      var mdResult = window.BlogMarkdown.render(rawMarkdown);
+      var mdResult = this.safeMarkdown(rawMarkdown);
       html += '<section class="mb-14 border-t border-white/[0.06] pt-8">';
       html += '  <article class="markdown-body">' + mdResult.html + '</article>';
       html += '</section>';
@@ -1353,16 +1498,15 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-  renderAboutView: function() {
-    this.renderPageView('about.md', { id: 'about', label: 'About' });
-  },
-
   // ----------------------------------------------------------------------------
   // 6. 搜索弹窗逻辑 (Search Modal Cmd+K)
   // ----------------------------------------------------------------------------
   openSearchModal: function() {
+    var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
+    if (features.searchModal === false) return;
     var modal = document.getElementById('search-modal');
     if (modal) {
+      this.searchReturnFocus = document.activeElement;
       modal.classList.remove('hidden');
       var input = document.getElementById('search-modal-input');
       if (input) {
@@ -1375,7 +1519,12 @@ window.BlogApp = {
 
   closeSearchModal: function() {
     var modal = document.getElementById('search-modal');
-    if (modal) modal.classList.add('hidden');
+    if (modal && !modal.classList.contains('hidden')) {
+      modal.classList.add('hidden');
+      if (this.searchReturnFocus && typeof this.searchReturnFocus.focus === 'function') {
+        this.searchReturnFocus.focus();
+      }
+    }
   },
 
   runModalSearch: function(query) {
@@ -1390,7 +1539,7 @@ window.BlogApp = {
 
     var html = '';
     posts.slice(0, 8).forEach(function(p) {
-      html += '<a href="#/post/' + p.id + '" onclick="window.BlogApp.closeSearchModal()" class="block p-2.5 rounded-[6px] hover:bg-white/[0.04] transition-colors group">';
+      html += '<a href="' + window.BlogApp.postHref(p) + '" onclick="window.BlogApp.closeSearchModal()" class="block p-2.5 rounded-[6px] hover:bg-white/[0.04] transition-colors group">';
       html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors truncate">' + p.title + '</div>';
       html += '  <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + p.date + ' · ' + (p.readTime || '3 min read') + '</div>';
       html += '</a>';
@@ -1398,9 +1547,6 @@ window.BlogApp = {
     resultsEl.innerHTML = html;
   },
 
-  // ----------------------------------------------------------------------------
-  // 8. 标签过滤辅助
-  // ----------------------------------------------------------------------------
   // ----------------------------------------------------------------------------
   // 5.8 统一通用动态栏目渲染器 (Zero-Code Dynamic Section View)
   // ----------------------------------------------------------------------------
@@ -1411,7 +1557,8 @@ window.BlogApp = {
     var posts = window.BlogStore.posts || [];
     var customPages = (window.BlogPostsData && window.BlogPostsData.customPages) || {};
 
-    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
+    this.setDocumentTitle(title);
+    var html = '<div class="max-w-[720px] mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
 
     // 统一页面头部 (严格遵循整站留白、字号与 1px 分割线规范)
     html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
@@ -1442,12 +1589,12 @@ window.BlogApp = {
           html += '    <span>' + post.date + '</span>';
           if (post.readTime) html += '<span>·</span><span>' + post.readTime + '</span>';
           html += '  </div>';
-          html += '  <h2 class="mb-2"><a href="#/post/' + post.id + '" class="post-item-title block leading-snug">' + post.title + '</a></h2>';
+          html += '  <h2 class="mb-2"><a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + post.title + '</a></h2>';
           if (post.excerpt) html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
           if ((post.tags || []).length > 0) {
             html += '  <div class="flex flex-wrap items-center gap-2">';
             post.tags.forEach(function(t) {
-              html += '    <a href="#/categories?tag=' + encodeURIComponent(t) + '" class="tag-pill">#' + t + '</a>';
+              html += '    <a href="' + window.BlogApp.tagHref(t) + '" class="tag-pill">#' + t + '</a>';
             });
             html += '  </div>';
           }
@@ -1456,7 +1603,7 @@ window.BlogApp = {
       }
       html += '</section>';
 
-    // 场景 B: 卡片集合 (如 projects, tools, links)
+    // 场景 B: 卡片集合 (如 tools, links 等声明式导航项)
     } else if (item.items && Array.isArray(item.items) && item.items.length > 0) {
       html += '<div class="space-y-3">';
       item.items.forEach(function(card) {
@@ -1471,13 +1618,13 @@ window.BlogApp = {
       });
       html += '</div>';
 
-    // 场景 C: 独立 Markdown 文档渲染 (例如 projects.md 等)
+    // 场景 C: 独立 Markdown 文档渲染 (例如 friends.md 等)
     } else {
       var fileKey = item.file ? item.file.replace(/\.md$/i, '') : item.id;
       var mdContent = customPages[fileKey] || customPages[item.id] || '';
 
       if (mdContent) {
-        var rendered = window.BlogMarkdown.render(mdContent);
+        var rendered = this.safeMarkdown(mdContent);
         html += '<article class="markdown-body mb-12">';
         html += rendered.html;
         html += '</article>';
@@ -1500,7 +1647,7 @@ window.BlogApp = {
                 if (text) {
                   var dom = document.getElementById('dynamic-md-container');
                   if (dom) {
-                    var renderedMd = window.BlogMarkdown.render(text);
+                    var renderedMd = window.BlogApp.safeMarkdown(text);
                     dom.innerHTML = '<article class="markdown-body">' + renderedMd.html + '</article>';
                   }
                 }
@@ -1518,7 +1665,7 @@ window.BlogApp = {
       goToTag: function(tag) {
     if (!tag) return;
     this.selectedSortedTags = new Set([tag]);
-    window.location.hash = '#/categories?tag=' + encodeURIComponent(tag);
+    window.location.hash = this.tagHref(tag);
   },
 
   setTag: function(tag) {

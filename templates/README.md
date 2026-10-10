@@ -11,7 +11,7 @@
 | **`template-standard-post.md`** | 常规技术博客 | 完整代码高亮、数学公式、Callout 提示框、标签分类 |
 | **`template-column-chapter.md`** | 专栏 / 系列连载章节 | 包含 `column` 与 `order` 标识，专栏内部上下篇定向翻页，系列全景侧边栏 |
 | **`template-slide-presentation.md`** | PPT / PDF 演示文稿课件 | 支持 `::: slide` 嵌入本地 PDF 课件，具备 Retina 矢量放映与真全屏演播 |
-| **`template-independent-page.md`** | 独立单页模式 (Page Mode) | 声明 `type: "page"`，去除时间戳与上一篇/下一篇翻页，适合声明、友链、说明书 |
+| **`template-independent-page.md`** | 结构化独立页 (type: post) | 声明 `type: "post"`，支持时间线/关注领域/社交等区块，可被导航 `target: "file:xxx.md"` 绑定为独立页 |
 | **`template-math-physics-paper.md`** | 理论数学与物理推导长文 | 严格兼容 Codex 双美元符号 KaTeX，狄拉克符号、矩阵与多行对齐方程推导 |
 
 ---
@@ -40,17 +40,19 @@ cp templates/template-slide-presentation.md posts/my-presentation.md
 # 基础必选字段
 title: "文章大标题"                    # 文章主标题 (必填)
 date: "2026-10-10"                   # 发布日期 YYYY-MM-DD (选填，默认为当前日期)
+slug: "my-article-slug"              # URL 标识 (选填，默认取文件名；文件名含中文时建议显式声明 ASCII slug)
 category: "engineering"              # 默认主分类 (选填)
 tags: ["tech", "systems"]            # 标签数组，用于 Tags 页面多选组合检索 (选填)
 excerpt: "一句话文章摘要简介"           # 呈现在首页与列表中的简要导读 (选填)
 
 # 专栏 / 系列字段 (只要填写 column 即可自动纳入专栏体系)
-column: "distributed-systems"        # 专栏唯一英文标识 (与 URL 路由对应)
+column: "distributed-systems"        # 专栏唯一标识 (用于把多篇文章聚合成一个专栏)
+columnSlug: "distributed-systems"    # 专栏 URL 标识 (选填，默认取 column；含中文时建议显式声明 ASCII slug)
 columnName: "分布式系统与高可用架构"  # 专栏对外展示的中文全名 (选填，默认同 column)
 order: 1                             # 章节序号，专栏内以此顺序排定上一章/下一章 (整数)
 
 # 页面排版模式
-type: "post"                         # "post" (默认博客模式) 或 "page" (独立单页模式)
+type: "normal"                       # "normal" (默认普通文章，进入博文流) 或 "post" (结构化独立页，类似 about)
 pinned: false                        # 是否在首页置顶展示 (true / false)
 
 # 附件与演示文稿

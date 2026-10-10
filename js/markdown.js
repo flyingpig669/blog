@@ -4,6 +4,12 @@ window.BlogMarkdown = {
     options = options || {};
     if (!markdownText) return { html: '', toc: [] };
 
+    var escapeHtml = function(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+      });
+    };
+
     var mathBlocks = [];
     var mathInlines = [];
     var text = markdownText;
@@ -79,7 +85,7 @@ window.BlogMarkdown = {
           var rendered = katexRenderer.renderToString(formula, { displayMode: true, throwOnError: false });
           rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<div class="quantum-math-block">' + rendered + '</div>');
         } catch (e) {
-          rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<pre class="text-red-400 font-mono text-xs">' + formula + '</pre>');
+          rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<pre class="text-[#8B8B8E] font-mono text-xs">' + escapeHtml(formula) + '</pre>');
         }
       });
 
@@ -88,15 +94,15 @@ window.BlogMarkdown = {
           var rendered = katexRenderer.renderToString(formula, { displayMode: false, throwOnError: false });
           rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join(rendered);
         } catch (e) {
-          rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="text-red-400 font-mono text-xs">' + formula + '</code>');
+          rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="text-[#8B8B8E] font-mono text-xs">' + escapeHtml(formula) + '</code>');
         }
       });
     } else {
       mathBlocks.forEach(function(formula, i) {
-        rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<div class="quantum-math-block"><pre class="font-mono text-xs">' + formula + '</pre></div>');
+        rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<div class="quantum-math-block"><pre class="font-mono text-xs">' + escapeHtml(formula) + '</pre></div>');
       });
       mathInlines.forEach(function(formula, i) {
-        rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="font-mono text-xs">' + formula + '</code>');
+        rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="font-mono text-xs">' + escapeHtml(formula) + '</code>');
       });
     }
 
@@ -108,7 +114,7 @@ window.BlogMarkdown = {
       // 统一标题层级追踪配置 (优先级: 单篇 FrontMatter tocLevels > 全局 BlogConfig.tocLevels > 默认 [2, 3, 4])
       var targetLevels = (options && options.tocLevels !== undefined && options.tocLevels !== null) 
         ? options.tocLevels 
-        : ((window.BlogConfig && window.BlogConfig.tocLevels) || [2, 3, 4]);
+        : ((window.BlogConfig && window.BlogConfig.features && window.BlogConfig.features.tocLevels) || [2, 3, 4]);
 
       if (typeof targetLevels === 'string') {
         targetLevels = targetLevels.replace(/[\[\]]/g, '').split(',').map(function(s) { return parseInt(s.trim(), 10); }).filter(Boolean);

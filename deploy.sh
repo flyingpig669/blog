@@ -3,7 +3,7 @@
 # Aurora Blog (极光随笔) - GitHub Pages 一键自动部署脚本
 # ==============================================================================
 
-set -e
+set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$DIR"
@@ -12,13 +12,14 @@ echo "=========================================================="
 echo "  🚀 Aurora Blog (极光随笔) - GitHub Pages 自动化发布"
 echo "=========================================================="
 
-# 1. 扫描并自动编译 posts/ 目录下的所有 Markdown 文件
+# 1. 执行语法检查并同步 Markdown 数据
 echo ""
-echo "[1/4] 扫描 posts/ 目录并同步 Markdown 文章索引..."
-if [ -f "sync_posts.py" ]; then
-  python3 sync_posts.py
+echo "[1/4] 检查项目并同步 Markdown 文章索引..."
+if [ -x "check.sh" ]; then
+  ./check.sh
 else
-  echo "警告: sync_posts.py 未找到，跳过本地编译步骤。"
+  echo "错误: check.sh 不存在或不可执行。"
+  exit 1
 fi
 
 # 2. 检查 Git 仓库初始化状态
@@ -28,13 +29,6 @@ if [ ! -d ".git" ]; then
   echo "本地未初始化 Git 仓库，正在初始化..."
   git init -b main
   echo "✅ Git 本地主分支 (main) 初始化完成。"
-fi
-
-# 检查当前分支名称，确保为主分支 main
-CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")
-if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
-  echo "切换至 main 分支..."
-  git branch -M main
 fi
 
 # 检查远程仓库配置

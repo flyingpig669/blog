@@ -15,9 +15,32 @@ import time
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 POSTS_DIR = os.path.join(BASE_DIR, "posts")
 POSTS_DATA_FILE = os.path.join(BASE_DIR, "js", "posts-data.js")
-SAMPLE_DATA_FILE = os.path.join(BASE_DIR, "js", "sample-data.js")
 
 IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachments", "images", "img", "slides", "vendor", "templates", "drafts"}
+
+# 文档类型字典：
+#   normal = 普通文章（默认，进入首页/归档/标签等博文流）
+#   post   = 结构化独立页（支持 status/quote/bio/timeline/focusAreas/social 等区块，类似 about）
+# 兼容旧写法：page / page-mode / standalone 等一律归一化为 post。
+RICH_DOC_TYPES = {"post", "page", "page-mode", "standalone", "single", "page_mode"}
+
+# 结构化独立页 (type: post) 支持的列表型区块
+STRUCTURED_LIST_KEYS = ["timeline", "focusAreas", "social", "contacts", "links"]
+
+
+def slugify(value):
+    """生成 URL 安全的 slug：转小写、非字母数字(保留连字符)替换为连字符并去重。"""
+    s = re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower())
+    return s.strip("-")
+
+
+def normalize_doc_type(raw):
+    """把 FrontMatter 里的 type / layout 归一化为 normal 或 post。"""
+    value = (raw or "").strip().lower()
+    if value in RICH_DOC_TYPES:
+        return "post"
+    return "normal"
+
 
 def load_config_exclude():
     config_path = os.path.join(BASE_DIR, "blog.config.js")
@@ -61,8 +84,9 @@ def parse_md_file(filepath):
     category = "general"
     column = ""
     column_name = ""
-    project = ""
-    project_name = ""
+    column_slug = ""
+    column_desc = ""
+    slug_override = ""
     order = 999
     tags = []
     pinned = False
@@ -70,7 +94,7 @@ def parse_md_file(filepath):
     slide = ""
     attachments = []
     is_test = False
-    doc_type = "post"
+    doc_type = "normal"
     toc_levels = None
     content = raw
 
@@ -108,14 +132,16 @@ def parse_md_file(filepath):
                 column = val
             elif key in ["columnname", "column_name", "columntitle", "column_title"]:
                 column_name = val
-            elif key in ["project", "projects", "proj"]:
-                project = val
-            elif key in ["projectname", "project_name", "projecttitle", "project_title"]:
-                project_name = val
+            elif key in ["columnslug", "column_slug", "serieslug", "series_slug"]:
+                column_slug = val
+            elif key in ["columndesc", "column_desc", "columndescription", "column_description"]:
+                column_desc = val
+            elif key == "slug":
+                slug_override = val
             elif key == "test":
                 is_test = (val.lower() == "true")
             elif key in ["type", "layout"]:
-                doc_type = val.lower()
+                doc_type = normalize_doc_type(val)
             elif key in ["slide", "slides", "pdf", "deck"]:
                 slide = val
             elif key in ["attachment", "attachments"]:
@@ -146,19 +172,14 @@ def parse_md_file(filepath):
         title = os.path.splitext(filename)[0].replace("-", " ").replace("_", " ").title()
 
     section = "posts"
+    if len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
+        if not column:
+            column = path_parts[1]
+    # 若声明了 columnSlug，则用其作为专栏的 URL 标识（满足路由禁用中文的规范）
+    if column_slug:
+        column = slugify(column_slug) or column
     if column:
         section = "columns"
-    elif project:
-        section = "projects"
-    elif len(path_parts) >= 3 and path_parts[0] in ["projects", "project"]:
-        section = "projects"
-        project = path_parts[1]
-    elif len(path_parts) == 2 and path_parts[0] in ["projects", "project"]:
-        section = "projects"
-        project = path_parts[0]
-    elif len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
-        section = "columns"
-        if not column: column = path_parts[1]
 
     if not slide:
         slide_m = re.search(r":::\s*(?:slide|pdf|deck)\s+([^\s\r\n]+)", content)
@@ -168,11 +189,10 @@ def parse_md_file(filepath):
     if "test" in [t.lower() for t in tags] or is_test:
         is_test = True
 
-    slug = os.path.splitext(filename)[0]
+    slug_clean = re.sub(r"[^a-zA-Z0-9 \u4e00-\u9fff]+", "-", (slug_override or "").strip()).strip("-")
+    slug = slug_clean or os.path.splitext(filename)[0]
     if column:
         post_id = f"post-col-{column}-{slug}".replace(" ", "-").replace(".", "-")
-    elif project:
-        post_id = f"post-proj-{project}-{slug}".replace(" ", "-").replace(".", "-")
     else:
         post_id = f"post-{slug}".replace(".", "-")
 
@@ -187,7 +207,6 @@ def parse_md_file(filepath):
     read_time = f"{read_mins} min read"
 
     col_display = column_name or (column.replace("-", " ").replace("_", " ").title() if column else "")
-    proj_display = project_name or (project.replace("-", " ").replace("_", " ").title() if project else "")
 
     return {
         "id": post_id,
@@ -197,8 +216,7 @@ def parse_md_file(filepath):
         "section": section,
         "column": column,
         "columnName": col_display,
-        "project": project,
-        "projectName": proj_display,
+        "columnDesc": column_desc,
         "order": order,
         "relPath": rel_path,
         "date": date,
@@ -235,7 +253,6 @@ def parse_structured_page_file(filepath):
         "bio": "",
         "timeline": [],
         "focusAreas": [],
-        "projects": [],
         "social": [],
         "contacts": [],
         "links": [],
@@ -246,12 +263,18 @@ def parse_structured_page_file(filepath):
     }
     fm_match = re.match(r"^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*[\r\n]*([\s\S]*)$", text)
     if not fm_match:
-        data["bio"] = text.strip()
+        content = text.strip()
+        h1_match = re.search(r"^#\s+(.+)$", content, re.M)
+        if h1_match:
+            data["title"] = h1_match.group(1).strip()
+            content = re.sub(r"^#\s+.+[\r\n]+", "", content, count=1).strip()
+        data["content"] = content
         return data
 
     fm = fm_match.group(1)
     notes = fm_match.group(2).strip()
     data["notes"] = notes
+    data["content"] = notes
 
     current_section = None
     current_item = None
@@ -265,7 +288,7 @@ def parse_structured_page_file(filepath):
         if top_m and not line.startswith(" ") and not line.startswith("\t"):
             key = top_m.group(1)
             val = re.split(r'\s+#', top_m.group(2))[0].strip().strip(chr(39) + chr(34))
-            if key in ["timeline", "focusAreas", "projects", "social", "contacts", "links"]:
+            if key in STRUCTURED_LIST_KEYS:
                 current_section = key
                 current_item = None
             else:
@@ -274,7 +297,7 @@ def parse_structured_page_file(filepath):
                 data[key] = val
             continue
 
-        if current_section in ["timeline", "focusAreas", "projects", "social", "contacts", "links"]:
+        if current_section in STRUCTURED_LIST_KEYS:
             item_start = re.match(r"^\s*-\s+([a-zA-Z0-9_-]+):\s*(.*)$", line)
             if item_start:
                 k = item_start.group(1)
@@ -315,7 +338,6 @@ def sync():
 
     synced_posts = []
     columns_map = {}
-    projects_map = {}
 
     for filepath in sorted(md_files):
         p = parse_md_file(filepath)
@@ -325,33 +347,20 @@ def sync():
 
         synced_posts.append(p)
         col = p.get("column")
-        proj = p.get("project")
 
         if col:
             if col not in columns_map:
                 columns_map[col] = {
                     "id": col,
-                    "name": p.get("columnName") or col.title(),
-                    "desc": f"Technical series collection for {p.get('columnName') or col}.",
+                    "name": p.get("columnName") or col.replace("-", " ").replace("_", " ").title(),
+                    "desc": p.get("columnDesc") or "",
                     "icon": "layers",
                     "posts": []
                 }
             columns_map[col]["posts"].append(p)
 
-        if proj:
-            if proj not in projects_map:
-                projects_map[proj] = {
-                    "id": proj,
-                    "name": p.get("projectName") or proj.title(),
-                    "desc": f"Engineering project collection for {p.get('projectName') or proj}.",
-                    "icon": "folder",
-                    "posts": []
-                }
-            projects_map[proj]["posts"].append(p)
-
         extra_info = []
         if col: extra_info.append(f"专栏: {p['columnName']} Part {p['order']}")
-        if proj: extra_info.append(f"项目: {p['projectName']}")
         if p.get("isTest"): extra_info.append("[TEST]")
         if p.get("slide"): extra_info.append("[SLIDE]")
         info_str = " (" + ", ".join(extra_info) + ")" if extra_info else ""
@@ -360,16 +369,15 @@ def sync():
     columns_list = []
     for col_id, col_info in columns_map.items():
         col_info["posts"].sort(key=lambda x: x["order"])
+        named_post = next((p for p in col_info["posts"] if p.get("columnName")), None)
+        if named_post:
+            col_info["name"] = named_post["columnName"]
+        desc_post = next((p for p in col_info["posts"] if p.get("columnDesc")), None)
+        if desc_post:
+            col_info["desc"] = desc_post["columnDesc"]
         col_info["postsCount"] = len(col_info["posts"])
         col_info["totalWords"] = sum(x["words"] for x in col_info["posts"])
         columns_list.append(col_info)
-
-    projects_list = []
-    for proj_id, proj_info in projects_map.items():
-        proj_info["posts"].sort(key=lambda x: x["order"])
-        proj_info["postsCount"] = len(proj_info["posts"])
-        proj_info["totalWords"] = sum(x["words"] for x in proj_info["posts"])
-        projects_list.append(proj_info)
 
     # 结构化解析关于页 about.md
     about_path = os.path.join(BASE_DIR, "about.md")
@@ -398,7 +406,7 @@ def sync():
                 print(f" -> 扫描独立单页 [根目录]: {filename}")
 
     for p in synced_posts:
-        if p.get("type") == "page":
+        if p.get("type") == "post":
             full_p = os.path.join(POSTS_DIR, p["relPath"])
             p_data = parse_structured_page_file(full_p)
             if p_data:
@@ -411,11 +419,13 @@ def sync():
                 custom_pages[p_id] = p_data["raw"]
                 print(f" -> 扫描独立单页 [posts]: {p['relPath']}")
 
+    source_paths = md_files + [p for p in [about_path, os.path.join(BASE_DIR, "blog.config.js")] if os.path.exists(p)]
+    latest_source_mtime = max((os.path.getmtime(path) for path in source_paths), default=0)
+
     payload = {
-        "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(latest_source_mtime)),
         "posts": synced_posts,
         "columns": columns_list,
-        "projects": projects_list,
         "about": about_data,
         "pages": pages_map,
         "customPages": custom_pages
@@ -428,10 +438,7 @@ def sync():
     with open(POSTS_DATA_FILE, "w", encoding="utf-8") as f:
         f.write(js_output)
 
-    with open(SAMPLE_DATA_FILE, "w", encoding="utf-8") as f:
-        f.write(js_output)
-
-    print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏，{len(projects_list)} 个项目集合。")
+    print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏。")
     print(f" -> 索引文件已更新: js/posts-data.js")
 
 if __name__ == "__main__":
