@@ -2,16 +2,13 @@
  * ==============================================================================
  * Aurora Blog - 数据中心与持久化存储模块 (Blog Reactive Store)
  * ==============================================================================
- * 1. 自动同步 blog.config.js 全局配置 (作者、站点、社交媒体)。
+ * 1. 自动同步 blog.config.js 全局配置 (站点元信息)。
  * 2. 自动载入 js/posts-data.js 编译后的真实 Markdown 博文索引 (源自 posts/)。
- * 3. LocalStorage 仅用于轻量存储用户交互状态 (点赞、书签、浏览量、在线草稿)。
+ * 3. 提供文档 / 专栏 / 标签 / 站内互链的统一查询与解析入口。
  * 4. 彻底杜绝本地缓存残留已删除的示例文档。
  */
 
 window.BlogStore = {
-  STATE_KEY_VIEWS: 'aurora_blog_views_v3',
-  STATE_KEY_LIKES: 'aurora_blog_likes_v3',
-  STATE_KEY_BOOKMARKS: 'aurora_blog_bookmarks_v3',
   STATE_KEY_THEME: 'aurora_blog_theme_v3',
 
   init: function() {
@@ -32,60 +29,21 @@ window.BlogStore = {
       footerText: "© 2026 Alex Chen · All rights reserved."
     };
 
-    this.author = config.author || {
-      name: "Alex Chen",
-      title: "Software Architect",
-      bio: "Turning complexity into clean order through rigorous logic and craft.",
-      avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=AlexChen",
-      location: "Shanghai / Remote",
-      email: "flyingpig06@outlook.com",
-      github: "https://github.com/flyingpig669"
-    };
-
-    this.social = config.social || [];
-    this.nav = config.nav || [];
-
     // 3. 载入编译生成的博文索引 (来自 posts/ 目录)
+    // 数据在初始化后即为静态，直接引用而不做深拷贝（深拷贝会重复持有全部正文文本）。
     var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [] };
-    var compiledPosts = Array.isArray(postsData.posts) ? JSON.parse(JSON.stringify(postsData.posts)) : [];
-    this.rawColumns = Array.isArray(postsData.columns) ? JSON.parse(JSON.stringify(postsData.columns)) : [];
+    this.posts = Array.isArray(postsData.posts) ? postsData.posts : [];
+    this.rawColumns = Array.isArray(postsData.columns) ? postsData.columns : [];
     this.columns = this.rawColumns;
     this.about = postsData.about || {};
     this.customPages = postsData.customPages || {};
     this.pages = postsData.pages || {};
 
-    // 4. 载入本地交互统计 (浏览量、点赞、书签)
-    var viewsMap = {};
-    try {
-      var rawViews = localStorage.getItem(this.STATE_KEY_VIEWS);
-      if (rawViews) viewsMap = JSON.parse(rawViews);
-    } catch (e) {}
-    this.viewsMap = viewsMap;
+    // 派生结果缓存（见 getColumns / getAllTags）
+    this._columnsCache = null;
+    this._tagsCache = null;
 
-    this.likedPosts = new Set();
-    this.bookmarkedPosts = new Set();
-    try {
-      var rawLikes = localStorage.getItem(this.STATE_KEY_LIKES);
-      if (rawLikes) this.likedPosts = new Set(JSON.parse(rawLikes));
-      var rawBm = localStorage.getItem(this.STATE_KEY_BOOKMARKS);
-      if (rawBm) this.bookmarkedPosts = new Set(JSON.parse(rawBm));
-    } catch (e) {}
-
-    // 合并浏览量与点赞统计
-    var self = this;
-    compiledPosts.forEach(function(p) {
-      if (self.viewsMap[p.id]) {
-        p.views = Math.max(p.views || 0, self.viewsMap[p.id]);
-      }
-      if (self.likedPosts.has(p.id)) {
-        p.likes = (p.likes || 0) + 1;
-      }
-    });
-
-    // 最终博文列表 (均来自 posts/ 目录编译索引)
-    this.posts = compiledPosts;
-
-    // 6. 应用主题偏好
+    // 4. 应用主题偏好
     var savedTheme = 'dark';
     try {
       savedTheme = localStorage.getItem(this.STATE_KEY_THEME) || 'dark';
@@ -125,15 +83,11 @@ window.BlogStore = {
       });
     }
 
-    if (filter.sort === 'views') {
-      list.sort(function(a, b) { return (b.views || 0) - (a.views || 0); });
-    } else {
-      list.sort(function(a, b) {
-        if (a.pinned && !b.pinned) return -1;
-        if (!a.pinned && b.pinned) return 1;
-        return new Date(b.date) - new Date(a.date);
-      });
-    }
+    list.sort(function(a, b) {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.date) - new Date(a.date);
+    });
 
     return list;
   },
@@ -283,27 +237,32 @@ window.BlogStore = {
       return { kind: 'column', title: col.name, route: '/columns/' + encodeURIComponent(col.id), slug: col.id, excerpt: col.desc || '' };
     }
 
-    // 5) 标签（带或不带 #）
+    // 5) 文档（normal 文章 / post 结构化独立页），支持 slug / id / relPath。
+    //    文档优先于标签：否则一旦出现与文章同名的标签，[[名字]] 会被标签悄悄截走。
+    //    以 # 开头视为「显式指定标签」，跳过文档解析。
+    var explicitTag = norm.charAt(0) === '#';
+    if (!explicitTag) {
+      var doc = this.getDoc(norm) || this.getDoc(decoded);
+      if (doc && doc.data) {
+        var d = doc.data;
+        var slug = d.slug || d.id || norm;
+        return {
+          kind: doc.kind === 'page' ? 'page' : 'post',
+          title: d.title || slug,
+          route: '/posts/' + encodeURIComponent(slug),
+          slug: slug,
+          excerpt: d.excerpt || ''
+        };
+      }
+    }
+
+    // 6) 标签（带或不带 #）
     var tagName = norm.replace(/^#/, '');
     var tag = (this.getAllTags() || []).find(function(t) {
       return t.name.toLowerCase() === tagName.toLowerCase();
     });
     if (tag) {
       return { kind: 'tag', title: '#' + tag.name, route: '/tags/' + encodeURIComponent(tag.name), slug: tag.name };
-    }
-
-    // 6) 文档（normal 文章 / post 结构化独立页），支持 slug / id / relPath
-    var doc = this.getDoc(norm) || this.getDoc(decoded);
-    if (doc && doc.data) {
-      var d = doc.data;
-      var slug = d.slug || d.id || norm;
-      return {
-        kind: doc.kind === 'page' ? 'page' : 'post',
-        title: d.title || slug,
-        route: '/posts/' + encodeURIComponent(slug),
-        slug: slug,
-        excerpt: d.excerpt || ''
-      };
     }
 
     // 7) 按标题匹配（精确优先，其次包含）
@@ -321,61 +280,6 @@ window.BlogStore = {
     }
 
     return null;
-  },
-
-  incrementView: function(id) {
-    var post = this.getPostById(id);
-    if (post) {
-      post.views = (post.views || 0) + 1;
-      this.viewsMap[id] = post.views;
-      try {
-        localStorage.setItem(this.STATE_KEY_VIEWS, JSON.stringify(this.viewsMap));
-      } catch (e) {}
-    }
-  },
-
-  toggleLikePost: function(id) {
-    var post = this.getPostById(id);
-    if (!post) return { liked: false, count: 0 };
-
-    var liked = false;
-    if (this.likedPosts.has(id)) {
-      this.likedPosts.delete(id);
-      post.likes = Math.max(0, (post.likes || 1) - 1);
-      liked = false;
-    } else {
-      this.likedPosts.add(id);
-      post.likes = (post.likes || 0) + 1;
-      liked = true;
-    }
-
-    try {
-      localStorage.setItem(this.STATE_KEY_LIKES, JSON.stringify(Array.from(this.likedPosts)));
-    } catch (e) {}
-    return { liked: liked, count: post.likes };
-  },
-
-  isPostLiked: function(id) {
-    return this.likedPosts.has(id);
-  },
-
-  toggleBookmark: function(id) {
-    var bookmarked = false;
-    if (this.bookmarkedPosts.has(id)) {
-      this.bookmarkedPosts.delete(id);
-      bookmarked = false;
-    } else {
-      this.bookmarkedPosts.add(id);
-      bookmarked = true;
-    }
-    try {
-      localStorage.setItem(this.STATE_KEY_BOOKMARKS, JSON.stringify(Array.from(this.bookmarkedPosts)));
-    } catch (e) {}
-    return bookmarked;
-  },
-
-  isPostBookmarked: function(id) {
-    return this.bookmarkedPosts.has(id);
   },
 
   isPostExcluded: function(p) {
@@ -401,10 +305,12 @@ window.BlogStore = {
     return false;
   },
 
-  // 专栏获取
+  // 专栏获取（结果只依赖初始化后的静态数据，故记忆化；
+  // getColumnById / resolveLink 会在渲染一页时被调用很多次）
   getColumns: function() {
+    if (this._columnsCache) return this._columnsCache;
     var self = this;
-    return (this.rawColumns || this.columns || []).map(function(col) {
+    this._columnsCache = (this.rawColumns || this.columns || []).map(function(col) {
       var filteredPosts = (col.posts || []).filter(function(p) {
         return !self.isPostExcluded(p);
       });
@@ -415,6 +321,7 @@ window.BlogStore = {
     }).filter(function(col) {
       return col.postsCount > 0;
     });
+    return this._columnsCache;
   },
 
   getColumnById: function(colId) {
@@ -427,8 +334,9 @@ window.BlogStore = {
     });
   },
 
-  // 聚合全站标签
+  // 聚合全站标签（记忆化：resolveLink 解析每条互链都可能需要它）
   getAllTags: function() {
+    if (this._tagsCache) return this._tagsCache;
     var tagCount = {};
     this.getPosts().forEach(function(p) {
       if (p.tags && Array.isArray(p.tags)) {
@@ -437,32 +345,18 @@ window.BlogStore = {
         });
       }
     });
-    return Object.entries(tagCount)
+    this._tagsCache = Object.entries(tagCount)
       .map(function(e) { return { name: e[0], count: e[1] }; })
       .sort(function(a, b) { return b.count - a.count; });
+    return this._tagsCache;
   },
 
-  // 全站统计指标
-  getStats: function() {
-    var visiblePosts = this.getPosts();
-    var totalWords = visiblePosts.reduce(function(sum, p) { return sum + (p.words || 0); }, 0);
-    var totalViews = visiblePosts.reduce(function(sum, p) { return sum + (p.views || 0); }, 0);
-
-    return {
-      postsCount: visiblePosts.length,
-      columnsCount: this.getColumns().length,
-      tagsCount: this.getAllTags().length,
-      wordsCount: totalWords,
-      viewsCount: totalViews
-    };
-  },
-
+  // 主题：本站为固定深色（<html class="dark">）。保留写入接口，便于日后接入浅色模式。
   applyTheme: function(theme) {
-    this.theme = theme;
+    this.theme = theme || 'dark';
     try {
-      localStorage.setItem(this.STATE_KEY_THEME, theme);
+      localStorage.setItem(this.STATE_KEY_THEME, this.theme);
     } catch (e) {}
-    var root = document.documentElement;
-    root.classList.add('dark');
+    document.documentElement.classList.add('dark');
   }
 };

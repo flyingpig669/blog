@@ -34,9 +34,10 @@ window.BlogConfig = {
     description: "Personal technical blog focused on modern computing architecture, elegant systems, and clean code.",
     // 页脚版权说明
     footerText: "© 2026 Alex Chen · All rights reserved.",
-    // 默认每页显示文章数
-    postsPerPage: 10,
-    // 文章预估阅读速度 (每分钟字数)
+    // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。
+    // 例：https://<用户名>.github.io/<仓库名> ；留空则跳过 sitemap 生成。
+    url: "",
+    // 文章预估阅读速度 (每分钟字数)：由 sync_posts.py 在编译期读取，用于估算 readTime
     wordsPerMinute: 300,
   },
 
@@ -93,9 +94,9 @@ window.BlogConfig = {
     tocLevels: [2, 3, 4],
     // 启用 Cmd+K / Ctrl+K 全文即时检索
     searchModal: true,
-    // 启用数学公式 KaTeX 解析渲染
+    // 启用数学公式 KaTeX 解析渲染（false 时公式以纯文本代码形式展示）
     mathKaTeX: true,
-    // 启用代码块语法高亮与一键复制代码
+    // 启用代码块语法高亮与一键复制代码（false 时仅保留代码容器与复制按钮，不做着色）
     codeHighlight: true
   },
 

@@ -8,8 +8,6 @@
 
 window.BlogApp = {
   currentRoute: { name: 'home', params: {} },
-  activeTag: null,
-  searchQuery: '',
 
   // ----------------------------------------------------------------------------
   // 1. 初始化与全局 Chrome 渲染
@@ -137,9 +135,42 @@ window.BlogApp = {
     return '#' + this.navItemRoute(item);
   },
 
+  // 幻灯片依赖（PDF.js + slide-viewer.js）合计约 1.3MB，却只被含幻灯片的文章用到，
+  // 因此不参与首屏加载：真正需要时按序注入脚本，加载完成后回调。
+  ensureSlideViewer: function(callback) {
+    var self = this;
+    if (window.BlogSlideViewer) {
+      callback();
+      return;
+    }
+    if (!this._slideQueue) {
+      this._slideQueue = [];
+      var files = ['vendor/pdfjs/pdf.min.js', 'js/slide-viewer.js'];
+      var loadNext = function(i) {
+        if (i >= files.length) {
+          var queue = self._slideQueue || [];
+          self._slideQueue = null;
+          queue.forEach(function(fn) {
+            try { fn(); } catch (err) { console.error(err); }
+          });
+          return;
+        }
+        var script = document.createElement('script');
+        script.src = files[i];
+        script.onload = function() { loadNext(i + 1); };
+        script.onerror = function() {
+          self._slideQueue = null;
+          console.error('[slide] 依赖加载失败: ' + files[i]);
+        };
+        document.head.appendChild(script);
+      };
+      loadNext(0);
+    }
+    this._slideQueue.push(callback);
+  },
+
   // 安全的 Markdown 渲染：解析器脚本加载失败时降级为纯文本，避免整页崩溃
-  safeMarkdown: function(markdownText, options) {
-    if (window.BlogMarkdown && typeof window.BlogMarkdown.render === 'function') {
+  safeMarkdown: function(markdownText, options) {    if (window.BlogMarkdown && typeof window.BlogMarkdown.render === 'function') {
       return window.BlogMarkdown.render(markdownText, options);
     }
     var fallback = '<pre class="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#8B8B8E] m-0 font-mono">' +
@@ -178,6 +209,14 @@ window.BlogApp = {
     return this.routeHref('tags', tag);
   },
 
+  // 依据选中的标签集合生成 /tags 路由。多选以路径段串联（#/tags/a/b），
+  // 排序后输出以保证同一组标签只有唯一 URL；空集合回落到 #/tags。
+  tagsRouteHref: function(names) {
+    var route = this.getRoutes().tags || '/tags';
+    var arr = (names || []).filter(Boolean).sort();
+    return '#' + route + (arr.length ? '/' + arr.map(encodeURIComponent).join('/') : '');
+  },
+
   safeDecode: function(value) {
     try {
       return decodeURIComponent(value || '');
@@ -186,10 +225,33 @@ window.BlogApp = {
     }
   },
 
+  // 站点绝对地址：用于 canonical / og:url。
+  // 未配置 site.url 时退回「当前文档目录」，这样 GitHub Pages 子路径部署也能自洽。
+  absoluteSiteUrl: function() {
+    var cfg = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};
+    var base = String((cfg.site && cfg.site.url) || '').trim();
+    if (base) return base.replace(/\/+$/, '') + '/';
+    return window.location.origin + window.location.pathname;
+  },
+
+  setMetaContent: function(selector, value) {
+    if (!value) return;
+    var el = document.querySelector(selector);
+    if (el) el.setAttribute('content', value);
+  },
+
   setDocumentTitle: function(title) {
     var site = (window.BlogStore && window.BlogStore.site) || {};
     var siteTitle = site.title || 'Aurora Notes';
-    document.title = title && title !== siteTitle ? title + ' · ' + siteTitle : siteTitle;
+    var full = title && title !== siteTitle ? title + ' · ' + siteTitle : siteTitle;
+    document.title = full;
+    // Hash 路由下所有页面共享同一个物理 URL，故 og:url / canonical 始终指向站点根。
+    var url = this.absoluteSiteUrl();
+    this.setMetaContent('meta[property="og:title"]', full);
+    this.setMetaContent('meta[name="twitter:title"]', full);
+    this.setMetaContent('meta[property="og:url"]', url);
+    var canonicalEl = document.getElementById('canonical-link');
+    if (canonicalEl) canonicalEl.setAttribute('href', url);
   },
 
   // 渲染全局导航、页脚与品牌标识 (数据源自 blog.config.js)
@@ -201,9 +263,9 @@ window.BlogApp = {
     var self = this;
     var itemHref = function(it) { return self.navItemHref(it); };
 
-    // 1. 设置网页标题
+    // 1. 设置网页标题（同时刷新 og:title / og:url / canonical）
     if (site.title) {
-      document.title = site.title;
+      this.setDocumentTitle(site.title);
     }
     var descriptionEl = document.querySelector('meta[name="description"]');
     if (descriptionEl && site.description) {
@@ -240,7 +302,7 @@ window.BlogApp = {
         if (!group) {
           var href = itemHref(item);
           var isExternal = href.indexOf('http') === 0;
-          navHtml += '<a href="' + href + '" data-nav-link="' + item.id + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + item.label + '</a>';
+          navHtml += '<a href="' + href + '" data-nav-link="' + window.BlogApp.escapeHtml(item.id) + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + window.BlogApp.escapeHtml(item.label) + '</a>';
           return;
         }
 
@@ -249,21 +311,21 @@ window.BlogApp = {
 
         // 折叠项为空时退化为普通链接
         if (group.folded.length === 0) {
-          navHtml += '<a href="' + headHref + '" data-nav-link="' + group.head.id + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + group.head.label + '</a>';
+          navHtml += '<a href="' + headHref + '" data-nav-link="' + window.BlogApp.escapeHtml(group.head.id) + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + window.BlogApp.escapeHtml(group.head.label) + '</a>';
           return;
         }
 
-        navHtml += '<div class="nav-dropdown" data-nav-group="' + group.head.id + '">';
-        navHtml += '  <a href="' + headHref + '" data-nav-link="' + group.head.id + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + group.head.label + '</a>';
-        navHtml += '  <button type="button" class="nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false" aria-label="展开 ' + group.head.label + ' 更多链接">';
+        navHtml += '<div class="nav-dropdown" data-nav-group="' + window.BlogApp.escapeHtml(group.head.id) + '">';
+        navHtml += '  <a href="' + headHref + '" data-nav-link="' + window.BlogApp.escapeHtml(group.head.id) + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + window.BlogApp.escapeHtml(group.head.label) + '</a>';
+        navHtml += '  <button type="button" class="nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false" aria-label="展开 ' + window.BlogApp.escapeHtml(group.head.label) + ' 更多链接">';
         navHtml += '    <svg class="nav-dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
         navHtml += '  </button>';
         navHtml += '  <div class="nav-dropdown-panel">';
-        navHtml += '    <div class="nav-dropdown-menu" role="menu">';
+        navHtml += '    <div class="nav-dropdown-menu" role="menu" aria-label="' + window.BlogApp.escapeHtml(group.head.label) + ' 子菜单">';
         group.folded.forEach(function(sub) {
           var subHref = itemHref(sub);
           var subExt = subHref.indexOf('http') === 0;
-          navHtml += '      <a role="menuitem" href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (subExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-dropdown-item">' + sub.label + '</a>';
+          navHtml += '      <a role="menuitem" href="' + subHref + '" data-nav-link="' + window.BlogApp.escapeHtml(sub.id) + '" ' + (subExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-dropdown-item">' + window.BlogApp.escapeHtml(sub.label) + '</a>';
         });
         navHtml += '    </div>';
         navHtml += '  </div>';
@@ -288,19 +350,19 @@ window.BlogApp = {
         if (!group) {
           var href = itemHref(item);
           var isExternal = href.indexOf('http') === 0;
-          drawerHtml += '<a href="' + href + '" data-nav-link="' + item.id + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-3 text-[15px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
+          drawerHtml += '<a href="' + href + '" data-nav-link="' + window.BlogApp.escapeHtml(item.id) + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-3 text-[15px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + window.BlogApp.escapeHtml(item.label) + '</a>';
           return;
         }
 
         var headHref = itemHref(group.head);
         var headExt = headHref.indexOf('http') === 0;
-        drawerHtml += '<a href="' + headHref + '" data-nav-link="' + group.head.id + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-3 text-[15px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + group.head.label + '</a>';
+        drawerHtml += '<a href="' + headHref + '" data-nav-link="' + window.BlogApp.escapeHtml(group.head.id) + '" ' + (headExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-3 text-[15px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + window.BlogApp.escapeHtml(group.head.label) + '</a>';
         if (group.folded.length > 0) {
           drawerHtml += '<div class="pl-3.5 space-y-1 border-l border-white/[0.06] my-1 mb-2">';
           group.folded.forEach(function(sub) {
             var subHref = itemHref(sub);
             var subExt = subHref.indexOf('http') === 0;
-            drawerHtml += '  <a href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (subExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-2 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + sub.label + '</a>';
+            drawerHtml += '  <a href="' + subHref + '" data-nav-link="' + window.BlogApp.escapeHtml(sub.id) + '" ' + (subExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="mobile-nav-link block px-4 py-2 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + window.BlogApp.escapeHtml(sub.label) + '</a>';
           });
           drawerHtml += '</div>';
         }
@@ -380,49 +442,53 @@ window.BlogApp = {
     });
 
     // 滚动事件监听器: 进度条 + Active Outline Scrollspy 高亮
+    // 用 requestAnimationFrame 节流：scroll 事件触发频率远高于渲染帧，若在回调里直接
+    // 做 querySelectorAll + getBoundingClientRect，长文滚动时会产生大量重复布局查询。
+    var scrollTicking = false;
     window.addEventListener('scroll', function() {
-      // 1. 阅读进度条
-      var progressBar = document.getElementById('reading-progress-bar');
-      var container = document.getElementById('reading-progress-container');
-      var total = document.documentElement.scrollHeight - window.innerHeight;
-      var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
-      if (progressBar && container) {
-        if (features.readingProgress !== false && total > 200 && self.currentRoute.name === 'post') {
-          container.classList.remove('hidden');
-          var progress = Math.min(100, Math.max(0, (window.scrollY / total) * 100));
-          progressBar.style.width = progress + '%';
-        } else {
-          container.classList.add('hidden');
-        }
-      }
+      if (scrollTicking) return;
+      scrollTicking = true;
+      window.requestAnimationFrame(function() {
+        scrollTicking = false;
+        self.updateScrollUI();
+      });
+    }, { passive: true });
+  },
 
-      // 2. Active Outline Scrollspy (右侧悬浮目录高亮指示)
-      if (self.currentRoute.name === 'post') {
-        var headings = document.querySelectorAll('.markdown-body [id^="section-"]');
-        if (headings && headings.length > 0) {
-          var currentId = '';
-          headings.forEach(function(h) {
-            var top = h.getBoundingClientRect().top;
-            if (top <= 120) {
-              currentId = h.id;
-            }
-          });
-          // 滚动至文档底部时激活最后一个标题
-          if ((window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 60)) {
-            currentId = headings[headings.length - 1].id;
-          }
-          if (currentId) {
-            document.querySelectorAll('#desktop-outline-nav button, #desktop-toc-nav button').forEach(function(btn) {
-              var t = btn.getAttribute('data-outline-target') || btn.getAttribute('data-target');
-              if (t === currentId) {
-                btn.classList.add('active');
-              } else {
-                btn.classList.remove('active');
-              }
-            });
-          }
-        }
+  // 滚动相关的 UI 更新（经 rAF 节流，每帧至多执行一次）
+  updateScrollUI: function() {
+    var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
+
+    // 1. 阅读进度条
+    var progressBar = document.getElementById('reading-progress-bar');
+    var container = document.getElementById('reading-progress-container');
+    var total = document.documentElement.scrollHeight - window.innerHeight;
+    if (progressBar && container) {
+      if (features.readingProgress !== false && total > 200 && this.currentRoute.name === 'post') {
+        container.classList.remove('hidden');
+        var progress = Math.min(100, Math.max(0, (window.scrollY / total) * 100));
+        progressBar.style.width = progress + '%';
+      } else {
+        container.classList.add('hidden');
       }
+    }
+
+    // 2. Active Outline Scrollspy (右侧悬浮目录高亮指示)
+    if (this.currentRoute.name !== 'post') return;
+    var headings = document.querySelectorAll('.markdown-body [id^="section-"]');
+    if (!headings || headings.length === 0) return;
+    var currentId = '';
+    headings.forEach(function(h) {
+      if (h.getBoundingClientRect().top <= 120) currentId = h.id;
+    });
+    // 滚动至文档底部时激活最后一个标题
+    if ((window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 60)) {
+      currentId = headings[headings.length - 1].id;
+    }
+    if (!currentId) return;
+    document.querySelectorAll('#desktop-outline-nav button, #desktop-toc-nav button').forEach(function(btn) {
+      var t = btn.getAttribute('data-outline-target') || btn.getAttribute('data-target');
+      btn.classList.toggle('active', t === currentId);
     });
   },
 
@@ -507,6 +573,7 @@ window.BlogApp = {
   // 4. 路由分发系统 (Hash Router)
   // ----------------------------------------------------------------------------
   handleRoute: function() {
+    var self = this;
     window.scrollTo(0, 0);
     this.closeMobileDrawer();
     this.closeMobileOutline();
@@ -547,8 +614,13 @@ window.BlogApp = {
     });
 
     if (path === postsRoute) {
+      // #/posts 与 #/archive 此前渲染的是同一个视图，等于同一内容有两个 URL。
+      // 现统一收敛到 #/archive（导航中的正式入口），用 replaceState 不留历史记录，
+      // 既保证旧链接仍然可用，也让「文章总览」只有一个规范地址。
+      var archiveRoute = routes.archive || '/archive';
+      history.replaceState(null, '', window.location.pathname + window.location.search + '#' + archiveRoute);
       this.setActiveNav('archive');
-      this.currentRoute = { name: 'posts', params: {} };
+      this.currentRoute = { name: 'archive', params: {} };
       this.renderArchivesView();
       return;
     }
@@ -586,23 +658,26 @@ window.BlogApp = {
       return;
     }
 
-    // 标签分类多维检索路由: #/tags 或 #/tags/:tagName。
+    // 标签分类多维检索路由: #/tags、#/tags/:tag、#/tags/:tag1/:tag2（多选）或 #/tags?tag=xxx。
+    // 选中集合唯一来源于 URL —— 保证「刷新还原 / 复制分享 / 浏览器后退」三者行为一致。
     if (path === tagsRoute || path.indexOf(tagsRoute + '/') === 0) {
       this.setActiveNav('tags');
       var tagParts = path.slice(tagsRoute.length).replace(/^\//, '').split('/').filter(Boolean);
       var queryTag = null;
       if (hash.indexOf('?') !== -1) {
-        var queryStr = hash.split('?')[1];
-        var params = new URLSearchParams(queryStr);
+        var params = new URLSearchParams(hash.split('?')[1]);
         queryTag = params.get('tag');
       }
-      var targetTag = tagParts.length > 0 ? this.safeDecode(tagParts[0]) : (queryTag ? this.safeDecode(queryTag) : null);
-      if (targetTag) {
-        this.selectedSortedTags = new Set([targetTag]);
-      } else if (!queryTag && tagParts.length === 0 && hash.indexOf('?') === -1) {
-        this.selectedSortedTags = new Set();
+      var selectedFromUrl = tagParts.map(function(part) { return self.safeDecode(part); }).filter(Boolean);
+      if (selectedFromUrl.length === 0 && queryTag) {
+        selectedFromUrl = [self.safeDecode(queryTag)];
       }
-      this.currentRoute = { name: 'tags', params: { tag: targetTag } };
+      // URL 里的标签名按「大小写不敏感」归一化为标签云中的规范写法。
+      // 否则分享出去的 #/tags/TEST 会筛出 0 篇（数据里的标签其实是 test），
+      // 而 resolveLink 解析标签本就是大小写不敏感的 —— 两处行为必须一致。
+      selectedFromUrl = this.normalizeTagNames(selectedFromUrl);
+      this.selectedSortedTags = new Set(selectedFromUrl);
+      this.currentRoute = { name: 'tags', params: { tag: selectedFromUrl[0] || null } };
       this.renderTagsView();
       return;
     }
@@ -717,15 +792,15 @@ window.BlogApp = {
       posts.forEach(function(post) {
         html += '<article class="post-item group">';
         html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
-        html += '    <span>' + post.date + '</span>';
-        if (post.readTime) html += '    <span>·</span><span>' + post.readTime + '</span>';
+        html += '    <span>' + window.BlogApp.escapeHtml(post.date) + '</span>';
+        if (post.readTime) html += '    <span>·</span><span>' + window.BlogApp.escapeHtml(post.readTime) + '</span>';
         html += '  </div>';
-        html += '  <h2 class="mb-2"><a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + post.title + '</a></h2>';
-        if (post.excerpt) html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
+        html += '  <h2 class="mb-2"><a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + window.BlogApp.escapeHtml(post.title) + '</a></h2>';
+        if (post.excerpt) html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + window.BlogApp.escapeHtml(post.excerpt) + '</p>';
         if ((post.tags || []).length > 0) {
           html += '  <div class="flex flex-wrap items-center gap-2">';
           post.tags.forEach(function(t) {
-            html += '    <a href="' + window.BlogApp.tagHref(t) + '" class="tag-pill">#' + t + '</a>';
+            html += '    <a href="' + window.BlogApp.tagHref(t) + '" class="tag-pill">#' + window.BlogApp.escapeHtml(t) + '</a>';
           });
           html += '  </div>';
         }
@@ -761,6 +836,27 @@ window.BlogApp = {
     });
   },
 
+  // 字词数的可读格式。本站中英混排，故用中性的「字词」而非 words。
+  // 依据是 sync_posts.py 的 estimate_word_units()：英文按单词、CJK 按字符计。
+  formatWordCount: function(n) {
+    var num = Number(n) || 0;
+    if (num >= 1000) return (Math.round(num / 100) / 10) + 'k 字词';
+    return num + ' 字词';
+  },
+
+  // 结构化区块的文本字段（bio / quote / timeline[].desc / focusAreas[].desc）既可能是
+  // 单个字符串，也可能是数组 —— FrontMatter 里写成 ["第一行", "第二行"] 时按行渲染，
+  // 保留作者在配置里划分的行结构。两种形态都必须转义。
+  formatLines: function(value) {
+    if (Array.isArray(value)) {
+      return value
+        .map(function(line) { return window.BlogApp.escapeHtml(line); })
+        .filter(function(line) { return line !== ''; })
+        .join('<br>');
+    }
+    return window.BlogApp.escapeHtml(value);
+  },
+
   // 5.1 首页视图 (Home View)
   renderHomeView: function() {
     var container = document.getElementById('app-main');
@@ -793,16 +889,16 @@ window.BlogApp = {
         html += '<article class="post-item group">';
         // Row 1: Date & Metadata
         html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
-        html += '    <span>' + post.date + '</span>';
+        html += '    <span>' + window.BlogApp.escapeHtml(post.date) + '</span>';
         if (post.readTime) {
           html += '    <span>·</span>';
-          html += '    <span>' + post.readTime + '</span>';
+          html += '    <span>' + window.BlogApp.escapeHtml(post.readTime) + '</span>';
         }
         if (post.columnName || post.column) {
           var colTitle = post.columnName || post.column;
           var partText = post.order ? ('PART ' + (post.order < 10 ? '0' + post.order : post.order)) : 'SERIES';
           html += '    <span>·</span>';
-          html += '    <a href="' + window.BlogApp.routeHref('columns', post.column) + '" class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20 transition-colors font-medium shrink-0 font-mono">' + partText + ' · ' + colTitle + '</a>';
+          html += '    <a href="' + window.BlogApp.routeHref('columns', post.column) + '" class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20 transition-colors font-medium shrink-0 font-mono">' + partText + ' · ' + window.BlogApp.escapeHtml(colTitle) + '</a>';
         }
         if (post.pinned) {
           html += '    <span class="px-1.5 py-0.2 rounded text-[10px] bg-[#3B82F6]/15 text-[#3B82F6] font-medium">PINNED</span>';
@@ -827,7 +923,7 @@ window.BlogApp = {
         if ((post.tags || []).length > 0) {
           html += '  <div class="flex flex-wrap items-center gap-2">';
           post.tags.forEach(function(tag) {
-            html += '    <a href="' + window.BlogApp.tagHref(tag) + '" class="tag-pill">#' + tag + '</a>';
+            html += '    <a href="' + window.BlogApp.tagHref(tag) + '" class="tag-pill">#' + window.BlogApp.escapeHtml(tag) + '</a>';
           });
           html += '  </div>';
         }
@@ -852,7 +948,6 @@ window.BlogApp = {
       return;
     }
 
-    window.BlogStore.incrementView(post.id);
     this.setDocumentTitle(post.title);
 
     // 结构化独立页 (type: post / page) 直接交给单页渲染器，不走文章排版
@@ -915,11 +1010,11 @@ window.BlogApp = {
     html += '<div class="flex-1 max-w-[680px] min-w-0">';
 
     // 紧凑一体式面包屑导航
-    html += '<nav class="mb-4 flex items-center gap-1.5 text-[12px] font-mono text-[#5A5A5E] overflow-x-auto no-scrollbar">';
+    html += '<nav aria-label="Breadcrumb" class="mb-4 flex items-center gap-1.5 text-[12px] font-mono text-[#5A5A5E] overflow-x-auto no-scrollbar">';
     html += '  <a href="' + this.routeHref('home') + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0">Writing</a>';
     if (columnInfo) {
       html += '  <span>/</span>';
-      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors truncate max-w-[220px]" title="' + columnInfo.name.replace(/"/g, '&quot;') + '">' + columnInfo.name + '</a>';
+      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors truncate max-w-[220px]" title="' + columnInfo.name.replace(/"/g, '&quot;') + '">' + window.BlogApp.escapeHtml(columnInfo.name) + '</a>';
       html += '  <span>/</span>';
       html += '  <span class="text-[#3B82F6] shrink-0 font-semibold">Part ' + partNumber + '</span>';
     } else {
@@ -933,7 +1028,7 @@ window.BlogApp = {
       html += '<div class="mb-5 py-2 px-3 rounded-[6px] bg-[#161618] border border-white/[0.08] flex items-center justify-between text-[12px] font-mono text-[#8B8B8E]">';
       html += '  <div class="flex items-center gap-2 min-w-0">';
       html += '    <span class="px-1.5 py-0.2 rounded bg-[#3B82F6]/15 text-[#3B82F6] text-[10.5px] font-semibold shrink-0">PART ' + partNumber + ' / ' + (totalParts < 10 ? '0' + totalParts : totalParts) + '</span>';
-      html += '    <span class="text-[#EDEDED] font-sans truncate">' + columnInfo.name + '</span>';
+      html += '    <span class="text-[#EDEDED] font-sans truncate">' + window.BlogApp.escapeHtml(columnInfo.name) + '</span>';
       html += '  </div>';
       html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors shrink-0 ml-3 text-[11px]">Series Index →</a>';
       html += '</div>';
@@ -941,21 +1036,21 @@ window.BlogApp = {
 
     // 文章头部
     html += '<header class="mb-6 pb-4 border-b border-white/[0.06]">';
-    html += '  <h1 class="text-[26px] sm:text-[30px] md:text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-2.5 font-sans">' + post.title + '</h1>';
+    html += '  <h1 class="text-[26px] sm:text-[30px] md:text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-2.5 font-sans">' + window.BlogApp.escapeHtml(post.title) + '</h1>';
     // 文章元信息行: 日期 · 阅读时长 · 字数 · 标签
     html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
-    html += '    <span>' + post.date + '</span>';
+    html += '    <span>' + window.BlogApp.escapeHtml(post.date) + '</span>';
     html += '    <span>·</span>';
-    html += '    <span>' + (post.readTime || '3 min read') + '</span>';
+    html += '    <span>' + window.BlogApp.escapeHtml(post.readTime || '3 min read') + '</span>';
     if (post.words) {
       html += '    <span>·</span>';
-      html += '    <span>' + post.words + ' words</span>';
+      html += '    <span>' + this.formatWordCount(post.words) + '</span>';
     }
     if ((post.tags || []).length > 0) {
       html += '    <span>·</span>';
       html += '    <div class="inline-flex flex-wrap gap-1.5">';
       post.tags.forEach(function(t) {
-        html += '      <a href="' + window.BlogApp.tagHref(t) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">#' + t + '</a>';
+        html += '      <a href="' + window.BlogApp.tagHref(t) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">#' + window.BlogApp.escapeHtml(t) + '</a>';
       });
       html += '    </div>';
     }
@@ -964,7 +1059,7 @@ window.BlogApp = {
 
     // FrontMatter 声明的幻灯片 (方式 B)：若正文未内嵌 ::: slide，则在正文前自动挂载播放器
     if (post.slide && renderedHtml.indexOf('article-slide-player-mount') === -1) {
-      html += '<div class="article-slide-player-mount my-8" data-slide-url="' + String(post.slide).replace(/"/g, '&quot;') + '" data-slide-title="' + String(post.title || '').replace(/"/g, '&quot;') + '"></div>';
+      html += '<div class="article-slide-player-mount my-8" data-slide-url="' + this.escapeHtml(post.slide) + '" data-slide-title="' + this.escapeHtml(post.title || '') + '"></div>';
     }
 
     // Markdown 正文 (正文内部可能包含一处或多处 ::: slide 演示文稿)
@@ -972,12 +1067,28 @@ window.BlogApp = {
     html += renderedHtml;
     html += '</article>';
 
+    // FrontMatter 声明的下载类附件 (attachments: ["attachments/xxx.zip"])
+    if (Array.isArray(post.attachments) && post.attachments.length > 0) {
+      html += '<section class="mb-12 py-4 px-4 rounded-[6px] bg-[#111113] border border-white/[0.08]">';
+      html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-3">Attachments (' + post.attachments.length + ')</div>';
+      html += '  <div class="space-y-2">';
+      post.attachments.forEach(function(file) {
+        var fileName = String(file).split('/').pop();
+        html += '    <a href="' + window.BlogApp.escapeHtml(file) + '" download class="flex items-center gap-2 text-[13.5px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
+        html += '      <span class="text-[#3B82F6] font-mono text-[11px] shrink-0">&darr;</span>';
+        html += '      <span class="truncate">' + window.BlogApp.escapeHtml(fileName) + '</span>';
+        html += '    </a>';
+      });
+      html += '  </div>';
+      html += '</section>';
+    }
+
     // 上一篇 / 下一篇导航（专栏内为章节导航，普通文章为相邻文章）
     html += '<div class="pt-6 border-t border-white/[0.06] space-y-3">';
     if (columnInfo && colPosts.length > 0) {
       var currentDisplayPart = colIndex !== -1 ? (colIndex + 1) : (post.order || 1);
       html += '<div class="flex items-center justify-between text-[11px] font-mono text-[#5A5A5E]">';
-      html += '  <span class="text-[#3B82F6] font-medium">SERIES · Chapter ' + currentDisplayPart + ' of ' + colPosts.length + ' in ' + columnInfo.name + '</span>';
+      html += '  <span class="text-[#3B82F6] font-medium">SERIES · Chapter ' + currentDisplayPart + ' of ' + colPosts.length + ' in ' + window.BlogApp.escapeHtml(columnInfo.name) + '</span>';
       html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="hover:text-[#3B82F6] transition-colors">All ' + colPosts.length + ' Chapters →</a>';
       html += '</div>';
     }
@@ -988,7 +1099,7 @@ window.BlogApp = {
       html += '    <span>' + prevLabel + '</span>';
       if (columnInfo) html += '<span class="text-[#3B82F6]">IN SERIES</span>';
       html += '  </div>';
-      html += '  <div class="text-[13.5px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + prevPost.title + '</div>';
+      html += '  <div class="text-[13.5px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + window.BlogApp.escapeHtml(prevPost.title) + '</div>';
       html += '</a>';
     } else {
       html += '<div class="linear-card p-3.5 text-left opacity-35 border-dashed border-white/[0.04]">';
@@ -1003,7 +1114,7 @@ window.BlogApp = {
       if (columnInfo) html += '<span class="text-[#3B82F6]">IN SERIES</span>';
       html += '    <span>' + nextLabel + '</span>';
       html += '  </div>';
-      html += '  <div class="text-[13.5px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + nextPost.title + '</div>';
+      html += '  <div class="text-[13.5px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors line-clamp-1">' + window.BlogApp.escapeHtml(nextPost.title) + '</div>';
       html += '</a>';
     } else {
       html += '<div class="linear-card p-3.5 text-right opacity-35 border-dashed border-white/[0.04]">';
@@ -1038,7 +1149,7 @@ window.BlogApp = {
             : 'text-[#8B8B8E] hover:text-[#EDEDED] pl-2.5 py-1 border-l border-white/[0.06] hover:border-white/[0.2]';
           html += '  <a href="' + window.BlogApp.postHref(cp) + '" class="flex items-baseline gap-2 text-[11.5px] transition-all block truncate ' + linkClass + '" title="' + cp.title.replace(/"/g, '&quot;') + '">';
           html += '    <span class="text-[10px] shrink-0 font-mono opacity-80">' + cOrder + '</span>';
-          html += '    <span class="truncate">' + cp.title + '</span>';
+          html += '    <span class="truncate">' + window.BlogApp.escapeHtml(cp.title) + '</span>';
           html += '  </a>';
         });
         html += '  </div>';
@@ -1048,13 +1159,13 @@ window.BlogApp = {
       // 本文内部大纲 (On this page)
       if (toc.length > 0) {
         html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-[#5A5A5E] mb-2">On this page</div>';
-        html += '  <nav id="desktop-outline-nav" class="space-y-0.5 border-l border-white/[0.08] pl-2.5 max-h-[calc(100vh-280px)] overflow-y-auto">';
+        html += '  <nav id="desktop-outline-nav" aria-label="On this page" class="space-y-0.5 border-l border-white/[0.08] pl-2.5 max-h-[calc(100vh-280px)] overflow-y-auto">';
         toc.forEach(function(item) {
           var indentClass = item.level === 3 ? 'pl-2 text-[11px] text-[#5A5A5E]' : 'text-[12px] text-[#8B8B8E]';
-          var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
+          var escapedTitle = window.BlogApp.escapeHtml(item.text);
           html += '  <div class="toc-item">';
           html += '    <button type="button" data-outline-target="' + item.id + '" data-target="' + item.id + '" data-level="' + item.level + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indentClass + ' hover:text-[#3B82F6] transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0 py-0.5" title="' + escapedTitle + '">';
-          html += item.text;
+          html += window.BlogApp.escapeHtml(item.text);
           html += '    </button>';
           html += '  </div>';
         });
@@ -1095,11 +1206,11 @@ window.BlogApp = {
 
       if (toc.length > 0) {
         html += '    <div class="text-[11px] font-mono text-[#5A5A5E] mb-2 uppercase tracking-wider">Page Outline</div>';
-        html += '    <nav class="space-y-1.5 font-mono text-[13px]">';
+        html += '    <nav aria-label="Page outline" class="space-y-1.5 font-mono text-[13px]">';
         toc.forEach(function(item) {
           var indent = item.level === 3 ? 'pl-2 text-[12px] text-[#5A5A5E]' : 'text-[12.5px] text-[#8B8B8E]';
-          var escapedTitle = (item.text || '').replace(/"/g, '&quot;');
-          html += '      <button type="button" data-outline-target="' + item.id + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-0.5 leading-relaxed" title="' + escapedTitle + '">' + item.text + '</button>';
+          var escapedTitle = window.BlogApp.escapeHtml(item.text);
+          html += '      <button type="button" data-outline-target="' + item.id + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indent + ' hover:text-[#3B82F6] transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-0.5 leading-relaxed" title="' + escapedTitle + '">' + window.BlogApp.escapeHtml(item.text) + '</button>';
         });
         html += '    </nav>';
       }
@@ -1111,16 +1222,17 @@ window.BlogApp = {
 
     // 扫描并实例化正文内的所有演示文稿播放器 (支持单篇文章内出现多个 PDF / 幻灯片演示)
     var slideMounts = container.querySelectorAll('.article-slide-player-mount');
-    if (slideMounts.length > 0 && window.BlogSlideViewer) {
-      slideMounts.forEach(function(mountEl) {
-        var url = mountEl.getAttribute('data-slide-url');
-        var title = mountEl.getAttribute('data-slide-title') || post.title;
-        if (url) {
+    if (slideMounts.length > 0) {
+      this.ensureSlideViewer(function() {
+        if (!window.BlogSlideViewer) return;
+        slideMounts.forEach(function(mountEl) {
+          var url = mountEl.getAttribute('data-slide-url');
+          if (!url) return;
           window.BlogSlideViewer.mount(mountEl, {
             url: url,
-            title: title
+            title: mountEl.getAttribute('data-slide-title') || post.title
           });
-        }
+        });
       });
     }
   },
@@ -1149,8 +1261,8 @@ window.BlogApp = {
       html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
       html += '    <span>SERIES</span><span>·</span><span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
       html += '  </div>';
-      html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + col.name + '</h1>';
-      if (col.desc) html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed">' + col.desc + '</p>';
+      html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + window.BlogApp.escapeHtml(col.name) + '</h1>';
+      if (col.desc) html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed">' + window.BlogApp.escapeHtml(col.desc) + '</p>';
       html += '</header>';
 
       html += '<div class="space-y-3 border-l border-white/[0.08] pl-5">';
@@ -1158,7 +1270,7 @@ window.BlogApp = {
         var partNum = p.order < 10 ? '0' + p.order : p.order;
       html += '  <a href="' + window.BlogApp.postHref(p) + '" class="group flex items-baseline gap-3 py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
         html += '    <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
-        html += '    <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
+        html += '    <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
         if (p.slide) html += '<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
         html += '  </a>';
       });
@@ -1189,13 +1301,13 @@ window.BlogApp = {
         html += '    <span>' + (col.postsCount || (col.posts || []).length) + ' Parts</span>';
         if (col.totalWords) {
           html += '    <span>·</span>';
-          html += '    <span>' + Math.round(col.totalWords / 1000) + 'k words</span>';
+          html += '    <span>' + window.BlogApp.formatWordCount(col.totalWords) + '</span>';
         }
         html += '  </div>';
 
-        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2"><a href="' + window.BlogApp.routeHref('columns', col.id) + '" class="hover:text-[#3B82F6] transition-colors">' + col.name + '</a></h2>';
+        html += '  <h2 class="text-[22px] font-semibold text-[#EDEDED] tracking-tight mb-2"><a href="' + window.BlogApp.routeHref('columns', col.id) + '" class="hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(col.name) + '</a></h2>';
         if (col.desc) {
-          html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + col.desc + '</p>';
+          html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed mb-5 max-w-[640px]">' + window.BlogApp.escapeHtml(col.desc) + '</p>';
         }
 
         html += '  <div class="space-y-2 border-l border-white/[0.08] pl-4">';
@@ -1203,7 +1315,7 @@ window.BlogApp = {
           var partNum = p.order < 10 ? '0' + p.order : p.order;
           html += '    <a href="' + window.BlogApp.postHref(p) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">';
           html += '      <span class="font-mono text-[12px] text-[#5A5A5E] shrink-0">' + partNum + '</span>';
-          html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + p.title + '</span>';
+          html += '      <span class="font-sans group-hover:text-[#3B82F6] text-[#EDEDED] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
           if (p.slide) html += '  <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#3B82F6]/10 text-[#3B82F6]">SLIDE</span>';
           html += '    </a>';
         });
@@ -1246,7 +1358,7 @@ window.BlogApp = {
         var dateFormatted = (p.date || '').slice(5);
         html += '<a href="' + window.BlogApp.postHref(p) + '" class="flex items-baseline gap-4 py-1.5 group">';
         html += '  <span class="font-mono text-[12.5px] text-[#5A5A5E] shrink-0">' + dateFormatted + '</span>';
-        html += '  <span class="text-[15px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + p.title + '</span>';
+        html += '  <span class="text-[15px] text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors">' + window.BlogApp.escapeHtml(p.title) + '</span>';
         html += '</a>';
       });
       html += '  </div>';
@@ -1260,23 +1372,48 @@ window.BlogApp = {
   // 5.5 标签多选检索视图 (Sorted / Categories View - 支持多选复合筛选)
   selectedSortedTags: new Set(),
 
-  toggleSortedTag: function(tagName) {
-    if (!this.selectedSortedTags) this.selectedSortedTags = new Set();
-    if (this.selectedSortedTags.has(tagName)) {
-      this.selectedSortedTags.delete(tagName);
+  // 把任意来源的标签名归一化为标签云中的规范写法（大小写不敏感）。
+  // 未收录的标签名原样保留 —— 分享链接里的旧标签仍然可见「无匹配」状态，而不是被悄悄吞掉。
+  normalizeTagNames: function(names) {
+    var canonical = {};
+    (window.BlogStore.getAllTags() || []).forEach(function(t) {
+      canonical[String(t.name).toLowerCase()] = t.name;
+    });
+    var seen = {};
+    return (names || []).filter(Boolean).map(function(name) {
+      return canonical[String(name).toLowerCase()] || name;
+    }).filter(function(name) {
+      if (seen[name]) return false;
+      seen[name] = true;
+      return true;
+    });
+  },
+
+  // 标签筛选的唯一写入口：先把选中集合写回 URL（URL 即状态），再由 handleRoute 统一渲染。
+  // 这样「点胶囊 / 清空选择」都不会让地址栏与页面内容脱节（历史 bug：清空后刷新筛选复活）。
+  applyTagSelection: function(names) {
+    var list = this.normalizeTagNames(names).sort();
+    var next = this.tagsRouteHref(list);
+    this.selectedSortedTags = new Set(list);
+    if (window.location.hash === next) {
+      this.renderTagsView();
     } else {
-      this.selectedSortedTags.add(tagName);
+      window.location.hash = next;
     }
-    this.renderTagsView();
+  },
+
+  toggleSortedTag: function(tagName) {
+    var sel = new Set(this.selectedSortedTags || []);
+    if (sel.has(tagName)) {
+      sel.delete(tagName);
+    } else {
+      sel.add(tagName);
+    }
+    this.applyTagSelection(Array.from(sel));
   },
 
   clearSortedTags: function() {
-    if (this.selectedSortedTags) this.selectedSortedTags.clear();
-    if (window.location.hash.indexOf('?') !== -1) {
-      window.location.hash = this.routeHref('tags');
-      return;
-    }
-    this.renderTagsView();
+    this.applyTagSelection([]);
   },
 
   renderTagsView: function() {
@@ -1317,7 +1454,7 @@ window.BlogApp = {
       var count = item.count || 1;
       var isAct = selected.has(tagName);
       var enc = encodeURIComponent(tagName);
-      html += '<button type="button" data-tag="' + enc + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="tag-filter-pill ' + (isAct ? "active" : "") + '"><span class="font-mono">#' + tagName + '</span> <span class="opacity-60 text-[10px] font-mono">' + count + '</span></button>';
+      html += '<button type="button" data-tag="' + enc + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="tag-filter-pill ' + (isAct ? "active" : "") + '"><span class="font-mono">#' + window.BlogApp.escapeHtml(tagName) + '</span> <span class="opacity-60 text-[10px] font-mono">' + count + '</span></button>';
     });
     html += '    </div>';
     html += '  </div>';
@@ -1329,7 +1466,7 @@ window.BlogApp = {
     if (selected.size > 0) {
       html += '        <span>Matching <span class="text-[#3B82F6] font-semibold">' + filteredPosts.length + '</span> articles for: </span>';
       selectedArr.forEach(function(t) {
-        html += '<span class="text-[#EDEDED] mr-1.5 font-medium">#' + t + '</span>';
+        html += '<span class="text-[#EDEDED] mr-1.5 font-medium">#' + window.BlogApp.escapeHtml(t) + '</span>';
       });
     } else {
       html += '        <span>All articles (' + posts.length + ') — click any tag above to combine filters</span>';
@@ -1347,21 +1484,26 @@ window.BlogApp = {
       filteredPosts.forEach(function(post) {
         html += '      <article class="post-item group">';
         html += '        <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
-        html += '          <span>' + post.date + '</span>';
-        if (post.readTime) html += '<span>·</span><span>' + post.readTime + '</span>';
-        if (post.columnName) html += '<span class="text-[#3B82F6]">' + post.columnName + '</span>';
+        html += '          <span>' + window.BlogApp.escapeHtml(post.date) + '</span>';
+        if (post.readTime) html += '<span>·</span><span>' + window.BlogApp.escapeHtml(post.readTime) + '</span>';
+        // 与首页/归档保持一致：专栏名可点击跳转到专栏详情
+        if (post.columnName && post.column) {
+          html += '<a href="' + window.BlogApp.routeHref('columns', post.column) + '" class="text-[#3B82F6] hover:underline">' + window.BlogApp.escapeHtml(post.columnName) + '</a>';
+        } else if (post.columnName) {
+          html += '<span class="text-[#3B82F6]">' + window.BlogApp.escapeHtml(post.columnName) + '</span>';
+        }
         html += '        </div>';
         html += '        <h2 class="mb-2">';
-        html += '          <a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + post.title + '</a>';
+        html += '          <a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + window.BlogApp.escapeHtml(post.title) + '</a>';
         html += '        </h2>';
         if (post.excerpt) {
-          html += '        <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
+          html += '        <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + window.BlogApp.escapeHtml(post.excerpt) + '</p>';
         }
         if ((post.tags || []).length > 0) {
           html += '        <div class="flex flex-wrap items-center gap-1.5">';
           post.tags.forEach(function(t) {
             var isSel = selected.has(t);
-          html += '<button type="button" data-tag="' + encodeURIComponent(t) + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="text-[11px] font-mono px-2 py-0.5 rounded-full border transition-all ' + (isSel ? "border-[#3B82F6] text-[#3B82F6] bg-[#3B82F6]/10" : "border-white/[0.08] text-[#8B8B8E] hover:border-white/[0.16] hover:text-[#EDEDED]") + '">#' + t + '</button>';
+          html += '<button type="button" data-tag="' + encodeURIComponent(t) + '" onclick="window.BlogApp.toggleSortedTag(decodeURIComponent(this.getAttribute(&quot;data-tag&quot;)))" class="text-[11px] font-mono px-2 py-0.5 rounded-full border transition-all ' + (isSel ? "border-[#3B82F6] text-[#3B82F6] bg-[#3B82F6]/10" : "border-white/[0.08] text-[#8B8B8E] hover:border-white/[0.16] hover:text-[#EDEDED]") + '">#' + window.BlogApp.escapeHtml(t) + '</button>';
           });
           html += '        </div>';
         }
@@ -1419,12 +1561,12 @@ window.BlogApp = {
     if (statusText) {
       html += '<div class="about-status-pill inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#111113] border border-white/[0.08] text-[12px] font-mono text-[#8B8B8E] mb-3.5">';
       html += '  <span class="about-status-dot-pulse"><span class="about-status-dot-ping"></span><span class="about-status-dot-core"></span></span>';
-      html += '  <span>' + statusText + '</span>';
+      html += '  <span>' + window.BlogApp.escapeHtml(statusText) + '</span>';
       html += '</div>';
     }
-    html += '<h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + title + '</h1>';
+    html += '<h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + window.BlogApp.escapeHtml(title) + '</h1>';
     if (bioText) {
-      html += '<p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px] mb-3">' + bioText + '</p>';
+      html += '<p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px] mb-3">' + window.BlogApp.formatLines(bioText) + '</p>';
     }
     if (contacts.length > 0) {
       html += '<div class="about-contacts-row flex flex-wrap items-center gap-4 text-[13px] font-mono mt-3">';
@@ -1432,8 +1574,8 @@ window.BlogApp = {
         var href = item.url || item.href || '#';
         var isExternal = href.indexOf('http') === 0;
         var label = item.name || item.title || item.label || 'Link';
-        html += '<a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-contact-text-link group">';
-        html += '  <span>' + label + '</span>';
+        html += '<a href="' + window.BlogApp.escapeHtml(href) + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-contact-text-link group">';
+        html += '  <span>' + window.BlogApp.escapeHtml(label) + '</span>';
         if (isExternal) html += '<span class="about-contact-arrow">↗</span>';
         html += '</a>';
       });
@@ -1443,7 +1585,7 @@ window.BlogApp = {
 
     // 2. 引言格言 (Quote Box)
     if (quoteText) {
-      html += '<div class="about-quote-box mb-10">“' + quoteText + '”</div>';
+      html += '<div class="about-quote-box mb-10">“' + window.BlogApp.formatLines(quoteText) + '”</div>';
     }
 
     // 3. 经历与时间线 (Timeline & Milestones - Linear 极简发光导轨)
@@ -1457,9 +1599,9 @@ window.BlogApp = {
       timeline.forEach(function(item) {
         html += '<div class="about-timeline-item">';
         html += '  <div class="about-timeline-node"></div>';
-        if (item.period) html += '<div class="about-timeline-period">' + item.period + '</div>';
-        if (item.title) html += '<h3 class="about-timeline-heading">' + item.title + '</h3>';
-        if (item.desc) html += '<p class="about-timeline-desc">' + item.desc + '</p>';
+        if (item.period) html += '<div class="about-timeline-period">' + window.BlogApp.escapeHtml(item.period) + '</div>';
+        if (item.title) html += '<h3 class="about-timeline-heading">' + window.BlogApp.escapeHtml(item.title) + '</h3>';
+        if (item.desc) html += '<p class="about-timeline-desc">' + window.BlogApp.formatLines(item.desc) + '</p>';
         html += '</div>';
       });
       html += '  </div>';
@@ -1477,8 +1619,8 @@ window.BlogApp = {
         html += '<div class="flex items-start gap-3 py-1">';
         html += '  <span class="text-[#3B82F6] font-mono text-[13px] mt-0.5 shrink-0">/</span>';
         html += '  <div>';
-        html += '    <h3 class="text-[15px] font-semibold text-[#EDEDED] mb-1 font-sans">' + item.title + '</h3>';
-        html += '    <p class="text-[13.5px] leading-relaxed text-[#8B8B8E] m-0">' + item.desc + '</p>';
+        html += '    <h3 class="text-[15px] font-semibold text-[#EDEDED] mb-1 font-sans">' + window.BlogApp.escapeHtml(item.title) + '</h3>';
+        html += '    <p class="text-[13.5px] leading-relaxed text-[#8B8B8E] m-0">' + window.BlogApp.formatLines(item.desc) + '</p>';
         html += '  </div>';
         html += '</div>';
       });
@@ -1527,6 +1669,16 @@ window.BlogApp = {
     }
   },
 
+  // 输入防抖：搜索会对每篇文章的标题/摘要/正文/标签做全量匹配，
+  // 若每次按键都同步执行，长文库下会产生明显的输入卡顿。
+  runModalSearchDebounced: function(query) {
+    var self = this;
+    clearTimeout(this.searchDebounceTimer);
+    this.searchDebounceTimer = setTimeout(function() {
+      self.runModalSearch(query);
+    }, 120);
+  },
+
   runModalSearch: function(query) {
     var resultsEl = document.getElementById('search-modal-results');
     if (!resultsEl) return;
@@ -1540,8 +1692,8 @@ window.BlogApp = {
     var html = '';
     posts.slice(0, 8).forEach(function(p) {
       html += '<a href="' + window.BlogApp.postHref(p) + '" onclick="window.BlogApp.closeSearchModal()" class="block p-2.5 rounded-[6px] hover:bg-white/[0.04] transition-colors group">';
-      html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors truncate">' + p.title + '</div>';
-      html += '  <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + p.date + ' · ' + (p.readTime || '3 min read') + '</div>';
+      html += '  <div class="text-[14px] font-medium text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors truncate">' + window.BlogApp.escapeHtml(p.title) + '</div>';
+      html += '  <div class="text-[12px] font-mono text-[#5A5A5E] mt-0.5">' + window.BlogApp.escapeHtml(p.date) + ' · ' + window.BlogApp.escapeHtml(p.readTime || '3 min read') + '</div>';
       html += '</a>';
     });
     resultsEl.innerHTML = html;
@@ -1562,9 +1714,9 @@ window.BlogApp = {
 
     // 统一页面头部 (严格遵循整站留白、字号与 1px 分割线规范)
     html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
-    html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + title + '</h1>';
+    html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + window.BlogApp.escapeHtml(title) + '</h1>';
     if (subtitle) {
-      html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px]">' + subtitle + '</p>';
+      html += '  <p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px]">' + window.BlogApp.escapeHtml(subtitle) + '</p>';
     }
     html += '</header>';
 
@@ -1586,15 +1738,15 @@ window.BlogApp = {
         filtered.forEach(function(post) {
           html += '<article class="post-item group">';
           html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-[#5A5A5E] mb-2">';
-          html += '    <span>' + post.date + '</span>';
-          if (post.readTime) html += '<span>·</span><span>' + post.readTime + '</span>';
+          html += '    <span>' + window.BlogApp.escapeHtml(post.date) + '</span>';
+          if (post.readTime) html += '<span>·</span><span>' + window.BlogApp.escapeHtml(post.readTime) + '</span>';
           html += '  </div>';
-          html += '  <h2 class="mb-2"><a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + post.title + '</a></h2>';
-          if (post.excerpt) html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + post.excerpt + '</p>';
+          html += '  <h2 class="mb-2"><a href="' + window.BlogApp.postHref(post) + '" class="post-item-title block leading-snug">' + window.BlogApp.escapeHtml(post.title) + '</a></h2>';
+          if (post.excerpt) html += '  <p class="text-[14px] text-[#8B8B8E] leading-relaxed line-clamp-2 mb-3.5">' + window.BlogApp.escapeHtml(post.excerpt) + '</p>';
           if ((post.tags || []).length > 0) {
             html += '  <div class="flex flex-wrap items-center gap-2">';
             post.tags.forEach(function(t) {
-              html += '    <a href="' + window.BlogApp.tagHref(t) + '" class="tag-pill">#' + t + '</a>';
+              html += '    <a href="' + window.BlogApp.tagHref(t) + '" class="tag-pill">#' + window.BlogApp.escapeHtml(t) + '</a>';
             });
             html += '  </div>';
           }
@@ -1610,10 +1762,10 @@ window.BlogApp = {
         var isLink = card.url && card.url !== '#';
         html += '<a href="' + (card.url || '#') + '" ' + (isLink ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="p-4 rounded-xl bg-[#111113] border border-white/[0.08] hover:border-white/[0.16] block transition-all hover:-translate-y-[2px] group">';
         html += '  <div class="flex items-center justify-between mb-1.5">';
-        html += '    <h3 class="text-[15px] font-semibold text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors font-sans">' + card.title + '</h3>';
-        if (card.tag) html += '    <span class="text-[11px] font-mono text-[#5A5A5E] px-2 py-0.5 rounded bg-white/[0.04]">' + card.tag + '</span>';
+        html += '    <h3 class="text-[15px] font-semibold text-[#EDEDED] group-hover:text-[#3B82F6] transition-colors font-sans">' + window.BlogApp.escapeHtml(card.title) + '</h3>';
+        if (card.tag) html += '    <span class="text-[11px] font-mono text-[#5A5A5E] px-2 py-0.5 rounded bg-white/[0.04]">' + window.BlogApp.escapeHtml(card.tag) + '</span>';
         html += '  </div>';
-        if (card.desc) html += '  <p class="text-[13.5px] leading-relaxed text-[#8B8B8E]">' + card.desc + '</p>';
+        if (card.desc) html += '  <p class="text-[13.5px] leading-relaxed text-[#8B8B8E]">' + window.BlogApp.escapeHtml(card.desc) + '</p>';
         html += '</a>';
       });
       html += '</div>';
@@ -1629,50 +1781,20 @@ window.BlogApp = {
         html += rendered.html;
         html += '</article>';
       } else {
+        // 未在索引中找到对应 Markdown：给出明确的落地指引。
+        // （历史实现在此处直接 fetch 裸文件路径，现已由 target: "file:xxx.md" 正式取代。）
         var targetFile = item.file || (item.id + '.md');
-        html += '<div id="dynamic-md-container" class="py-12 text-[#8B8B8E]">';
+        html += '<div class="py-12 text-[#8B8B8E]">';
         html += '  <div class="p-5 rounded-xl bg-[#111113] border border-white/[0.08]">';
-        html += '    <div class="text-[14px] font-semibold text-[#EDEDED] mb-2 font-mono">Section Ready</div>';
-        html += '    <p class="text-[13.5px] text-[#8B8B8E] mb-3">To populate this page, simply create <code class="text-[#3B82F6] font-mono px-1.5 py-0.5 bg-white/[0.06] rounded">' + targetFile + '</code> in your blog directory.</p>';
-        html += '    <p class="text-[12px] text-[#5A5A5E] font-mono">Route: ' + (item.route || item.href) + '</p>';
+        html += '    <div class="text-[14px] font-semibold text-[#EDEDED] mb-2 font-mono">Section ready</div>';
+        html += '    <p class="text-[13.5px] text-[#8B8B8E] mb-3">把该导航项的 <code class="text-[#3B82F6] font-mono px-1.5 py-0.5 bg-white/[0.06] rounded">target</code> 指向一个 Markdown 文件（例如 <code class="font-mono">file:' + window.BlogApp.escapeHtml(targetFile) + '</code>）即可在此渲染。</p>';
+        html += '    <p class="text-[12px] text-[#5A5A5E] font-mono">Route: ' + window.BlogApp.escapeHtml(item.route || item.href || '') + '</p>';
         html += '  </div>';
         html += '</div>';
-
-        // 异步尝试 fetch 目标 markdown 文件 (本地服务/Pages 支持)
-        setTimeout(function() {
-          if (window.fetch) {
-            fetch(targetFile)
-              .then(function(res) { return res.ok ? res.text() : null; })
-              .then(function(text) {
-                if (text) {
-                  var dom = document.getElementById('dynamic-md-container');
-                  if (dom) {
-                    var renderedMd = window.BlogApp.safeMarkdown(text);
-                    dom.innerHTML = '<article class="markdown-body">' + renderedMd.html + '</article>';
-                  }
-                }
-              })
-              .catch(function() {});
-          }
-        }, 10);
       }
     }
 
     html += '</div>';
     container.innerHTML = html;
-  },
-
-      goToTag: function(tag) {
-    if (!tag) return;
-    this.selectedSortedTags = new Set([tag]);
-    window.location.hash = this.tagHref(tag);
-  },
-
-  setTag: function(tag) {
-    this.goToTag(tag);
-  },
-
-  clearTag: function() {
-    this.clearSortedTags();
   }
 };

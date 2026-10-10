@@ -4,6 +4,10 @@ window.BlogMarkdown = {
     options = options || {};
     if (!markdownText) return { html: '', toc: [] };
 
+    // 功能开关统一取自 blog.config.js 的 features，确保 mathKaTeX / codeHighlight 真正生效
+    var features = (window.BlogStore && window.BlogStore.config && window.BlogStore.config.features)
+      || (window.BlogConfig && window.BlogConfig.features) || {};
+
     var escapeHtml = function(value) {
       return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
@@ -53,7 +57,7 @@ window.BlogMarkdown = {
       return '<div class="callout callout-' + type + '">' +
         iconSvg +
         '<div class="callout-body">' +
-          '<div class="callout-title">' + displayTitle + '</div>' +
+          '<div class="callout-title">' + escapeHtml(displayTitle) + '</div>' +
           '<div class="callout-content">' + content.trim() + '</div>' +
         '</div>' +
       '</div>';
@@ -62,12 +66,15 @@ window.BlogMarkdown = {
     // 2.1 Pre-process Slide Deck / PDF Presentation blocks (挂载至专属高保真播放器)
     var slideRegex = /:::\s*(slide|pdf|deck)\s+([^\s\r\n]+)(?:[^\S\r\n]+([^\r\n]*))?[\r\n]+([\s\S]*?):::/gi;
     text = text.replace(slideRegex, function(match, type, url, title, desc) {
-      var slideTitle = (title || '').trim() || (desc || '').trim() || 'Presentation Deck (PPT / PDF)';
-      var slideDesc = (desc || '').trim();
+      // 同一行 URL 之后的文字 = 标题；紧随其后的整行文字 = 补充说明。
+      // 未给行内标题时借用说明文字充当标题，此时不再重复输出说明，
+      // 避免 title 与 desc 取到同一字符串（历史问题）。
+      var inlineTitle = (title || '').trim();
+      var bodyText = (desc || '').trim();
+      var slideTitle = inlineTitle || bodyText || 'Presentation Deck (PPT / PDF)';
       var cleanUrl = (url || '').trim();
-      var escapedTitle = slideTitle.replace(/"/g, '&quot;');
-      var escapedDesc = slideDesc ? slideDesc.replace(/"/g, '&quot;') : '';
-      return '<div class="article-slide-player-mount my-8" data-slide-url="' + cleanUrl + '" data-slide-title="' + escapedTitle + '"' + (escapedDesc ? ' data-slide-desc="' + escapedDesc + '"' : '') + '></div>';
+      // 两个属性值都来自正文，必须转义后再拼接（escapeHtml 会先处理 & ，避免实体被二次解析）
+      return '<div class="article-slide-player-mount my-8" data-slide-url="' + escapeHtml(cleanUrl) + '" data-slide-title="' + escapeHtml(slideTitle) + '"></div>';
     });
 
     // 3. Marked.js parsing
@@ -79,7 +86,9 @@ window.BlogMarkdown = {
     var rawHtml = markedParser ? markedParser.parse(text) : text;
 
     // 4. Restore and Render KaTeX Math using safe split/join
-    var katexRenderer = (typeof katex !== 'undefined') ? katex : (window.katex || null);
+    var katexRenderer = features.mathKaTeX === false
+      ? null
+      : ((typeof katex !== 'undefined') ? katex : (window.katex || null));
     if (katexRenderer) {
       mathBlocks.forEach(function(formula, i) {
         try {
@@ -232,6 +241,10 @@ window.BlogMarkdown = {
       }
 
       var pres = tempDiv.querySelectorAll('pre');
+      // 高亮器在遍历前解析一次即可（原先在 forEach 内重复求值）
+      var prismHighlighter = features.codeHighlight === false
+        ? null
+        : ((typeof Prism !== 'undefined') ? Prism : (window.Prism || null));
       pres.forEach(function(pre) {
         var code = pre.querySelector('code');
         var rawCodeText = code ? code.textContent : pre.textContent;
@@ -242,9 +255,10 @@ window.BlogMarkdown = {
           if (langMatch) language = langMatch[1].toLowerCase();
         }
 
-        var prismHighlighter = (typeof Prism !== 'undefined') ? Prism : (window.Prism || null);
+        // 只使用真正注册过的语法。未注册语言退回 plain（原样输出、不假高亮），
+        // 绝不再兜底到 JavaScript —— 否则 bibtex/yaml/go 等会被着上 JS 配色（历史问题）。
         if (prismHighlighter && code) {
-          var prismLang = prismHighlighter.languages[language] || prismHighlighter.languages.javascript;
+          var prismLang = prismHighlighter.languages[language] || prismHighlighter.languages['plain'];
           if (prismLang) {
             code.innerHTML = prismHighlighter.highlight(rawCodeText, prismLang, language);
           }

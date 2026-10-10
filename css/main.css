@@ -327,23 +327,49 @@ html, body {
   border-radius: 4px;
 }
 
-/* Callout */
+/* Callout
+   4 种类型各自区分颜色与底色 —— 此前 tip / note / warning 共用同一个 accent，
+   读者无法从视觉上分辨语义，等于白写了类型标记。 */
 .callout {
   margin: 24px 0;
   padding: 16px;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
+  border-left-width: 3px;
   background: var(--bg-surface);
   display: flex;
   gap: 12px;
 }
+.callout-body { flex: 1; min-width: 0; }
 .callout-icon { flex-shrink: 0; width: 18px; height: 18px; margin-top: 2px; }
 .callout-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-primary); }
 .callout-content { font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
-.callout-tip { border-left: 3px solid var(--accent-secondary); }
-.callout-warning { border-left: 3px solid var(--accent-primary); }
-.callout-note { border-left: 3px solid var(--accent-primary); }
-.callout-danger { border-left: 3px solid var(--text-secondary); }
+.callout-content > :first-child { margin-top: 0; }
+.callout-content > :last-child { margin-bottom: 0; }
+
+.callout-tip {
+  border-left-color: var(--accent-secondary);
+  background: rgba(34, 211, 238, 0.06);
+}
+.callout-tip .callout-icon { color: var(--accent-secondary); }
+
+.callout-note {
+  border-left-color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.06);
+}
+.callout-note .callout-icon { color: var(--accent-primary); }
+
+.callout-warning {
+  border-left-color: #F59E0B;
+  background: rgba(245, 158, 11, 0.07);
+}
+.callout-warning .callout-icon { color: #F59E0B; }
+
+.callout-danger {
+  border-left-color: #EF4444;
+  background: rgba(239, 68, 68, 0.07);
+}
+.callout-danger .callout-icon { color: #EF4444; }
 
 /* Code Block Container */
 .code-container {

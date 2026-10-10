@@ -29,9 +29,90 @@ STRUCTURED_LIST_KEYS = ["timeline", "focusAreas", "social", "contacts", "links"]
 
 
 def slugify(value):
-    """生成 URL 安全的 slug：转小写、非字母数字(保留连字符)替换为连字符并去重。"""
-    s = re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower())
+    """生成 URL 安全的 slug：转小写，保留中日韩字符，其余非字母数字折叠为单个连字符。
+
+    全站唯一的 slug 规则 —— 此前专栏用「仅 ASCII」而文章用「保留中文」两套规则，
+    同一个词可能得到不同结果。
+    """
+    s = re.sub(r"[^a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+", "-", (value or "").strip().lower())
     return s.strip("-")
+
+
+def estimate_word_units(text):
+    """中英混排的「字数」估计：英文按单词计，CJK 按字符计。"""
+    ascii_words = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'_-]*", text or ""))
+    cjk_chars = len(re.findall(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]", text or ""))
+    return ascii_words + cjk_chars
+
+
+def extract_object_block(content, key):
+    """定位 `key: {` 并返回花括号配平后的对象文本（支持嵌套）。
+
+    用于取代原先 `content[idx:content.find("}", idx)+1]` 的截断式解析 ——
+    后者只要配置里出现嵌套对象就会静默截断，读取到错误的配置。
+    """
+    idx = content.find(key)
+    if idx == -1:
+        return ""
+    start = content.find("{", idx)
+    if start == -1:
+        return ""
+    depth = 0
+    for i in range(start, len(content)):
+        ch = content[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return content[start:i + 1]
+    return ""
+
+
+def extract_scalar(block, key, default=None):
+    """从配置对象块中取一个标量值（自动去除两端引号与行尾 # 注释）。"""
+    if not block:
+        return default
+    m = re.search(r"(?:^|[\s{,])" + re.escape(key) + r"\s*:\s*([^,\n}]+)", block)
+    if not m:
+        return default
+    return m.group(1).split(" #")[0].strip().strip("'\"")
+
+
+def parse_str_list(block, key):
+    """解析 `key: ["a", "b"]` 形式的字符串数组。"""
+    m = re.search(re.escape(key) + r"\s*:\s*\[(.*?)\]", block, re.S)
+    if not m:
+        return []
+    return [x.strip().strip("'\"") for x in m.group(1).split(",") if x.strip()]
+
+
+def load_config():
+    """读取 blog.config.js 中编译期需要的配置：exclude 规则、阅读速度、站点地址。"""
+    cfg = {"showTest": True, "files": [], "dirs": [], "wordsPerMinute": 300, "siteUrl": ""}
+    config_path = os.path.join(BASE_DIR, "blog.config.js")
+    if not os.path.exists(config_path):
+        return cfg
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception:
+        return cfg
+
+    site_block = extract_object_block(content, "site:")
+    wpm = extract_scalar(site_block, "wordsPerMinute")
+    if wpm and str(wpm).isdigit():
+        cfg["wordsPerMinute"] = max(1, int(wpm))
+    cfg["siteUrl"] = (extract_scalar(site_block, "url", "") or "").strip().rstrip("/")
+
+    exclude_block = extract_object_block(content, "exclude:")
+    if exclude_block:
+        show_test = extract_scalar(exclude_block, "showTest")
+        if show_test is not None:
+            cfg["showTest"] = (str(show_test).lower() != "false")
+        cfg["files"] = parse_str_list(exclude_block, "files")
+        cfg["dirs"] = parse_str_list(exclude_block, "dirs")
+    return cfg
 
 
 def normalize_doc_type(raw):
@@ -42,36 +123,7 @@ def normalize_doc_type(raw):
     return "normal"
 
 
-def load_config_exclude():
-    config_path = os.path.join(BASE_DIR, "blog.config.js")
-    exclude = {"showTest": True, "files": [], "dirs": []}
-    if not os.path.exists(config_path):
-        return exclude
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        if "exclude:" in content:
-            idx = content.find("exclude:")
-            block = content[idx:content.find("}", idx) + 1]
-            if "showtest: false" in block.lower():
-                exclude["showTest"] = False
-            elif "showtest: true" in block.lower():
-                exclude["showTest"] = True
-
-            files_m = re.search(r"files\s*:\s*\[(.*?)\]", block, re.S)
-            if files_m:
-                raw_files = [x.strip().replace("'", "").replace('"', '') for x in files_m.group(1).split(",") if x.strip()]
-                exclude["files"] = [f for f in raw_files if f]
-
-            dirs_m = re.search(r"dirs\s*:\s*\[(.*?)\]", block, re.S)
-            if dirs_m:
-                raw_dirs = [x.strip().replace("'", "").replace('"', '') for x in dirs_m.group(1).split(",") if x.strip()]
-                exclude["dirs"] = [d for d in raw_dirs if d]
-    except Exception:
-        pass
-    return exclude
-
-def parse_md_file(filepath):
+def parse_md_file(filepath, words_per_minute=300):
     rel_path = os.path.relpath(filepath, POSTS_DIR)
     path_parts = rel_path.split(os.sep)
 
@@ -171,15 +223,12 @@ def parse_md_file(filepath):
     if not title:
         title = os.path.splitext(filename)[0].replace("-", " ").replace("_", " ").title()
 
-    section = "posts"
     if len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
         if not column:
             column = path_parts[1]
     # 若声明了 columnSlug，则用其作为专栏的 URL 标识（满足路由禁用中文的规范）
     if column_slug:
         column = slugify(column_slug) or column
-    if column:
-        section = "columns"
 
     if not slide:
         slide_m = re.search(r":::\s*(?:slide|pdf|deck)\s+([^\s\r\n]+)", content)
@@ -189,10 +238,9 @@ def parse_md_file(filepath):
     if "test" in [t.lower() for t in tags] or is_test:
         is_test = True
 
-    slug_clean = re.sub(r"[^a-zA-Z0-9 \u4e00-\u9fff]+", "-", (slug_override or "").strip()).strip("-")
-    slug = slug_clean or os.path.splitext(filename)[0]
+    slug = slugify(slug_override) or slugify(os.path.splitext(filename)[0]) or os.path.splitext(filename)[0]
     if column:
-        post_id = f"post-col-{column}-{slug}".replace(" ", "-").replace(".", "-")
+        post_id = f"post-col-{column}-{slug}".replace(".", "-")
     else:
         post_id = f"post-{slug}".replace(".", "-")
 
@@ -202,8 +250,8 @@ def parse_md_file(filepath):
         if len(clean_text) > 140:
             excerpt += "..."
 
-    words_count = len(content)
-    read_mins = max(1, round(words_count / 300))
+    word_units = estimate_word_units(content)
+    read_mins = max(1, round(word_units / max(1, words_per_minute)))
     read_time = f"{read_mins} min read"
 
     col_display = column_name or (column.replace("-", " ").replace("_", " ").title() if column else "")
@@ -213,7 +261,6 @@ def parse_md_file(filepath):
         "slug": slug,
         "title": title,
         "category": category,
-        "section": section,
         "column": column,
         "columnName": col_display,
         "columnDesc": column_desc,
@@ -221,9 +268,7 @@ def parse_md_file(filepath):
         "relPath": rel_path,
         "date": date,
         "readTime": read_time,
-        "words": words_count,
-        "views": 1,
-        "likes": 0,
+        "words": word_units,
         "pinned": pinned,
         "type": doc_type,
         "isTest": is_test,
@@ -234,6 +279,88 @@ def parse_md_file(filepath):
         "tags": tags or [category],
         "content": content
     }
+
+def parse_flow_list(text):
+    """把 `["a", "b"]` / `[a, b]` / `['a']` 解析为字符串列表；不是数组则返回 None。
+
+    按引号状态逐字符扫描，因此项内包含逗号（如 "Raft, Paxos"）也能正确切分。
+    """
+    t = (text or "").strip()
+    if not (t.startswith("[") and t.endswith("]")):
+        return None
+    inner = t[1:-1].strip()
+    if not inner:
+        return []
+
+    items = []
+    buf = ""
+    quote = None
+    for ch in inner:
+        if quote:
+            if ch == quote:
+                quote = None
+            else:
+                buf += ch
+        elif ch in "\"'":
+            quote = ch
+        elif ch == ",":
+            if buf.strip():
+                items.append(buf.strip())
+            buf = ""
+        else:
+            buf += ch
+    if buf.strip():
+        items.append(buf.strip())
+    return [i.strip().strip("\"'") for i in items if i.strip()]
+
+
+def read_frontmatter_value(lines, idx, inline):
+    """读取第 idx 行 `key:` 之后的值，必要时向下吞掉续行。
+
+    返回 (value, next_index)，value 为 str 或 list[str]：
+
+        key: "文本"            -> "文本"
+        key: ["a",             -> ["a", "b"]      # flow 数组可跨行
+             "b"]
+        key:                   -> ["a", "b"]      # 块序列
+          - "a"
+          - "b"
+        key: []                -> []              # 显式空数组
+
+    旧实现只取行内子串，于是跨行数组会把字面量 `["a",` 当成正文显示、
+    并把后续行整段丢弃（roadmap 的 timeline.desc 就是这样被吃掉的）。
+    """
+    head = re.split(r"\s+#", (inline or "").strip())[0].strip()
+
+    # 情况 1：本行没有值，紧跟的缩进行以 "- " 开头 -> 块序列
+    if head == "":
+        block = []
+        j = idx + 1
+        while j < len(lines):
+            m = re.match(r"^\s+-\s+(.*)$", lines[j])
+            if not m:
+                break
+            block.append(m.group(1).strip().strip("\"'"))
+            j += 1
+        if block:
+            return block, j
+        return "", idx + 1
+
+    # 情况 2：flow 数组（可能跨多行）
+    if head.startswith("["):
+        buf = head
+        j = idx
+        while not buf.rstrip().endswith("]") and j + 1 < len(lines):
+            j += 1
+            buf += " " + lines[j].strip()
+        parsed = parse_flow_list(buf)
+        if parsed is not None:
+            return parsed, j + 1
+        return head.strip("\"'"), j + 1
+
+    # 情况 3：普通标量
+    return head.strip("\"'"), idx + 1
+
 
 def parse_structured_page_file(filepath):
     """结构化解析任意独立 Page 文档为原生高级组件数据对象"""
@@ -279,51 +406,90 @@ def parse_structured_page_file(filepath):
     current_section = None
     current_item = None
 
-    for line in fm.splitlines():
+    lines = fm.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         trimmed = line.strip()
         if not trimmed or trimmed.startswith("#"):
+            i += 1
             continue
 
         top_m = re.match(r"^([a-zA-Z0-9_-]+):\s*(.*)$", line)
         if top_m and not line.startswith(" ") and not line.startswith("\t"):
             key = top_m.group(1)
-            val = re.split(r'\s+#', top_m.group(2))[0].strip().strip(chr(39) + chr(34))
             if key in STRUCTURED_LIST_KEYS:
+                # 「对象列表」区块（timeline / focusAreas / social / contacts / links）：
+                # 其下每个条目由 item_start / field_m 分支逐行装配。
+                # 这里绝不能走 read_frontmatter_value 的「块序列」分支 ——
+                # 否则 `timeline:` 会把紧随其后所有 `- period:` 行当成标量列表吞掉，
+                # 结果是整份文档的第一个条目凭空消失。
                 current_section = key
                 current_item = None
-            else:
-                current_section = None
-                current_item = None
-                data[key] = val
+                data.setdefault(key, [])
+                i += 1
+                continue
+            value, i = read_frontmatter_value(lines, i, top_m.group(2))
+            current_section = None
+            current_item = None
+            data[key] = value
             continue
 
         if current_section in STRUCTURED_LIST_KEYS:
             item_start = re.match(r"^\s*-\s+([a-zA-Z0-9_-]+):\s*(.*)$", line)
             if item_start:
                 k = item_start.group(1)
-                v = item_start.group(2).strip().strip("\"'")
-                current_item = {k: v}
+                value, i = read_frontmatter_value(lines, i, item_start.group(2))
+                current_item = {k: value}
                 data[current_section].append(current_item)
                 continue
 
             field_m = re.match(r"^\s+([a-zA-Z0-9_-]+):\s*(.*)$", line)
             if field_m and current_item is not None:
                 k = field_m.group(1)
-                v = field_m.group(2).strip().strip("\"'")
-                current_item[k] = v
+                value, i = read_frontmatter_value(lines, i, field_m.group(2))
+                current_item[k] = value
                 continue
+
+        i += 1
+
+    # tocLevels 与 parse_md_file 保持一致：统一为 int 列表（无有效层级时为 None），
+    # 避免同一份数据在不同文档类型下出现 ['2','3'] 与 [2, 3] 两种形态。
+    toc = data.get("tocLevels")
+    if isinstance(toc, list):
+        levels = [int(t) for t in toc if str(t).strip().isdigit()]
+        data["tocLevels"] = levels or None
 
     return data
 
 def parse_about_file(filepath):
     return parse_structured_page_file(filepath)
 
+def write_sitemap(site_url):
+    """站点配置了 site.url 时生成 sitemap.xml。
+
+    注意：本站使用 Hash 路由（#/posts/xxx）。搜索引擎不会把 Hash 片段视为独立 URL，
+    因此 sitemap 只列出站点根地址 —— 若列出 #/... 形式反而会误导爬虫。
+    """
+    if not site_url:
+        return False
+    today = time.strftime("%Y-%m-%d")
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml += f'  <url>\n    <loc>{site_url}/</loc>\n    <lastmod>{today}</lastmod>\n    <changefreq>daily</changefreq>\n  </url>\n'
+    xml += '</urlset>\n'
+    with open(os.path.join(BASE_DIR, "sitemap.xml"), "w", encoding="utf-8") as f:
+        f.write(xml)
+    return True
+
+
 def sync():
     os.makedirs(POSTS_DIR, exist_ok=True)
-    exclude_cfg = load_config_exclude()
-    exclude_files = set(exclude_cfg.get("files", []))
-    exclude_dirs = set(exclude_cfg.get("dirs", []))
-    show_test = exclude_cfg.get("showTest", True)
+    cfg = load_config()
+    exclude_files = set(cfg.get("files", []))
+    exclude_dirs = set(cfg.get("dirs", []))
+    show_test = cfg.get("showTest", True)
+    words_per_minute = cfg.get("wordsPerMinute", 300)
 
     md_files = []
     for root, dirs, files in os.walk(POSTS_DIR):
@@ -340,7 +506,7 @@ def sync():
     columns_map = {}
 
     for filepath in sorted(md_files):
-        p = parse_md_file(filepath)
+        p = parse_md_file(filepath, words_per_minute)
         if not show_test and p.get("isTest"):
             print(f" ⊘ 跳过测试文档 (showTest=false): {p['relPath']}")
             continue
@@ -440,6 +606,10 @@ def sync():
 
     print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏。")
     print(f" -> 索引文件已更新: js/posts-data.js")
+    if write_sitemap(cfg.get("siteUrl", "")):
+        print(f" -> sitemap.xml 已生成: {cfg['siteUrl']}/")
+    else:
+        print(" ℹ️ 未设置 site.url，已跳过 sitemap.xml（在 blog.config.js 的 site.url 填入站点地址即可启用）")
 
 if __name__ == "__main__":
     sync()

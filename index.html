@@ -5,7 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aurora Notes</title>
   <meta name="description" content="全栈架构、量子前沿计算、统计物理与深度自注意力同构。冷静、克制、严谨。">
+  <!--
+    分享 / SEO 元信息。本站为 Hash 路由 SPA（每条路由共享同一个物理 URL），
+    因此 canonical 与 og:url 一律指向站点根；配置了 blog.config.js 的 site.url 后，
+    app.js#setDocumentTitle 会把它改写成绝对地址。
+  -->
+  <link rel="canonical" id="canonical-link" href="./">
+  <meta name="theme-color" content="#0A0A0B">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Aurora Notes">
+  <meta property="og:title" content="Aurora Notes">
+  <meta property="og:description" content="全栈架构、量子前沿计算、统计物理与深度自注意力同构。冷静、克制、严谨。">
+  <meta property="og:url" content="./">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Aurora Notes">
+  <meta name="twitter:description" content="全栈架构、量子前沿计算、统计物理与深度自注意力同构。冷静、克制、严谨。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0A0B'/%3E%3Cpath d='M39 10 22 54' stroke='%233B82F6' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <!--
+    反白屏 (anti-FOUC)：外部 CSS 到达前先铺好底色。
+    本站为固定深色主题，若不提前上色，浏览器默认白底会闪一下再变黑。
+  -->
+  <style>
+    html, body { margin: 0; background: #0A0A0B; color: #EDEDED; }
+  </style>
 
   <!-- KaTeX CSS -->
   <link rel="stylesheet" href="vendor/katex/katex.min.css">
@@ -108,7 +131,7 @@
       <h2 id="search-modal-title" class="sr-only">Search articles</h2>
       <div class="p-3.5 border-b border-white/[0.06] flex items-center gap-3">
         <svg class="w-4 h-4 text-[#8B8B8E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input id="search-modal-input" type="search" aria-label="Search articles" oninput="window.BlogApp.runModalSearch(this.value)" placeholder="Search articles, tags, concepts..." class="w-full text-[14px] bg-transparent focus:outline-none text-[#EDEDED] placeholder-[#5A5A5E]">
+        <input id="search-modal-input" type="search" aria-label="Search articles" oninput="window.BlogApp.runModalSearchDebounced(this.value)" placeholder="Search articles, tags, concepts..." class="w-full text-[14px] bg-transparent focus:outline-none text-[#EDEDED] placeholder-[#5A5A5E]">
         <button type="button" onclick="window.BlogApp.closeSearchModal()" class="text-[11px] font-mono text-[#5A5A5E] hover:text-[#EDEDED] px-1.5 py-0.5 rounded bg-white/[0.04]">ESC</button>
       </div>
       <div id="search-modal-results" aria-live="polite" class="max-h-80 overflow-y-auto p-2 space-y-1">
@@ -117,31 +140,33 @@
     </div>
   </div>
 
-  <!-- Toast Container -->
-  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-  <!-- Scripts -->
-  <script src="js/icons.js"></script>
-  <script src="blog.config.js"></script>
-  <script src="js/posts-data.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/markdown.js"></script>
-  <script src="vendor/pdfjs/pdf.min.js"></script>
-  <script src="js/slide-viewer.js"></script>
-  <script src="js/app.js"></script>
+  <!-- Scripts
+       应用脚本统一 defer：不阻塞首屏解析，且在 DOMContentLoaded 之前按文档顺序执行完毕。
+       vendor 的 marked / prism / katex / tailwind 保持同步加载 —— 应用脚本依赖它们在解析期就绪。
+       PDF.js（约 1.3MB）与 slide-viewer 体积较大，改为按需懒加载（见 app.js#ensureSlideViewer）。 -->
+  <script defer src="js/icons.js"></script>
+  <script defer src="blog.config.js"></script>
+  <script defer src="js/posts-data.js"></script>
+  <script defer src="js/store.js"></script>
+  <script defer src="js/markdown.js"></script>
+  <script defer src="js/app.js"></script>
   <script>
-    function startApp() {
-      if (window.BlogApp && typeof window.BlogApp.init === 'function') {
-        window.BlogApp.init();
-      } else {
-        setTimeout(startApp, 40);
+    // defer 脚本在 DOMContentLoaded 触发前已按序执行完毕，故此刻 BlogApp 必定就绪；
+    // 仍保留重试兜底，以防个别脚本因加载失败而缺失。
+    (function () {
+      function startApp() {
+        if (window.BlogApp && typeof window.BlogApp.init === 'function') {
+          window.BlogApp.init();
+        } else {
+          setTimeout(startApp, 40);
+        }
       }
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', startApp);
-    } else {
-      startApp();
-    }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startApp);
+      } else {
+        startApp();
+      }
+    })();
   </script>
 </body>
 </html>

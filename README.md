@@ -34,10 +34,10 @@
 │   └── main.css            # 设计系统：Tokens、组件样式、导航下拉、时间线、幻灯片播放器
 ├── js/
 │   ├── app.js              # 核心控制器：Hash 路由分发、各视图渲染、事件监听
-│   ├── store.js            # 数据中心：读取配置与编译数据，管理本地点赞/浏览/书签状态
-│   ├── markdown.js         # Markdown 渲染：KaTeX 公式、Prism 高亮、Callout、Slide 容器、TOC
-│   ├── slide-viewer.js     # PDF.js 幻灯片/演示文稿播放器
-│   ├── icons.js            # 极简内联 SVG 图标库 (Lucide)
+│   ├── store.js            # 数据中心：读取配置与编译数据，文档/专栏/标签检索与站内互链解析
+│   ├── markdown.js         # Markdown 渲染：KaTeX 公式、Prism 高亮、Callout、Slide 容器、TOC、双链
+│   ├── slide-viewer.js     # PDF.js 幻灯片/演示文稿播放器（按需懒加载，约 20KB）
+│   ├── icons.js            # 极简内联 SVG 图标库 (Lucide，仅保留 Callout 用到的 3 个)
 │   └── posts-data.js       # ⚙ 自动生成：由 sync_posts.py 编译产出的内容索引，请勿手改
 ├── posts/                  # ⭐ 文章与独立页存放目录（纯 Markdown）
 │   ├── hello-world.md
@@ -48,11 +48,13 @@
 ├── attachments/            # 附件（幻灯片 PDF、图片、压缩包等），同步脚本自动跳过
 │   └── slides/
 ├── templates/              # 写作模板库（不参与发布）
-├── sync_posts.py           # 内容编译脚本：扫描 posts/ 与 about.md → 生成 js/posts-data.js
-├── check.sh                # 一键自检：JS/Python/Shell 语法 + 重建索引
+├── sync_posts.py           # 内容编译脚本：扫描 posts/ 与 about.md → 生成 js/posts-data.js（+ sitemap.xml）
+├── check.sh                # 一键自检：重建索引 → JS/Python/Shell 语法校验
 ├── server.py               # 本地预览服务器（多线程加固，默认端口 18888）
 ├── run.sh                  # 启动脚本（等价于 python3 server.py）
 ├── deploy.sh               # 一键发布：自检 → 同步 → Commit → Push
+├── robots.txt              # 爬虫规则（配合 blog.config.js 的 site.url 使用）
+├── sitemap.xml             # ⚙ 自动生成：仅当 site.url 非空时产出
 ├── AGENTS.md               # UI 设计系统与开发协作约束手册
 └── README.md               # 本文档
 ```
@@ -79,10 +81,10 @@ window.BlogConfig = {
     title: "Aurora Notes",     // 浏览器标签页与首页大标题
     brand: "aurora.notes",     // 顶部 Logo 文字
     tagline: "...",            // 首页副标题
-    description: "...",        // SEO 描述
+    description: "...",        // SEO 描述（同时写入 meta description 与 og/twitter:description）
     footerText: "© 2026 ...",  // 页脚版权（整站唯一一行）
-    postsPerPage: 10,
-    wordsPerMinute: 300,       // 阅读时长估算速度
+    url: "",                   // 部署后的站点根地址，用于 sitemap.xml 与 og:url；留空则跳过 sitemap
+    wordsPerMinute: 300,       // 阅读时长估算速度（编译期读取，改动后需重跑 sync_posts.py）
   },
 
   author: { name, title, bio, avatar, location, email, github },
@@ -117,14 +119,17 @@ window.BlogConfig = {
 | 页面 | 路由 |
 | :--- | :--- |
 | 首页 | `#/` |
-| 文章列表 | `#/posts` |
+| 归档时间线 | `#/archive`（`#/posts` 会通过 `replaceState` 收敛到此，不再出现「同内容两个 URL」） |
 | 文章详情 | `#/posts/<slug>` |
 | 专栏列表 | `#/columns` |
 | 专栏详情 | `#/columns/<columnSlug>` |
-| 归档时间线 | `#/archive` |
-| 标签云 | `#/tags`、`#/tags/<tagName>` |
+| 标签云 | `#/tags`、`#/tags/<tag>`、`#/tags/<t1>/<t2>`（多选交集）、`#/tags?tag=<tag>` |
 | 关于 | `#/about` |
 | 独立单页（示例） | `#/roadmap` |
+
+> **标签筛选是「URL 即状态」**：选中集合完全由地址栏推导，标签胶囊只是写入 URL 的入口。
+> 因此刷新还原、复制分享、浏览器前进/后退三者行为天然一致（历史 bug：清空筛选后刷新会「复活」）。
+> URL 中的标签名按大小写不敏感归一化，`#/tags/TEST` 与 `#/tags/test` 等价。
 
 ### 2. 统一导航目标：`target`
 
@@ -309,6 +314,29 @@ social:                                        # 名片区纯文字外链（自�
 
 > 关于页与所有 `type: post` 的独立页**共用同一套渲染器**，字段完全通用。
 
+### 文本字段可以写成多行数组
+
+`bio`、`quote`、`timeline[].desc`、`focusAreas[].desc` 都同时接受**字符串**与**数组**两种写法。写成数组时按行渲染，适合一条里程碑里放多句话：
+
+```yaml
+timeline:
+  - period: "2026 – FUTURE"
+    title: "前沿量子计算与分布式引擎开源"
+    desc: ["发布高性能量子态矢量仿真器核心，推进变分量子算法工程落地。",
+           "开源分布式共识算法与高可用系统架构。"]     # 数组可以跨行书写
+  - period: "2024 – 2026"
+    title: "Aurora Notes 知识库构建"
+    desc: "单行字符串同样支持。"                        # 两种形态可混用
+```
+
+也支持 YAML 块序列写法：
+
+```yaml
+    desc:
+      - "第一行"
+      - "第二行"
+```
+
 ---
 
 ## 七、排版语法与功能特性
@@ -388,12 +416,25 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 
 两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）；若正文已内嵌 `::: slide`，FrontMatter 的 `slide` 不会重复挂载。
 
+> **性能**：PDF.js（约 1.3MB）与 `slide-viewer.js` 不会随首屏加载。只有真的渲染到带演示文稿的文章时，才由 `app.js#ensureSlideViewer()` 按需注入，首页与普通文章零额外开销。
+
 ### 6. 附件与相对路径
 
 - 幻灯片、图片、压缩包统一放在 `attachments/`（如 `attachments/slides/`）。
 - `sync_posts.py` 会自动跳过 `attachments/`、`assets/` 等资源目录，路径引用在本地与 GitHub Pages 均可用。
+- 需要「下载型」附件时，在 FrontMatter 里声明 `attachments`，文章末尾会自动渲染带 `download` 属性的下载区：
+
+```yaml
+---
+title: "量子算法与变分线路实录"
+slide: "attachments/slides/quantum-computing-slides.pdf"
+attachments: ["attachments/slides/quantum-computing-slides.pdf", "attachments/数据集.zip"]
+---
+```
 
 ### 7. Callout 提示块
+
+四种类型各自有独立的强调色与浅色底（tip 青 / note 蓝 / warning 琥珀 / danger 红），便于一眼分辨语义：
 
 ```markdown
 ::: tip 提示
@@ -453,7 +494,7 @@ cd ~/Documents/blog
 
 脚本依次执行：
 
-1. `./check.sh`：JS/Python/Shell 语法自检并重建 `js/posts-data.js`。
+1. `./check.sh`：**先重建** `js/posts-data.js`，再对 `blog.config.js`、`js/*.js`、`sync_posts.py`、`server.py` 与全部 Shell 脚本做语法自检（顺序不可颠倒，否则生成产物逃过校验）。
 2. `git add .` 并创建 Commit。
 3. 推送到远程 `main` 分支。
 4. 触发云端 [`.github/workflows/static.yml`](.github/workflows/static.yml)，由 GitHub Actions 完成 Pages 打包上线。
@@ -478,7 +519,9 @@ cd ~/Documents/blog
 
 ### Q4: 为什么路由里出现过中文？还能用吗？
 
-路由参数**不应包含中文**（违反 `AGENTS.md` 第 6 节）。现已在示例文章与专栏上统一声明 ASCII 的 `slug` / `columnSlug`。**若你的历史文章文件名是中文且未声明 `slug`，其路由仍会是中文**——建议逐步补齐 `slug` 字段（补齐后文章 URL 会变化，需注意旧链接失效）。
+路由参数**不应包含中文**（违反 `AGENTS.md` 第 6 节）。`slugify()` 默认保留中日韩字符，因此**中文文件名会直接产出中文路由**——请在 FrontMatter 里显式声明 ASCII 的 `slug` / `columnSlug`（示例文章与专栏均已补齐）。
+
+> 注意：补 `slug` 会改变文章 URL，需自行处理旧链接失效（文章内部的双链 `[[...]]` 会自动跟随，无需手改）。
 
 ### Q5: 为什么不用 `gh-pages` 分支？
 
@@ -487,6 +530,24 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 ### Q6: 如何自定义主题强调色？
 
 打开 [`css/main.css`](css/main.css)，修改 `:root` 中的 `--accent-primary`（主强调色，默认 `#3B82F6`）与 `--accent-secondary`（次强调色，默认 `#22D3EE`），保存刷新即可全站生效。
+
+### Q7: 文章卡片上的「字词」是怎么算的？阅读时长准吗？
+
+由 `sync_posts.py` 的 `estimate_word_units()` 在编译期统计：**英文按单词数、CJK 按字符数**相加，故中英混排下用中性的「字词」标注。阅读时长 = 字词数 ÷ `site.wordsPerMinute`（默认 300，最少显示 1 min）。
+
+> 旧的实现直接取正文**字符数**当字数，英文文章会被算成中文的 6～7 倍，阅读时长虚高。改动 `wordsPerMinute` 后需重跑 `sync_posts.py` 才会生效。
+
+### Q8: 为什么 `sitemap.xml` 里只有一条 URL？
+
+本站是 Hash 路由（`#/posts/xxx`）。搜索引擎**不把 Hash 片段视为独立 URL**，列出 `#/...` 反而会误导爬虫，因此 sitemap 只收录站点根地址。同理，`og:url` / `canonical` 也指向站点根。
+
+若需要让每篇文章都被独立收录，必须改为 HTML5 History 路由并为静态托管配置 404 回退（GitHub Pages 不支持），这是当前架构的已知取舍。
+
+### Q9: `sitemap.xml` 没有生成 / 生成的地址不对？
+
+在 `blog.config.js` 的 `site.url` 填入部署后的站点根地址（**含子路径、末尾不带 `/`**），例如 `https://<用户名>.github.io/<仓库名>`，然后重跑 `python3 sync_posts.py`。
+
+`site.url` 留空时会跳过 sitemap 生成，同时 `og:url` / `canonical` 退回「当前文档目录」，本地预览与子路径部署都能自洽。
 
 ---
 

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# 本站为 Hash 路由单页应用（所有内容都在 /#/... 下），
+# 站点配置了 site.url 后可由 sync_posts.py 生成 sitemap.xml，
+# 届时取消注释并替换域名即可（例如 https://<用户名>.github.io/<仓库名>）。
+# Sitemap: https://example.com/sitemap.xml

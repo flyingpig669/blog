@@ -167,7 +167,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 ### 6.5 重定向与兼容约束
 
-1. 若路由发生变更，旧路由必须配置永久重定向（301）至新路由，禁止直接删除导致死链。
+1. 若路由发生变更，旧路由必须保留重定向至新路由，禁止直接删除导致死链。Hash 路由无法发送 HTTP 301，等效实现为 `history.replaceState` 原地改写地址栏（参照 `app.js` 中 `/posts` → `/archive` 的收敛分支）。
 2. 禁止在同一个项目中同时存在两套命名逻辑（如一部分用复数，一部分用单数）。
 
 ### 6.6 标准路由字典 (Canonical Route Map)
@@ -178,14 +178,17 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 | :--- | :--- | :--- |
 | Home | `/` | 首页，使用根路径 |
 | About | `/about` | 关于页面，单数 |
-| Posts | `/posts` | 文章列表（可作为 Archive 复用） |
 | Post Detail | `/posts/:slug` | 文章详情，使用语义化 slug |
+| Posts（兼容别名） | `/posts` | **不渲染独立页面**：命中后立即 `replaceState` 收敛到 `/archive`，避免同一内容存在两个 URL |
 | Columns | `/columns` | 专栏列表，复数 |
-| Column Detail | `/columns/:categorySlug` | 某专栏下的文章列表 |
+| Column Detail | `/columns/:columnSlug` | 某专栏下的文章列表 |
 | Tags | `/tags` | 标签列表 |
-| Tag Detail | `/tags/:tagName` | 某标签下的文章列表 |
-| Archive | `/archive` | 独立归档页（若复用 `/posts` 则无需单独存在） |
-| Search | `/search?q=...` | 搜索页，关键词作为查询参数 |
+| Tag Detail | `/tags/:tag`、`/tags/:t1/:t2`、`/tags?tag=...` | 单个标签 / 多标签交集筛选；选中集合即 URL |
+| Archive | `/archive` | 归档时间线（文章列表的唯一正式路由） |
+| Search | （无路由） | 检索以 Cmd+K 弹窗承载，不占用独立路由；`/search?q=` 会落到 404 |
+
+> **地址失效的处理方式**：本站是 Hash 路由，无法发送真正的 HTTP 301。旧路由的「永久重定向」等效实现为
+> `history.replaceState` 原地改写地址栏（见 6.5 第 1 条与 `app.js` 的 `/posts` 分支）。
 
 ### 6.7 路由与布局的映射关系
 
@@ -271,6 +274,9 @@ Agent 进行前端编写时，以下行为一律判定为违规：
 8. **严禁违反路由规范**：禁止出现大写字母、动词路径、下划线命名、单复数混用、无意义 ID 作为公开参数、路径末尾多余斜杠等违反第 6 节的路由行为。
 9. **严禁绕过准入流程新增导航**：任何新增导航项必须先通过第 7.2 节的四步准入，并在标准路由字典中登记，禁止直接在 Navbar 中插入未登记项。
 10. **严禁为单模块引入独立版心或独立视觉**：新增模块必须复用既有版心与设计令牌，禁止为新模块单独设计一套布局语言。
+11. **严禁未转义地拼接文本进 `innerHTML`**：任何来自 FrontMatter / Markdown 正文 / `blog.config.js` 的文本，在其进入 HTML 字符串前必须经过 `escapeHtml()`（含属性值）。唯一豁免是由代码内部生成的、字符集可证明安全的值（如 `'section-' + n`）。
+12. **严禁绕过 `applyTagSelection()` 写标签选中状态**：标签筛选遵循「URL 即状态」，`selectedSortedTags` 只能由路由解析或 `applyTagSelection()` 写入；禁止在视图中直接 `this.selectedSortedTags.add(...)`，否则地址栏与页面内容会脱节。
+13. **严禁在 `<head>` 同步引入大体积依赖**：PDF.js（约 1.3MB）与 `slide-viewer.js` 必须通过 `app.js#ensureSlideViewer()` 按需注入。新增任何 >100KB 的依赖都必须走同样的懒加载路径，禁止直接写 `<script src>` 阻塞首屏。
 
 ---
 
@@ -343,3 +349,8 @@ $$
 - [ ] 新增模块是否复用了既有版心（`max-w-[720px]` 或 `max-w-[1000px]`），未引入第三类宽度？
 - [ ] 最宽断点（`lg:`）下导航栏是否未出现换行、重叠或溢出？
 - [ ] 全站是否不存在只存在于导航但无路由的死链项，也不存在有路由但无入口的孤岛页？
+- [ ] 所有来自 FrontMatter / Markdown / 配置的文本，是否都在拼接进 `innerHTML` 前经过 `escapeHtml()`（**包括属性值**，如 `data-*`、`title`、`href`）？
+- [ ] 标签筛选中是否只通过 `applyTagSelection()` 写入选中集合，未直接改 `selectedSortedTags`？
+- [ ] 新依赖是否控制了体积；>100KB 的依赖是否已走按需懒加载而非 `<head>` 同步引入？
+- [ ] 新增的可交互元素是否复用既有 `:focus-visible` 焦点环，未用 `outline: none` 抹掉键盘焦点？
+- [ ] 新增的 `<nav>` / `role="menu"` 等 landmark 是否都带 `aria-label`？
