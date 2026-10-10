@@ -24,7 +24,7 @@ IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachme
 
 # 文档类型字典：
 #   normal = 普通文章（默认，进入首页/归档/标签等博文流）
-#   post   = 结构化独立页（支持 status/quote/bio/timeline/focusAreas/social 等区块，类似 about）
+#   post   = 结构化独立页（支持 focus/quote/bio/timeline/focusAreas/social 等区块，类似 about）
 # 兼容旧写法：page / page-mode / standalone 等一律归一化为 post。
 RICH_DOC_TYPES = {"post", "page", "page-mode", "standalone", "single", "page_mode"}
 
@@ -260,7 +260,7 @@ def parse_structured_page_file(filepath):
         "title": default_title,
         "slug": slugify(os.path.splitext(filename)[0]),
         "sourcePath": os.path.relpath(filepath, BASE_DIR).replace(os.sep, "/"),
-        "status": "",
+        "focus": "",
         "quote": "",
         "bio": "",
         "timeline": [],

@@ -254,7 +254,7 @@ FrontMatter 的 `type`（或 `layout`）字段决定文档类型，缺省为 `no
 
 `type: "post"`（旧写法 `type: "page"` 仍兼容）→ **不进入博文流**，以 about 式结构渲染：
 
-- 支持区块：`status` / `quote` / `bio` / `timeline`（时间线）/ `focusAreas`（关注领域）/ `social` / `contacts` / `links`
+- 支持区块：`focus`（顶部状态胶囊，一句话概括专注方向）/ `quote` / `bio` / `timeline`（时间线）/ `focusAreas`（关注领域）/ `social` / `contacts` / `links`
 - 追加一段自由 Markdown 正文（支持 KaTeX、Prism、Callout）
 - 通过导航 `target: "file:xxx.md"` 绑定为独立页面
 
@@ -263,7 +263,7 @@ FrontMatter 的 `type`（或 `layout`）字段决定文档类型，缺省为 `no
 title: "个人发展路线图"
 type: "post"
 excerpt: "关于知识库使用约定与演进路线。"
-status: "Open to collaboration"
+focus: "Open to collaboration"
 quote: "用严谨推导建立秩序。"
 bio: "一句话自述。"
 timeline:
@@ -343,7 +343,7 @@ tags: ["algebra", "math"]
 
 ```yaml
 ---
-status: "Physics, Math & Computer Science"     # 顶部状态胶囊
+focus: "Physics, Math & Computer Science"      # 顶部状态胶囊
 quote: "Turning complexity into clean order."  # 引言格言
 bio: "一句话自述，位于标题下方。"
 publications:                                  # 论著列表：按年份倒序分组，卡片可展开

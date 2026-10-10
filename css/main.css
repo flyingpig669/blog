@@ -165,21 +165,21 @@ html, body {
 /* 关于页作者名片：头像（支持任意图片链接）+ 名字 + 头衔。
    头像用「容器带首字母、图片绝对定位覆盖」的写法：图片加载成功则盖住占位，
    加载失败或被安全策略拒绝时自动露出首字母，不会出现破图图标。 */
-.about-identity {
-  margin-top: 2px;
+.about-eyebrow {
+  user-select: none;
 }
 .about-avatar-wrap {
   position: relative;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   border-radius: 9999px;
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border-subtle);
-  font: 500 18px var(--font-mono);
+  font: 500 22px var(--font-mono);
   color: var(--text-muted);
   user-select: none;
 }
@@ -656,22 +656,13 @@ html, body {
 #desktop-toc-nav button:hover {
   color: var(--accent-primary) !important;
 }
+/* focus 行：不带边框与底色 —— Hero 是「纯文字身份区」，方框胶囊会显得
+   突兀（用户实测否决）。只保留呼吸圆点 + 强调色文字，与头衔行同一视觉语言。 */
 .about-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--accent-primary);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  margin-top: 10px;
-  transition: border-color 150ms ease-out;
-}
-.about-status-pill:hover {
-  border-color: rgba(255, 255, 255, 0.16);
 }
 .about-status-dot-pulse {
   position: relative;

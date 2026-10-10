@@ -37,7 +37,7 @@ def parse_frontmatter(text, source='<document>'):
 def validate_metadata(data):
     fields = {key.lower(): value for key, value in data.items()}
     scalar_keys = ['title', 'slug', 'date', 'category', 'column', 'columnslug', 'columnname',
-                   'columndesc', 'type', 'layout', 'excerpt', 'slide', 'pdf', 'status']
+                   'columndesc', 'type', 'layout', 'excerpt', 'slide', 'pdf', 'focus']
     for key in scalar_keys:
         if key in fields and not isinstance(fields[key], str):
             raise ValueError(f'{key} 必须是文本')

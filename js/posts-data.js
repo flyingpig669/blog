@@ -78,7 +78,7 @@ window.BlogPostsData = {
         2,
         3
       ],
-      "bodyUrl": "data/documents/roadmap.08483b028d897352.json"
+      "bodyUrl": "data/documents/roadmap.d9f49bd1543be192.json"
     },
     "group-theory-intro": {
       "id": "post-col-group-theory-group-theory-intro",
@@ -111,7 +111,7 @@ window.BlogPostsData = {
       "type": "post",
       "sourcePath": "about.md",
       "tocLevels": null,
-      "bodyUrl": "data/documents/about.7aa2a545dc7f3993.json"
+      "bodyUrl": "data/documents/about.2ac8b4d2bfe4c3ba.json"
     }
   },
   "aliases": {

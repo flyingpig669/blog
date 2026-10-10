@@ -2,7 +2,7 @@
 # 状态标签与个人座右铭
 author: "CCC"
 avatar: "https://api.dicebear.com/7.x/initials/png?seed=CC C&backgroundColor=161618&textColor=EDEDED&fontWeight=600"
-status: "Physics, Math & Computer Science"
+focus: "Physics, Math & Computer Science"
 quote: "Turning complexity into clean order through rigorous logic, mathematics, and craft."
 bio: "Physics, Math, and Computer Science Enthusiast. Exploring the frontiers of quantum computing, system architecture, and elegant engineering."
 

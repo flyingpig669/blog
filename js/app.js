@@ -53,31 +53,51 @@ window.BlogApp = {
     return window.BlogHtml.safeUrl(url.replace(/ /g, '%20'), true) || '';
   },
 
-  // 关于页作者名片：头像 + 名字 + 头衔 / 所在地。
+  // focus 行（FrontMatter `focus:`）：无边框的强调文字行 + 呼吸圆点，
+  // 自身不带外边距 —— 由调用方决定它挂在 Hero 的哪一段下面。
+  renderFocusPill: function(text, extraClass) {
+    if (!text) return '';
+    var html = '<div class="about-status-pill inline-flex items-center gap-2 text-[12px] font-mono'
+      + (extraClass ? ' ' + extraClass : '') + '">';
+    html += '<span class="about-status-dot-pulse"><span class="about-status-dot-ping"></span><span class="about-status-dot-core"></span></span>';
+    html += '<span>' + this.escapeHtml(text) + '</span>';
+    html += '</div>';
+    return html;
+  },
+
+  // 关于页的「个人主页式」Hero：头像 + 名字（h1）+ 头衔 / 所在地。
+  // 页面名 "About" 降为眉标 —— 它对读者没有信息量，视觉主体应该是“我是谁”。
   // 数据源优先级：about.md 的 FrontMatter > blog.config.js 的 author 块（全站唯一来源）。
   // 头像缺失或链接被安全策略拒绝时，回退到首字母圆形占位，避免出现破图。
-  renderAboutIdentity: function(pageData) {
-    if (pageData !== window.BlogStore.about) return '';
+  renderAboutHero: function(pageData, pageTitle, focusText) {
     var cfg = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};
     var author = cfg.author || {};
     var name = pageData.name || pageData.author || author.name || '';
-    if (!name) return '';
+    if (!name) {
+      // 拿不到作者信息就退回普通标题，保证页面永远有 h1。
+      var fallback = '<h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + this.escapeHtml(pageTitle) + '</h1>';
+      return fallback + this.renderFocusPill(focusText, 'mb-1');
+    }
     var sub = [author.title, author.location].filter(Boolean).join(' · ');
     var avatar = this.safeImageUrl(pageData.avatar || author.avatar);
-    var html = '<div class="about-identity flex items-center gap-3.5 mb-4">';
-    // 外层负责「圆形 + 首字母回退」，内层图片成功加载时盖住首字母。
+    var html = '';
+    html += '<div class="flex items-center gap-4 mb-5">';
     html += '  <span class="about-avatar-wrap" data-initial="' + this.escapeHtml(name.charAt(0)) + '">';
     if (avatar) {
       html += '<img class="about-avatar-img" src="' + this.escapeHtml(avatar) + '" alt="'
-        + this.escapeHtml(name) + '" width="52" height="52" loading="lazy" decoding="async">';
+        + this.escapeHtml(name) + '" width="64" height="64" loading="lazy" decoding="async">';
     }
     html += '  </span>';
     html += '  <div class="min-w-0">';
-    html += '    <div class="text-[15.5px] font-semibold text-primary leading-snug font-sans">'
-      + this.escapeHtml(name) + '</div>';
+    html += '    <h1 class="text-[30px] sm:text-[34px] font-bold text-primary tracking-[-0.02em] leading-[1.15] font-sans">'
+      + this.escapeHtml(name) + '</h1>';
     if (sub) {
-      html += '    <div class="text-[12px] text-muted font-mono mt-0.5">'
+      html += '    <div class="text-[13px] text-muted font-mono mt-1.5">'
         + this.escapeHtml(sub) + '</div>';
+    }
+    // focus 跟着身份信息走：名字 → 头衔/所在地 → 关注方向。
+    if (focusText) {
+      html += '    <div class="mt-2.5">' + this.renderFocusPill(focusText) + '</div>';
     }
     html += '  </div>';
     html += '</div>';
@@ -1316,7 +1336,7 @@ window.BlogApp = {
     }
 
     var title = pageData.title || (navItem ? navItem.label : 'Page');
-    var statusText = pageData.status || '';
+    var statusText = pageData.focus || '';
     var quoteText = pageData.quote || '';
     var bioText = pageData.bio || pageData.excerpt || '';
     var timeline = Array.isArray(pageData.timeline) ? pageData.timeline : [];
@@ -1336,17 +1356,16 @@ window.BlogApp = {
 
     // 1. 顶部 Hero / 名片区
     html += '<header class="mb-10 pb-6 border-b border-divider">';
-    if (statusText) {
-      html += '<div class="about-status-pill inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-surface border border-subtle text-[12px] font-mono text-secondary mb-3.5">';
-      html += '  <span class="about-status-dot-pulse"><span class="about-status-dot-ping"></span><span class="about-status-dot-core"></span></span>';
-      html += '  <span>' + window.BlogApp.escapeHtml(statusText) + '</span>';
-      html += '</div>';
+    // focus 胶囊不再挂在页面最上方 —— 它描述的是「我在做什么」，属于身份信息，
+    // 应该跟在名字 / 头衔之后，而不是抢在头像与主标题之前。
+    var isAboutPage = pageData === window.BlogStore.about;
+    if (isAboutPage) {
+      html += this.renderAboutHero(pageData, title, statusText);
+    } else {
+      html += '<h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + window.BlogApp.escapeHtml(title) + '</h1>';
+      // 其余独立单页（roadmap 等）没有作者语义，胶囊退化为标题下方的一行徽标。
+      if (statusText) html += this.renderFocusPill(statusText, 'mb-1');
     }
-    html += '<h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + window.BlogApp.escapeHtml(title) + '</h1>';
-    // 作者名片：头像（任意图片链接）+ 名字 + 头衔。
-    // 只在关于页展示 —— 独立单页（roadmap 等）有自己的标题语义，不挂作者卡。
-    var identityHtml = this.renderAboutIdentity(pageData);
-    if (identityHtml) html += identityHtml;
     if (bioText) {
       html += '<p class="text-[16px] text-secondary leading-relaxed max-w-[620px] mb-3">' + window.BlogApp.formatLines(bioText) + '</p>';
     }
