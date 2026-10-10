@@ -162,6 +162,39 @@ html, body {
   background: rgba(59, 130, 246, 0.08);
 }
 
+/* 关于页作者名片：头像（支持任意图片链接）+ 名字 + 头衔。
+   头像用「容器带首字母、图片绝对定位覆盖」的写法：图片加载成功则盖住占位，
+   加载失败或被安全策略拒绝时自动露出首字母，不会出现破图图标。 */
+.about-identity {
+  margin-top: 2px;
+}
+.about-avatar-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  font: 500 18px var(--font-mono);
+  color: var(--text-muted);
+  user-select: none;
+}
+/* 首字母由 data-initial 提供；图片加载失败时它自然露出，不会显示破图图标 */
+.about-avatar-wrap::before {
+  content: attr(data-initial);
+}
+.about-avatar-wrap img.about-avatar-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* 专栏条目：与 Tags 列表同构的「细线分隔」语言 —— 无底色、无边框、无圆角。
    列表页的容器型块一律不加框，方框/圆角只留给可交互控件（如标签胶囊 .tag-tile）。
    因此这里不做卡片抬升，悬浮反馈交给标题链接自身变色。内距与 .post-item 对齐。

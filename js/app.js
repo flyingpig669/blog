@@ -43,6 +43,47 @@ window.BlogApp = {
     });
   },
 
+  // 图片链接容错：手写 URL 里常出现未编码的空格（如 ?seed=CC C），
+  // safeUrl 会直接拒绝含空格 / 控制字符的地址，头像就会整个不显示。
+  // 这里先把空格编码成 %20 再交给安全策略 —— 既让「肉眼可读写法」可用，
+  // 又仍然挡掉 javascript: / data: / file: 等危险协议。
+  safeImageUrl: function(value) {
+    var url = String(value == null ? '' : value).trim();
+    if (!url) return '';
+    return window.BlogHtml.safeUrl(url.replace(/ /g, '%20'), true) || '';
+  },
+
+  // 关于页作者名片：头像 + 名字 + 头衔 / 所在地。
+  // 数据源优先级：about.md 的 FrontMatter > blog.config.js 的 author 块（全站唯一来源）。
+  // 头像缺失或链接被安全策略拒绝时，回退到首字母圆形占位，避免出现破图。
+  renderAboutIdentity: function(pageData) {
+    if (pageData !== window.BlogStore.about) return '';
+    var cfg = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};
+    var author = cfg.author || {};
+    var name = pageData.name || pageData.author || author.name || '';
+    if (!name) return '';
+    var sub = [author.title, author.location].filter(Boolean).join(' · ');
+    var avatar = this.safeImageUrl(pageData.avatar || author.avatar);
+    var html = '<div class="about-identity flex items-center gap-3.5 mb-4">';
+    // 外层负责「圆形 + 首字母回退」，内层图片成功加载时盖住首字母。
+    html += '  <span class="about-avatar-wrap" data-initial="' + this.escapeHtml(name.charAt(0)) + '">';
+    if (avatar) {
+      html += '<img class="about-avatar-img" src="' + this.escapeHtml(avatar) + '" alt="'
+        + this.escapeHtml(name) + '" width="52" height="52" loading="lazy" decoding="async">';
+    }
+    html += '  </span>';
+    html += '  <div class="min-w-0">';
+    html += '    <div class="text-[15.5px] font-semibold text-primary leading-snug font-sans">'
+      + this.escapeHtml(name) + '</div>';
+    if (sub) {
+      html += '    <div class="text-[12px] text-muted font-mono mt-0.5">'
+        + this.escapeHtml(sub) + '</div>';
+    }
+    html += '  </div>';
+    html += '</div>';
+    return html;
+  },
+
   // 按需加载 KaTeX：正文不含公式时直接放行（连网络请求都不发）。
   // 加载器失败也不拦截渲染 —— 公式会退化成等宽文本，页面照常出来。
   ensureKaTeX: function(content) {
@@ -1302,6 +1343,10 @@ window.BlogApp = {
       html += '</div>';
     }
     html += '<h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + window.BlogApp.escapeHtml(title) + '</h1>';
+    // 作者名片：头像（任意图片链接）+ 名字 + 头衔。
+    // 只在关于页展示 —— 独立单页（roadmap 等）有自己的标题语义，不挂作者卡。
+    var identityHtml = this.renderAboutIdentity(pageData);
+    if (identityHtml) html += identityHtml;
     if (bioText) {
       html += '<p class="text-[16px] text-secondary leading-relaxed max-w-[620px] mb-3">' + window.BlogApp.formatLines(bioText) + '</p>';
     }

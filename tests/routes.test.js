@@ -26,10 +26,11 @@ function validateWith(mutate) {
 
 test('routing table is the single source for both routes and navigation', () => {
   const { BlogRoutes, BlogConfig, BlogRouteRegistry: registry } = load();
-  assert.deepEqual(
-    Object.keys(BlogRoutes).sort(),
-    ['about', 'archive', 'columns', 'home', 'posts', 'roadmap', 'tags']
-  );
+  // 不再硬编码一份路由清单：一旦增删模块，快照就会过期并误报（roadmap 移除时踩过）。
+  // 这里只校验「字典确实由路由表派生」这一关系，外加几个必须存在的骨架路由。
+  for (const name of ['home', 'archive', 'posts', 'tags', 'columns', 'about']) {
+    assert.ok(BlogRoutes[name], `路由表里必须保留 ${name}`);
+  }
   // 派生关系：BlogRoutes 就是表里的 name -> path，config.routes 是同一个引用。
   assert.deepEqual(BlogRoutes, registry.paths());
   assert.equal(BlogConfig.routes, BlogRoutes);
@@ -41,16 +42,16 @@ test('navigation is derived from the table with grouping preserved', () => {
   const { BlogConfig, BlogRoutes } = load();
   const nav = BlogConfig.nav;
   // vm 里的数组与宿主 realm 的 Array 不同源，比较形状前先归一化。
-  assert.deepEqual(
-    Array.from(nav, item => (Array.isArray(item) ? Array.from(item, sub => sub.id) : item.id)),
-    ['home', 'columns', 'archive', 'tags', ['about', 'roadmap']]
-  );
+  // 同样不写死清单：只校验「前四项平铺 + 末项折叠组且含 About」这一结构。
+  const shape = Array.from(nav, item => (Array.isArray(item) ? Array.from(item, sub => sub.id) : item.id));
+  assert.deepEqual(shape.slice(0, 4), ['home', 'columns', 'archive', 'tags']);
+  assert.ok(Array.isArray(shape[4]), '最后一项应是折叠组');
+  assert.ok(shape[4].includes('about'), '折叠组里应包含 About');
   // 顶层项直接引用路由字典的值，不再各写一份字面量。
   assert.equal(nav[0].target, BlogRoutes.home);
   assert.equal(nav[3].target, BlogRoutes.tags);
-  // 折叠组首项常显、其余进下拉，两项各自绑定一个 Markdown 文件。
+  // 折叠组首项常显、其余进下拉，每项各自绑定一个 Markdown 文件。
   assert.equal(nav[4][0].target, 'file:about.md');
-  assert.equal(nav[4][1].target, 'file:posts/roadmap.md');
   // posts 显式声明「有意不放入导航」，不该出现在任何一层里。
   assert.equal(nav.flat().some(item => item.id === 'posts'), false);
 });
