@@ -37,6 +37,37 @@ window.BlogApp = {
     });
   },
 
+  // 辅助函数: 扁平化多级导航菜单 (展开数组折叠项与 items/children)
+  getFlattenedNav: function() {
+    var raw = (window.BlogStore.config && window.BlogStore.config.nav) || (window.BlogConfig && window.BlogConfig.nav) || [];
+    var list = [];
+    raw.forEach(function(item) {
+      if (Array.isArray(item)) {
+        item.forEach(function(sub, idx) {
+          var copy = Object.assign({}, sub);
+          copy._parentGroup = item[0].id;
+          copy._isFolded = idx > 0;
+          list.push(copy);
+        });
+      } else if (item && (item.items || item.children)) {
+        var copyParent = Object.assign({}, item);
+        list.push(copyParent);
+        var subs = item.items || item.children;
+        if (Array.isArray(subs)) {
+          subs.forEach(function(sub) {
+            var copySub = Object.assign({}, sub);
+            copySub._parentGroup = item.id;
+            copySub._isFolded = true;
+            list.push(copySub);
+          });
+        }
+      } else if (item) {
+        list.push(item);
+      }
+    });
+    return list;
+  },
+
   // 渲染全局导航、页脚与品牌标识 (数据源自 blog.config.js)
   renderGlobalChrome: function() {
     var config = window.BlogStore.config || window.BlogConfig || {};
@@ -55,26 +86,101 @@ window.BlogApp = {
       brandLogoEl.textContent = site.brand;
     }
 
-    // 3. 桌面端导航菜单
+    // 3. 桌面端导航菜单 (支持单项与数组语法: 数组展示首项，其余折叠在下拉菜单)
     var desktopNavEl = document.querySelector('header nav');
     if (desktopNavEl && nav.length > 0) {
       var navHtml = '';
       nav.forEach(function(item) {
-        var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
-        var isExternal = href.indexOf('http') === 0;
-        navHtml += '<a href="' + href + '" data-nav-link="' + item.id + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + item.label + '</a>';
+        if (Array.isArray(item)) {
+          if (item.length === 0) return;
+          var first = item[0];
+          var folded = item.slice(1);
+          var firstHref = first.href || (first.route ? '#' + (first.route.startsWith('/') ? first.route : '/' + first.route) : '#/' + first.id);
+          var isExt = firstHref.indexOf('http') === 0;
+
+          if (folded.length === 0) {
+            navHtml += '<a href="' + firstHref + '" data-nav-link="' + first.id + '" ' + (isExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + first.label + '</a>';
+          } else {
+            navHtml += '<div class="relative group/navdrop inline-flex items-center">';
+            navHtml += '  <a href="' + firstHref + '" data-nav-link="' + first.id + '" ' + (isExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link pr-1">' + first.label + '</a>';
+            navHtml += '  <button type="button" class="p-1 text-[#8B8B8E] hover:text-[#EDEDED] transition-colors cursor-pointer group-hover/navdrop:text-[#3B82F6]" aria-label="More ' + first.label + ' links">';
+            navHtml += '    <svg class="w-3 h-3 transition-transform duration-150 group-hover/navdrop:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+            navHtml += '  </button>';
+            navHtml += '  <div class="absolute top-full left-0 pt-1.5 hidden group-hover/navdrop:block z-50">';
+            navHtml += '    <div class="bg-[#111113]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl p-1.5 min-w-[150px] space-y-0.5">';
+            folded.forEach(function(sub) {
+              var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
+              var isSubExt = subHref.indexOf('http') === 0;
+              navHtml += '      <a href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (isSubExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="block px-3 py-1.5 rounded-lg text-[13px] font-sans text-[#8B8B8E] hover:text-[#EDEDED] hover:bg-white/[0.04] transition-all truncate">' + sub.label + '</a>';
+            });
+            navHtml += '    </div>';
+            navHtml += '  </div>';
+            navHtml += '</div>';
+          }
+        } else if (item && (item.items || item.children)) {
+          var firstHref = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+          var isExt = firstHref.indexOf('http') === 0;
+          var folded = item.items || item.children || [];
+          navHtml += '<div class="relative group/navdrop inline-flex items-center">';
+          navHtml += '  <a href="' + firstHref + '" data-nav-link="' + item.id + '" ' + (isExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link pr-1">' + item.label + '</a>';
+          navHtml += '  <button type="button" class="p-1 text-[#8B8B8E] hover:text-[#EDEDED] transition-colors cursor-pointer group-hover/navdrop:text-[#3B82F6]" aria-label="More ' + item.label + ' links">';
+          navHtml += '    <svg class="w-3 h-3 transition-transform duration-150 group-hover/navdrop:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+          navHtml += '  </button>';
+          navHtml += '  <div class="absolute top-full left-0 pt-1.5 hidden group-hover/navdrop:block z-50">';
+          navHtml += '    <div class="bg-[#111113]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl p-1.5 min-w-[150px] space-y-0.5">';
+          folded.forEach(function(sub) {
+            var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
+            var isSubExt = subHref.indexOf('http') === 0;
+            navHtml += '      <a href="' + subHref + '" data-nav-link="' + sub.id + '" ' + (isSubExt ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="block px-3 py-1.5 rounded-lg text-[13px] font-sans text-[#8B8B8E] hover:text-[#EDEDED] hover:bg-white/[0.04] transition-all truncate">' + sub.label + '</a>';
+          });
+          navHtml += '    </div>';
+          navHtml += '  </div>';
+          navHtml += '</div>';
+        } else {
+          var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+          var isExternal = href.indexOf('http') === 0;
+          navHtml += '<a href="' + href + '" data-nav-link="' + item.id + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="nav-link">' + item.label + '</a>';
+        }
       });
       desktopNavEl.innerHTML = navHtml;
     }
 
-    // 4. 移动端抽屉菜单
+    // 4. 移动端抽屉菜单 (支持折叠子项分级展示)
     var mobileDrawerEl = document.getElementById('mobile-drawer');
     if (mobileDrawerEl && nav.length > 0) {
       var drawerHtml = '';
       nav.forEach(function(item) {
-        var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
-        var isExternal = href.indexOf('http') === 0;
-        drawerHtml += '<a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
+        if (Array.isArray(item)) {
+          if (item.length === 0) return;
+          var first = item[0];
+          var folded = item.slice(1);
+          var firstHref = first.href || (first.route ? '#' + (first.route.startsWith('/') ? first.route : '/' + first.route) : '#/' + first.id);
+          drawerHtml += '<a href="' + firstHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#EDEDED] font-medium transition-colors">' + first.label + '</a>';
+          if (folded.length > 0) {
+            drawerHtml += '<div class="pl-3.5 space-y-1 border-l border-white/[0.06] my-1 mb-2">';
+            folded.forEach(function(sub) {
+              var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
+              drawerHtml += '  <a href="' + subHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1 text-[13px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + sub.label + '</a>';
+            });
+            drawerHtml += '</div>';
+          }
+        } else if (item && (item.items || item.children)) {
+          var firstHref = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+          var folded = item.items || item.children || [];
+          drawerHtml += '<a href="' + firstHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#EDEDED] font-medium transition-colors">' + item.label + '</a>';
+          if (folded.length > 0) {
+            drawerHtml += '<div class="pl-3.5 space-y-1 border-l border-white/[0.06] my-1 mb-2">';
+            folded.forEach(function(sub) {
+              var subHref = sub.href || (sub.route ? '#' + (sub.route.startsWith('/') ? sub.route : '/' + sub.route) : '#/' + sub.id);
+              drawerHtml += '  <a href="' + subHref + '" onclick="window.BlogApp.closeMobileDrawer()" class="block py-1 text-[13px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + sub.label + '</a>';
+            });
+            drawerHtml += '</div>';
+          }
+        } else {
+          var href = item.href || (item.route ? '#' + (item.route.startsWith('/') ? item.route : '/' + item.route) : '#/' + item.id);
+          var isExternal = href.indexOf('http') === 0;
+          drawerHtml += '<a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' onclick="window.BlogApp.closeMobileDrawer()" class="block py-1.5 text-[14px] text-[#8B8B8E] hover:text-[#EDEDED] transition-colors">' + item.label + '</a>';
+        }
       });
       mobileDrawerEl.innerHTML = drawerHtml;
     }
@@ -322,8 +428,8 @@ window.BlogApp = {
       return;
     }
 
-    var nav = (window.BlogStore.config && window.BlogStore.config.nav) || (window.BlogConfig && window.BlogConfig.nav) || [];
-    var matchedNavItem = nav.find(function(item) {
+    var flatNav = this.getFlattenedNav();
+    var matchedNavItem = flatNav.find(function(item) {
       var r = item.route || item.href || '';
       if (r.indexOf('#') === 0) r = r.slice(1);
       if (!r.startsWith('/')) r = '/' + r;
@@ -333,6 +439,16 @@ window.BlogApp = {
     if (matchedNavItem) {
       var navId = matchedNavItem.id;
       this.setActiveNav(navId);
+      if (matchedNavItem._parentGroup) {
+        this.setActiveNav(matchedNavItem._parentGroup);
+      }
+
+      // 如果导航项直接指定了 Markdown 文件 (例如 file: "about.md" 或 file: "posts/page看看啥回事.md")
+      if (matchedNavItem.file) {
+        this.currentRoute = { name: 'page', params: { file: matchedNavItem.file }, navItem: matchedNavItem };
+        this.renderPageView(matchedNavItem.file, matchedNavItem);
+        return;
+      }
 
       if (navId === 'home') {
         this.currentRoute = { name: 'home', params: {} };
@@ -348,7 +464,7 @@ window.BlogApp = {
         this.renderTagsView();
       } else if (navId === 'about') {
         this.currentRoute = { name: 'about', params: {} };
-        this.renderAboutView();
+        this.renderPageView('about.md', matchedNavItem);
       } else {
         this.currentRoute = { name: navId, params: {}, navItem: matchedNavItem };
         this.renderDynamicNavView(matchedNavItem);
@@ -498,6 +614,11 @@ window.BlogApp = {
       nextPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
     }
 
+    var isPage = post.type === 'page' || post.layout === 'page';
+    if (isPage) {
+      this.renderPageView(post);
+      return;
+    }
     var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
     var totalParts = colPosts.length || (columnInfo ? columnInfo.postsCount : 1);
 
@@ -544,28 +665,34 @@ window.BlogApp = {
       html += '</div>';
     }
 
-    // 文章头部 (标题紧凑沉稳，信息聚集)
+    // 文章头部 (根据 isPage 智能排版)
     html += '<header class="mb-6 pb-4 border-b border-white/[0.06]">';
     html += '  <h1 class="text-[26px] sm:text-[30px] md:text-[32px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.25] mb-2.5 font-sans">' + post.title + '</h1>';
     
-    // 元信息行: 日期 · 阅读时长 · 字数 · 标签
-    html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
-    html += '    <span>' + post.date + '</span>';
-    html += '    <span>·</span>';
-    html += '    <span>' + (post.readTime || '3 min read') + '</span>';
-    if (post.words) {
+    if (isPage) {
+      if (post.excerpt) {
+        html += '  <p class="text-[15px] text-[#8B8B8E] leading-relaxed max-w-[620px] mb-2">' + post.excerpt + '</p>';
+      }
+    } else {
+      // 普通文章元信息行: 日期 · 阅读时长 · 字数 · 标签
+      html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-[#5A5A5E]">';
+      html += '    <span>' + post.date + '</span>';
       html += '    <span>·</span>';
-      html += '    <span>' + post.words + ' words</span>';
+      html += '    <span>' + (post.readTime || '3 min read') + '</span>';
+      if (post.words) {
+        html += '    <span>·</span>';
+        html += '    <span>' + post.words + ' words</span>';
+      }
+      if ((post.tags || []).length > 0) {
+        html += '    <span>·</span>';
+        html += '    <div class="inline-flex flex-wrap gap-1.5">';
+        post.tags.forEach(function(t) {
+          html += '      <a href="#/categories?tag=' + encodeURIComponent(t) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">#' + t + '</a>';
+        });
+        html += '    </div>';
+      }
+      html += '  </div>';
     }
-    if ((post.tags || []).length > 0) {
-      html += '    <span>·</span>';
-      html += '    <div class="inline-flex flex-wrap gap-1.5">';
-      post.tags.forEach(function(t) {
-        html += '      <a href="#/categories?tag=' + encodeURIComponent(t) + '" class="text-[#8B8B8E] hover:text-[#3B82F6] transition-colors">#' + t + '</a>';
-      });
-      html += '    </div>';
-    }
-    html += '  </div>';
     html += '</header>';
 
     // Markdown 正文 (正文内部可能包含一处或多处 ::: slide 演示文稿)
@@ -573,7 +700,8 @@ window.BlogApp = {
     html += renderedHtml;
     html += '</article>';
 
-    // 上一篇 / 下一篇导航 (专栏内严格按专栏章节排布，普通文章按时间流)
+    // 上一篇 / 下一篇导航 (仅博客模式展示，独立单页模式自动隐去)
+    if (!isPage) {
     html += '<div class="pt-6 border-t border-white/[0.06] space-y-3">';
     if (columnInfo && colPosts.length > 0) {
       var currentDisplayPart = colIndex !== -1 ? (colIndex + 1) : (post.order || 1);
@@ -614,6 +742,7 @@ window.BlogApp = {
     }
     html += '</div>';
     html += '</div>';
+    }
 
     html += '</div>'; // 结束左侧列
 
@@ -1076,108 +1205,96 @@ window.BlogApp = {
     container.innerHTML = html;
   },
 
-        // 5.6 关于作者视图 (About View - 纯粹极简科技排版，绝无厚重色块大卡片)
-  renderAboutView: function() {
+        // 5.6 独立高级单页渲染器 (Page View - 专有独立页面架构，支持时间线、关注领域、项目卡片与富文本)
+  renderPageView: function(source, navItem) {
     var container = document.getElementById('app-main');
     var config = window.BlogStore.config || window.BlogConfig || {};
     var author = window.BlogStore.author || config.author || {};
-    var social = config.social || [];
-    var about = (window.BlogPostsData && window.BlogPostsData.about) || {};
+    var pageData = null;
 
-    var statusText = about.status || author.title || 'Physics, Math & CS';
-    var quoteText = about.quote || '';
-    var bioText = about.bio || author.bio || '';
-    var timeline = Array.isArray(about.timeline) ? about.timeline : [];
-    var focusAreas = Array.isArray(about.focusAreas) ? about.focusAreas : [];
-    var projects = Array.isArray(about.projects) ? about.projects : [];
-    var notes = about.notes || '';
-
-    var html = '<div class="max-w-[640px] mx-auto pt-16 md:pt-20 pb-24">';
-
-    // 1. 顶部个人名片区 (Profile Hero)
-    html += '<div class="about-hero-card">';
-    if (author.avatar) {
-      html += '  <div class="about-avatar-wrapper">';
-      html += '    <img src="' + author.avatar + '" alt="' + (author.name || 'Author') + '" class="about-avatar-img">';
-      html += '  </div>';
+    if (typeof source === 'object' && source !== null) {
+      pageData = source;
+    } else if (typeof source === 'string') {
+      pageData = window.BlogStore.getPage(source);
     }
-    html += '  <div>';
-    html += '    <h1 class="about-name">' + (author.name || 'CCC') + '</h1>';
-    html += '    <div class="about-meta-row">';
-    html += '      <span>' + (author.title || 'Student') + '</span>';
-    if (author.location) {
-      html += '      <span>·</span>';
-      html += '      <span>' + author.location + '</span>';
+    if (!pageData && navItem && navItem.file) {
+      pageData = window.BlogStore.getPage(navItem.file);
     }
-    html += '    </div>';
+    if (!pageData && (!source || source === 'about' || source === 'about.md')) {
+      pageData = window.BlogStore.about || {};
+    }
+
+    pageData = pageData || {};
+
+    var title = pageData.title || (navItem ? navItem.label : 'Page');
+    var statusText = pageData.status || '';
+    var quoteText = pageData.quote || '';
+    var bioText = pageData.bio || pageData.excerpt || '';
+    var timeline = Array.isArray(pageData.timeline) ? pageData.timeline : [];
+    var focusAreas = Array.isArray(pageData.focusAreas) ? pageData.focusAreas : [];
+    var projects = Array.isArray(pageData.projects) ? pageData.projects : [];
+    var contacts = (pageData.social && pageData.social.length > 0) ? pageData.social : ((pageData.contacts && pageData.contacts.length > 0) ? pageData.contacts : (pageData.links || []));
+    var rawMarkdown = pageData.content || pageData.notes || pageData.raw || '';
+
+    var html = '<div class="max-w-[720px] mx-auto pt-14 md:pt-18 pb-24">';
+
+    // 1. 顶部 Hero / 名片区
+    html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
     if (statusText) {
-      html += '    <div class="about-status-pill">';
-      html += '      <span class="about-status-dot-pulse"><span class="about-status-dot-ping"></span><span class="about-status-dot-core"></span></span>';
-      html += '      <span>' + statusText + '</span>';
-      html += '    </div>';
+      html += '<div class="about-status-pill inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#111113] border border-white/[0.08] text-[12px] font-mono text-[#8B8B8E] mb-3.5">';
+      html += '  <span class="about-status-dot-pulse"><span class="about-status-dot-ping"></span><span class="about-status-dot-core"></span></span>';
+      html += '  <span>' + statusText + '</span>';
+      html += '</div>';
     }
-
-    // 社交渠道与主页联系方式 (纯文字极简展示，无Logo，无边框，易于自由扩展)
-    var contactLinks = (about.social && about.social.length > 0) ? about.social : ((about.contacts && about.contacts.length > 0) ? about.contacts : ((about.links && about.links.length > 0) ? about.links : (social || [])));
-    if (contactLinks.length > 0) {
-      html += '    <div class="about-contacts-row">';
-      contactLinks.forEach(function(item) {
+    html += '<h1 class="text-[32px] sm:text-[36px] font-bold text-[#EDEDED] tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + title + '</h1>';
+    if (bioText) {
+      html += '<p class="text-[16px] text-[#8B8B8E] leading-relaxed max-w-[620px] mb-3">' + bioText + '</p>';
+    }
+    if (contacts.length > 0) {
+      html += '<div class="about-contacts-row flex flex-wrap items-center gap-4 text-[13px] font-mono mt-3">';
+      contacts.forEach(function(item) {
         var href = item.url || item.href || '#';
         var isExternal = href.indexOf('http') === 0;
         var label = item.name || item.title || item.label || 'Link';
-        html += '      <a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-contact-text-link group">';
-        html += '        <span>' + label + '</span>';
-        if (isExternal) {
-          html += '        <span class="about-contact-arrow">↗</span>';
-        }
-        html += '      </a>';
+        html += '<a href="' + href + '" ' + (isExternal ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="about-contact-text-link group">';
+        html += '  <span>' + label + '</span>';
+        if (isExternal) html += '<span class="about-contact-arrow">↗</span>';
+        html += '</a>';
       });
-      html += '    </div>';
+      html += '</div>';
     }
-    html += '  </div>';
-    html += '</div>';
+    html += '</header>';
 
-    // 2. 个人格言 (Quote Banner)
+    // 2. 引言格言 (Quote Box)
     if (quoteText) {
-      html += '<div class="about-quote-box">“' + quoteText + '”</div>';
+      html += '<div class="about-quote-box mb-10">“' + quoteText + '”</div>';
     }
 
-    // 3. 个人简介段落 (Bio)
-    if (bioText) {
-      html += '<div class="about-bio-text">' + bioText + '</div>';
-    }
-
-    // 4. 经历与时间线 (Timeline & Milestones - Linear 极简发光导轨)
+    // 3. 经历与时间线 (Timeline & Milestones - Linear 极简发光导轨)
     if (timeline.length > 0) {
       html += '<section class="mb-14">';
-      html += '  <div class="about-section-header">';
-      html += '    <h2 class="about-section-title">Timeline & Milestones</h2>';
-      html += '    <span class="about-section-badge">' + timeline.length + ' Milestones</span>';
+      html += '  <div class="about-section-header flex items-center justify-between pb-3 border-b border-white/[0.06] mb-8">';
+      html += '    <h2 class="text-[18px] font-semibold text-[#EDEDED] font-sans">Timeline & Milestones</h2>';
+      html += '    <span class="text-[11px] font-mono text-[#5A5A5E]">' + timeline.length + ' Milestones</span>';
       html += '  </div>';
       html += '  <div class="about-timeline-track">';
       timeline.forEach(function(item) {
         html += '<div class="about-timeline-item">';
         html += '  <div class="about-timeline-node"></div>';
-        if (item.period) {
-          html += '  <div class="about-timeline-period">' + item.period + '</div>';
-        }
-        if (item.title) {
-          html += '  <h3 class="about-timeline-heading">' + item.title + '</h3>';
-        }
-        if (item.desc) {
-          html += '  <p class="about-timeline-desc">' + item.desc + '</p>';
-        }
+        if (item.period) html += '<div class="about-timeline-period">' + item.period + '</div>';
+        if (item.title) html += '<h3 class="about-timeline-heading">' + item.title + '</h3>';
+        if (item.desc) html += '<p class="about-timeline-desc">' + item.desc + '</p>';
         html += '</div>';
       });
       html += '  </div>';
       html += '</section>';
     }
 
-    // 5. 核心关注领域 (Focus Areas - 极简纯净条目，绝无厚重大色块网格)
+    // 4. 核心关注领域 / 特性亮点 (Focus Areas)
     if (focusAreas.length > 0) {
       html += '<section class="mb-14">';
-      html += '  <div class="about-section-header">';
-      html += '    <h2 class="about-section-title">Focus Areas</h2>';
+      html += '  <div class="about-section-header flex items-center justify-between pb-3 border-b border-white/[0.06] mb-6">';
+      html += '    <h2 class="text-[18px] font-semibold text-[#EDEDED] font-sans">Focus Areas</h2>';
       html += '  </div>';
       html += '  <div class="space-y-4">';
       focusAreas.forEach(function(item) {
@@ -1193,11 +1310,11 @@ window.BlogApp = {
       html += '</section>';
     }
 
-    // 6. 精选项目 (Selected Projects - 极简行式条目，优雅轻盈)
+    // 5. 精选项目 / 卡片展示 (Selected Projects)
     if (projects.length > 0) {
       html += '<section class="mb-14">';
-      html += '  <div class="about-section-header">';
-      html += '    <h2 class="about-section-title">Selected Projects</h2>';
+      html += '  <div class="about-section-header flex items-center justify-between pb-3 border-b border-white/[0.06] mb-4">';
+      html += '    <h2 class="text-[18px] font-semibold text-[#EDEDED] font-sans">Selected Projects</h2>';
       html += '  </div>';
       html += '  <div class="space-y-3">';
       projects.forEach(function(item) {
@@ -1212,31 +1329,29 @@ window.BlogApp = {
         } else {
           html += '    <span class="text-[15px] font-semibold text-[#EDEDED] font-sans">' + item.name + '</span>';
         }
-        if (item.tag) {
-          html += '    <span class="text-[11px] font-mono text-[#5A5A5E] px-2 py-0.5 rounded bg-white/[0.04]">' + item.tag + '</span>';
-        }
+        if (item.tag) html += '<span class="text-[11px] font-mono text-[#5A5A5E] px-2 py-0.5 rounded bg-white/[0.04]">' + item.tag + '</span>';
         html += '  </div>';
-        if (item.desc) {
-          html += '  <p class="text-[13.5px] leading-relaxed text-[#8B8B8E] m-0">' + item.desc + '</p>';
-        }
+        if (item.desc) html += '<p class="text-[13.5px] leading-relaxed text-[#8B8B8E] m-0">' + item.desc + '</p>';
         html += '</div>';
       });
       html += '  </div>';
       html += '</section>';
     }
 
-    // 7. 附加自由 Markdown 内容 (如有)
-    if (notes && notes.trim().length > 0) {
-      var mdResult = window.BlogMarkdown.render(notes);
+    // 6. 自由 Markdown 正文 (支持 KaTeX、Prism 代码高亮与 Callout 提示框)
+    if (rawMarkdown && rawMarkdown.trim().length > 0) {
+      var mdResult = window.BlogMarkdown.render(rawMarkdown);
       html += '<section class="mb-14 border-t border-white/[0.06] pt-8">';
       html += '  <article class="markdown-body">' + mdResult.html + '</article>';
       html += '</section>';
     }
 
-
-
     html += '</div>';
     container.innerHTML = html;
+  },
+
+  renderAboutView: function() {
+    this.renderPageView('about.md', { id: 'about', label: 'About' });
   },
 
   // ----------------------------------------------------------------------------

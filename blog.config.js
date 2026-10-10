@@ -38,12 +38,17 @@ window.BlogConfig = {
   },
 
   // 3. 顶部主导航菜单 (Navigation Menu)
+  // 支持单项、直接关联指定 Markdown 文件 (file: "xxx.md")、以及数组语法（前端直接展示第一个，其余项折叠进下拉菜单）
   nav: [
     { id: "home", label: "Home", route: "/" },
     { id: "columns", label: "Columns", route: "/columns" },
     { id: "archives", label: "Archive", route: "/archives" },
     { id: "categories", label: "Tags", route: "/categories" },
-    { id: "about", label: "About", route: "/about" }
+    // 数组形式：前端展示第一个 (About)，其余项折叠进下拉菜单，可绑定任意指定 .md 单页
+    [
+      { id: "about", label: "About", route: "/about", file: "about.md" },
+      { id: "roadmap", label: "Roadmap", route: "/roadmap", file: "posts/page看看啥回事.md" }
+    ]
   ],
 
   // 4. 页脚与关于页社交链接 (Social Links)
@@ -97,7 +102,7 @@ window.BlogConfig = {
     // 根据文件名排除指定文档 (例如: ["secret.md", "draft-1.md"])
     files: [],
 
-    // 根据目录名排除指定文件夹 (例如: ["drafts", "temp"])
-    dirs: []
+    // 根据目录名排除指定文件夹 (例如: ["templates", "drafts", "temp"])
+    dirs: ["templates", "drafts"]
   }
 };

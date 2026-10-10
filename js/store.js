@@ -52,7 +52,9 @@ window.BlogStore = {
     this.rawProjects = Array.isArray(postsData.projects) ? JSON.parse(JSON.stringify(postsData.projects)) : [];
     this.columns = this.rawColumns;
     this.projects = this.rawProjects;
-    this.about = postsData.about || "";
+    this.about = postsData.about || {};
+    this.customPages = postsData.customPages || {};
+    this.pages = postsData.pages || {};
 
     // 4. 载入本地交互统计 (浏览量、点赞、书签)
     var viewsMap = {};
@@ -98,6 +100,7 @@ window.BlogStore = {
     var self = this;
     filter = filter || {};
     var list = this.posts.filter(function(p) {
+      if (p.type === 'page') return false;
       return !self.isPostExcluded(p);
     });
 
@@ -148,6 +151,36 @@ window.BlogStore = {
       if (p.id && p.id.toLowerCase().endsWith('-' + norm)) return true;
       return false;
     });
+  },
+
+  // 获取独立单页数据对象 (支持关于页、自定义 Markdown 单页等)
+  getPage: function(key) {
+    if (!key) return null;
+    var norm = decodeURIComponent(key).toLowerCase().trim();
+    if (this.pages) {
+      if (this.pages[key]) return this.pages[key];
+      if (this.pages[norm]) return this.pages[norm];
+      var base = norm.split("/").pop().replace(/.md$/i, "");
+      if (this.pages[base]) return this.pages[base];
+      if (this.pages[base + ".md"]) return this.pages[base + ".md"];
+    }
+    if (norm === "about" || norm === "about.md") {
+      return this.about || null;
+    }
+    var postMatch = this.posts.find(function(p) {
+      if (p.relPath && p.relPath.toLowerCase() === norm) return true;
+      if (p.relPath && p.relPath.toLowerCase().endsWith("/" + norm)) return true;
+      if (p.slug && p.slug.toLowerCase() === norm) return true;
+      if (p.id && p.id.toLowerCase() === norm) return true;
+      return false;
+    });
+    if (postMatch) return postMatch;
+    if (this.customPages) {
+      if (this.customPages[key]) return { content: this.customPages[key], raw: this.customPages[key], title: key };
+      var base2 = norm.split("/").pop().replace(/.md$/i, "");
+      if (this.customPages[base2]) return { content: this.customPages[base2], raw: this.customPages[base2], title: base2 };
+    }
+    return null;
   },
 
   incrementView: function(id) {

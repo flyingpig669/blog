@@ -17,7 +17,7 @@ POSTS_DIR = os.path.join(BASE_DIR, "posts")
 POSTS_DATA_FILE = os.path.join(BASE_DIR, "js", "posts-data.js")
 SAMPLE_DATA_FILE = os.path.join(BASE_DIR, "js", "sample-data.js")
 
-IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachments", "images", "img", "slides", "vendor"}
+IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachments", "images", "img", "slides", "vendor", "templates", "drafts"}
 
 def load_config_exclude():
     config_path = os.path.join(BASE_DIR, "blog.config.js")
@@ -89,13 +89,15 @@ def parse_md_file(filepath):
         fm = fm_match.group(1)
         content = fm_match.group(2).strip()
 
-        for line in fm.splitlines():
-            line = line.strip()
-            if not line or ":" not in line:
+        for raw_line in fm.splitlines():
+            if not raw_line.strip() or raw_line.startswith(" ") or raw_line.startswith("	") or raw_line.strip().startswith("-"):
+                continue
+            line = raw_line.strip()
+            if ":" not in line:
                 continue
             key, val = line.split(":", 1)
             key = key.strip().lower()
-            val = val.strip().strip("'\"")
+            val = re.split(r'\s+#', val)[0].strip().strip(chr(39) + chr(34))
             if key == "title":
                 title = val
             elif key == "date":
@@ -215,15 +217,19 @@ def parse_md_file(filepath):
         "content": content
     }
 
-def parse_about_file(filepath):
-    """结构化解析 about.md 为原生组件数据对象"""
+def parse_structured_page_file(filepath):
+    """结构化解析任意独立 Page 文档为原生高级组件数据对象"""
     if not os.path.exists(filepath):
         return None
 
     with open(filepath, "r", encoding="utf-8") as f:
         text = f.read()
 
+    filename = os.path.basename(filepath)
+    default_title = os.path.splitext(filename)[0].replace("-", " ").replace("_", " ").title()
+
     data = {
+        "title": default_title,
         "status": "",
         "quote": "",
         "bio": "",
@@ -233,9 +239,11 @@ def parse_about_file(filepath):
         "social": [],
         "contacts": [],
         "links": [],
-        "notes": ""
+        "notes": "",
+        "content": "",
+        "raw": text,
+        "tocLevels": None
     }
-
     fm_match = re.match(r"^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*[\r\n]*([\s\S]*)$", text)
     if not fm_match:
         data["bio"] = text.strip()
@@ -256,7 +264,7 @@ def parse_about_file(filepath):
         top_m = re.match(r"^([a-zA-Z0-9_-]+):\s*(.*)$", line)
         if top_m and not line.startswith(" ") and not line.startswith("\t"):
             key = top_m.group(1)
-            val = top_m.group(2).strip().strip("\"'")
+            val = re.split(r'\s+#', top_m.group(2))[0].strip().strip(chr(39) + chr(34))
             if key in ["timeline", "focusAreas", "projects", "social", "contacts", "links"]:
                 current_section = key
                 current_item = None
@@ -283,6 +291,9 @@ def parse_about_file(filepath):
                 continue
 
     return data
+
+def parse_about_file(filepath):
+    return parse_structured_page_file(filepath)
 
 def sync():
     os.makedirs(POSTS_DIR, exist_ok=True)
@@ -368,14 +379,37 @@ def sync():
     if about_data:
         print(f" -> 扫描关于页: {os.path.relpath(about_path, BASE_DIR)} (收录 {len(about_data.get('timeline', []))} 条经历时间线)")
 
-    # 扫描根目录与其他自定义页面 Markdown 文件 (如 projects.md 等)
+    # 结构化扫描所有独立单页 (Pages: 包含根目录 md 文件及 posts/ 下声明 type: page 的独立页面)
+    pages_map = {}
     custom_pages = {}
+    if about_data:
+        pages_map["about"] = about_data
+        pages_map["about.md"] = about_data
+
     for filename in sorted(os.listdir(BASE_DIR)):
         if filename.endswith(".md") and filename not in ["README.md", "about.md", "AGENTS.md"]:
-            page_id = os.path.splitext(filename)[0]
-            with open(os.path.join(BASE_DIR, filename), "r", encoding="utf-8") as f:
-                custom_pages[page_id] = f.read()
-            print(f" -> 扫描自定义页面: {filename}")
+            p_path = os.path.join(BASE_DIR, filename)
+            p_data = parse_structured_page_file(p_path)
+            if p_data:
+                p_id = os.path.splitext(filename)[0]
+                pages_map[p_id] = p_data
+                pages_map[filename] = p_data
+                custom_pages[p_id] = p_data["raw"]
+                print(f" -> 扫描独立单页 [根目录]: {filename}")
+
+    for p in synced_posts:
+        if p.get("type") == "page":
+            full_p = os.path.join(POSTS_DIR, p["relPath"])
+            p_data = parse_structured_page_file(full_p)
+            if p_data:
+                p_data["title"] = p.get("title") or p_data["title"]
+                p_data["excerpt"] = p.get("excerpt") or ""
+                p_id = p.get("slug") or p.get("id")
+                pages_map[p_id] = p_data
+                pages_map[p["relPath"]] = p_data
+                pages_map[os.path.basename(p["relPath"])] = p_data
+                custom_pages[p_id] = p_data["raw"]
+                print(f" -> 扫描独立单页 [posts]: {p['relPath']}")
 
     payload = {
         "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -383,9 +417,9 @@ def sync():
         "columns": columns_list,
         "projects": projects_list,
         "about": about_data,
+        "pages": pages_map,
         "customPages": custom_pages
     }
-
     js_output = "/** Auto-generated by sync_posts.py - Do not edit manually */\n"
     js_output += "window.BlogPostsData = " + json.dumps(payload, ensure_ascii=False, indent=2) + ";\n"
     js_output += "window.BlogSampleData = window.BlogPostsData; // Backwards compatibility\n"
