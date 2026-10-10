@@ -1234,9 +1234,12 @@ window.BlogApp = {
     var focusAreas = Array.isArray(pageData.focusAreas) ? pageData.focusAreas : [];
     var projects = Array.isArray(pageData.projects) ? pageData.projects : [];
     var contacts = (pageData.social && pageData.social.length > 0) ? pageData.social : ((pageData.contacts && pageData.contacts.length > 0) ? pageData.contacts : (pageData.links || []));
-    var rawMarkdown = pageData.content || pageData.notes || pageData.raw || '';
+    // `raw` is the complete source file (including front matter). Rendering it
+    // here would duplicate the structured page data as visible YAML. Only the
+    // parsed Markdown body belongs in the free-form content section.
+    var rawMarkdown = pageData.content || pageData.notes || '';
 
-    var html = '<div class="max-w-[720px] mx-auto pt-14 md:pt-18 pb-24">';
+    var html = '<div class="max-w-[720px] mx-auto pt-16 md:pt-20 pb-20">';
 
     // 1. 顶部 Hero / 名片区
     html += '<header class="mb-10 pb-6 border-b border-white/[0.06]">';
