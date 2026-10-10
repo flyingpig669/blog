@@ -11,7 +11,7 @@
 #
 #   2. 以「监听文件变更 + 浏览器自动刷新」模式启动 server.py。
 #      保存 css/ js/ posts/ 下任意文件，浏览器会自动刷新；
-#      改动 Markdown 或 blog.config.js 时会先重建 js/posts-data.js 再刷新。
+#      改动内容与前端源码时会先统一构建内容和 CSS 再刷新。
 #
 # 用法：
 #   ./run.sh                      # 默认 18888，前台运行，Ctrl+C 停止
@@ -174,7 +174,10 @@ echo ""
 
 # 用数组拼命令：macOS 自带 bash 3.2 在 `set -u` 下展开空数组会直接报
 # "unbound variable"，所以绝不能把可能为空的 SERVER_ARGS 直接展开。
-CMD=(python3 server.py --port "$PORT")
+PYTHON="${AURORA_PYTHON:-python3}"
+if [ -x "$DIR/.venv/bin/python" ]; then PYTHON="$DIR/.venv/bin/python"; fi
+AURORA_PYTHON="$PYTHON" npm run build
+CMD=("$PYTHON" server.py --port "$PORT")
 if [ "${#SERVER_ARGS[@]}" -gt 0 ]; then
   CMD+=("${SERVER_ARGS[@]}")
 fi

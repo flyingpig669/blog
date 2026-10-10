@@ -12,7 +12,8 @@ window.BlogRoutes = Object.freeze({
   columns: "/columns",
   archive: "/archive",
   tags: "/tags",
-  about: "/about"
+  about: "/about",
+  roadmap: "/roadmap"
 });
 
 window.BlogConfig = {

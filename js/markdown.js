@@ -8,11 +8,7 @@ window.BlogMarkdown = {
     var features = (window.BlogStore && window.BlogStore.config && window.BlogStore.config.features)
       || (window.BlogConfig && window.BlogConfig.features) || {};
 
-    var escapeHtml = function(value) {
-      return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
-      });
-    };
+    var escapeHtml = window.BlogHtml.escapeHtml;
 
     var mathBlocks = [];
     var mathInlines = [];
@@ -99,7 +95,8 @@ window.BlogMarkdown = {
       var inlineTitle = (title || '').trim();
       var bodyText = (desc || '').trim();
       var slideTitle = inlineTitle || bodyText || 'Presentation Deck (PPT / PDF)';
-      var cleanUrl = (url || '').trim();
+      var cleanUrl = window.BlogHtml.safeUrl(url, true);
+      if (!cleanUrl) return '<p class="view-status">Invalid presentation URL.</p>';
       // 两个属性值都来自正文，必须转义后再拼接（escapeHtml 会先处理 & ，避免实体被二次解析）
       return '<div class="article-slide-player-mount my-8" data-slide-url="' + escapeHtml(cleanUrl) + '" data-slide-title="' + escapeHtml(slideTitle) + '"></div>';
     });
@@ -125,7 +122,7 @@ window.BlogMarkdown = {
           var rendered = katexRenderer.renderToString(formula, { displayMode: true, throwOnError: false });
           rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<div class="quantum-math-block">' + rendered + '</div>');
         } catch (e) {
-          rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<pre class="text-[#8B8B8E] font-mono text-xs">' + escapeHtml(formula) + '</pre>');
+          rawHtml = rawHtml.split('%%MATH_BLOCK_' + i + '%%').join('<pre class="text-secondary font-mono text-xs">' + escapeHtml(formula) + '</pre>');
         }
       });
 
@@ -134,7 +131,7 @@ window.BlogMarkdown = {
           var rendered = katexRenderer.renderToString(formula, { displayMode: false, throwOnError: false });
           rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join(rendered);
         } catch (e) {
-          rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="text-[#8B8B8E] font-mono text-xs">' + escapeHtml(formula) + '</code>');
+          rawHtml = rawHtml.split('%%MATH_INLINE_' + i + '%%').join('<code class="text-secondary font-mono text-xs">' + escapeHtml(formula) + '</code>');
         }
       });
     } else {
@@ -149,7 +146,16 @@ window.BlogMarkdown = {
     // 5. Post-process HTML for Stable Section IDs, Clean TOC, and Code Blocks
     if (typeof document !== 'undefined') {
       var tempDiv = document.createElement('div');
-      tempDiv.innerHTML = rawHtml;
+      if (!window.DOMPurify) throw new Error('HTML sanitizer could not load');
+      tempDiv.innerHTML = window.DOMPurify.sanitize(rawHtml);
+      tempDiv.querySelectorAll('[href], [src]').forEach(function(node) {
+        ['href', 'src'].forEach(function(attr) {
+          if (!node.hasAttribute(attr)) return;
+          var url = window.BlogHtml.safeUrl(node.getAttribute(attr), attr === 'src');
+          if (url) node.setAttribute(attr, url);
+          else node.removeAttribute(attr);
+        });
+      });
 
       // 5.0 站内互链处理 (Cross-Article Links)
       //   (a) 双链语法: [[slug]] / [[slug|显示文本]]  → 自动补全标题并生成站内路由
@@ -162,7 +168,7 @@ window.BlogMarkdown = {
           return route.charAt(0) === '#' ? route : '#' + route;
         };
         var applyAnchor = function(anchor, hit, fallbackLabel) {
-          anchor.setAttribute('href', hit.href || toHref(hit.route));
+          anchor.setAttribute('href', window.BlogHtml.safeUrl(hit.href || toHref(hit.route)) || '#');
           anchor.setAttribute('title', hit.title || fallbackLabel || '');
           anchor.classList.add('wiki-link');
           if (hit.kind) anchor.classList.add('wiki-link-' + hit.kind);
@@ -283,6 +289,13 @@ window.BlogMarkdown = {
           h.classList.add('scroll-mt-20');
           var level = parseInt(h.tagName.substring(1), 10);
           if (targetLevels.includes(level)) toc.push({ id: id, text: headingText, level: level });
+          var linkButton = document.createElement('button');
+          linkButton.type = 'button';
+          linkButton.className = 'heading-link';
+          linkButton.setAttribute('data-copy-heading', id);
+          linkButton.setAttribute('aria-label', 'Copy link to ' + headingText);
+          linkButton.textContent = '#';
+          h.appendChild(linkButton);
         });
       }
 
@@ -315,7 +328,7 @@ window.BlogMarkdown = {
 
         var header = document.createElement('div');
         header.className = 'code-header flex justify-between items-center';
-        header.innerHTML = '<span class="font-mono text-xs uppercase tracking-wider text-[#5A5A5E]">' + language + '</span>' +
+        header.innerHTML = '<span class="font-mono text-xs uppercase tracking-wider text-muted">' + language + '</span>' +
           '<button type="button" class="code-copy-btn" data-code="' + encodeURIComponent(rawCodeText) + '">' +
             '<span>Copy</span>' +
           '</button>';

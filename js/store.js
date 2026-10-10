@@ -31,13 +31,22 @@ window.BlogStore = {
 
     // 3. 载入编译生成的博文索引 (来自 posts/ 目录)
     // 数据在初始化后即为静态，直接引用而不做深拷贝（深拷贝会重复持有全部正文文本）。
-    var postsData = window.BlogPostsData || window.BlogSampleData || { posts: [], columns: [] };
-    this.posts = Array.isArray(postsData.posts) ? postsData.posts : [];
+    var postsData = window.BlogPostsData;
+    if (!postsData || postsData.schemaVersion !== 2) throw new Error('内容索引缺失或版本不匹配，请重新构建。');
+    this.documents = postsData.documents;
+    this.posts = postsData.posts.map(function(id) { return postsData.documents[id]; });
     this.rawColumns = Array.isArray(postsData.columns) ? postsData.columns : [];
     this.columns = this.rawColumns;
-    this.about = postsData.about || {};
-    this.customPages = postsData.customPages || {};
-    this.pages = postsData.pages || {};
+    this.about = this.documents[postsData.about] || null;
+    this.pages = {};
+    var self = this;
+    Object.keys(postsData.aliases).forEach(function(alias) {
+      var doc = self.documents[postsData.aliases[alias]];
+      if (doc.type === 'post') self.pages[alias] = doc;
+    });
+    this._requests = new Map();
+    this.searchUrl = postsData.searchUrl;
+    this.searchIndex = null;
 
     // 派生结果缓存（见 getColumns / getAllTags）
     this._columnsCache = null;
@@ -77,10 +86,10 @@ window.BlogStore = {
         return (
           (p.title && p.title.toLowerCase().indexOf(q) !== -1) ||
           (p.excerpt && p.excerpt.toLowerCase().indexOf(q) !== -1) ||
-          (p.content && p.content.toLowerCase().indexOf(q) !== -1) ||
+          ((this.searchIndex && this.searchIndex[p.slug] || p.content || '').toLowerCase().indexOf(q) !== -1) ||
           (p.tags && p.tags.some(function(t) { return t.toLowerCase().indexOf(q) !== -1; }))
         );
-      });
+      }, this);
     }
 
     list.sort(function(a, b) {
@@ -106,6 +115,46 @@ window.BlogStore = {
       return 0;
     }
     return q ? posts.sort(function(a, b) { return score(b) - score(a); }) : posts;
+  },
+
+  fetchJson: function(url) {
+    if (this._requests.has(url)) return this._requests.get(url);
+    var self = this;
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 15000);
+    var promise = fetch(url, { signal: controller.signal }).then(function(response) {
+      if (!response.ok) throw new Error('Request failed: ' + response.status);
+      return response.json();
+    }).catch(function(error) { self._requests.delete(url); throw error; }).finally(function() { clearTimeout(timer); });
+    this._requests.set(url, promise);
+    return promise;
+  },
+
+  loadDocument: function(doc) {
+    if (doc._loaded || !doc.bodyUrl) return Promise.resolve(doc);
+    var self = this;
+    return this.fetchJson(doc.bodyUrl).then(function(body) {
+      if (body.slug !== doc.slug || typeof body.content !== 'string') throw new Error('Invalid document payload');
+      Object.assign(doc, body, { _loaded: true });
+      return doc;
+    }).catch(function(error) { self._requests.delete(doc.bodyUrl); throw error; });
+  },
+
+  loadSearch: function() {
+    var self = this;
+    if (this.searchIndex) return Promise.resolve(this.searchIndex);
+    return this.fetchJson(this.searchUrl).then(function(index) {
+      if (!index || Array.isArray(index) || typeof index !== 'object' || !Object.values(index).every(function(value) { return typeof value === 'string'; })) throw new Error('Invalid search payload');
+      self.searchIndex = index;
+      return index;
+    }).catch(function(error) { self._requests.delete(self.searchUrl); throw error; });
+  },
+
+  searchSnippet: function(post, query) {
+    var text = this.searchIndex && this.searchIndex[post.slug] || post.excerpt || '';
+    var index = text.toLowerCase().indexOf(String(query || '').trim().toLowerCase());
+    var start = Math.max(0, index - 45);
+    return (start ? '…' : '') + text.slice(start, start + 150) + (text.length > start + 150 ? '…' : '');
   },
 
   // 目录查询：列出 posts/ 下指定目录（含其子目录）内的普通文章，按日期倒序
@@ -191,6 +240,12 @@ window.BlogStore = {
   // 站内互链解析：把 [[key]] / 相对 .md 链接 统一解析为「站内路由 + 展示标题」。
   // 支持按 文章 slug / id / relPath / 标题 / 专栏 / 标签 引用；未命中返回 null。
   // 返回：{ kind, title, route, href?, slug, excerpt }
+  routePath: function(name, value) {
+    var routes = (this.config && this.config.routes) || window.BlogRoutes;
+    var base = routes[name];
+    return value ? base + '/' + encodeURIComponent(value) : base;
+  },
+
   resolveLink: function(key) {
     if (key === undefined || key === null) return null;
     var raw = String(key).trim();
@@ -198,6 +253,7 @@ window.BlogStore = {
 
     // 1) 外链 / 已带 # 的 Hash 路由：原样透传
     if (/^https?:\/\//i.test(raw) || /^(mailto|tel):/i.test(raw) || raw.indexOf('#/') === 0) {
+      if (window.BlogHtml && !window.BlogHtml.safeUrl(raw)) return null;
       return { kind: 'url', title: raw.replace(/^#/, ''), href: raw };
     }
 
@@ -221,14 +277,14 @@ window.BlogStore = {
 
     // 3) 关于页
     if (lower === 'about' || lower === 'about.md') {
-      return { kind: 'page', title: (this.about && this.about.title) || 'About', route: '/about', slug: 'about' };
+      return this.about ? { kind: 'page', title: this.about.title || 'About', route: this.routePath('about'), slug: 'about' } : null;
     }
 
     // 4) 专栏（按 id / 名称）
     var explicitTag = norm.charAt(0) === '#';
     var col = explicitTag ? null : this.getColumnById(norm);
     if (col) {
-      return { kind: 'column', title: col.name, route: '/columns/' + encodeURIComponent(col.id), slug: col.id, excerpt: col.desc || '' };
+      return { kind: 'column', title: col.name, route: this.routePath('columns', col.id), slug: col.id, excerpt: col.desc || '' };
     }
 
     // 5) 文档（normal 文章 / post 结构化独立页），支持 slug / id / relPath。
@@ -242,7 +298,7 @@ window.BlogStore = {
         return {
           kind: doc.kind === 'page' ? 'page' : 'post',
           title: d.title || slug,
-          route: '/posts/' + encodeURIComponent(slug),
+          route: this.routePath('posts', slug),
           slug: slug,
           excerpt: d.excerpt || ''
         };
@@ -252,22 +308,21 @@ window.BlogStore = {
     // 6) 标签（带或不带 #）
     var tagName = norm.replace(/^#/, '');
     var tag = (this.getAllTags() || []).find(function(t) {
-      return t.name.toLowerCase() === tagName.toLowerCase();
-    });
+      return t.name.toLowerCase() === tagName.toLowerCase() || this.tagSlug(t.name) === tagName.toLowerCase();
+    }, this);
     if (tag) {
-      return { kind: 'tag', title: '#' + tag.name, route: '/tags/' + encodeURIComponent(tag.name), slug: tag.name };
+      return { kind: 'tag', title: '#' + tag.name, route: this.routePath('tags', this.tagSlug(tag.name)), slug: this.tagSlug(tag.name) };
     }
 
     // 7) 按标题匹配（精确优先，其次包含）
     if (explicitTag) return null;
-    var byTitle = this.posts.find(function(p) { return p.title && p.title.toLowerCase() === lower; }) ||
-                  this.posts.find(function(p) { return p.title && p.title.toLowerCase().indexOf(lower) !== -1; });
+    var byTitle = this.posts.find(function(p) { return p.title && p.title.toLowerCase() === lower; });
     if (byTitle) {
       var s2 = byTitle.slug || byTitle.id;
       return {
         kind: 'post',
         title: byTitle.title,
-        route: '/posts/' + encodeURIComponent(s2),
+        route: this.routePath('posts', s2),
         slug: s2,
         excerpt: byTitle.excerpt || ''
       };
@@ -305,7 +360,7 @@ window.BlogStore = {
     if (this._columnsCache) return this._columnsCache;
     var self = this;
     this._columnsCache = (this.rawColumns || this.columns || []).map(function(col) {
-      var filteredPosts = (col.posts || []).filter(function(p) {
+      var filteredPosts = (col.postIds || []).map(function(id) { return self.documents[id]; }).filter(function(p) {
         return !self.isPostExcluded(p);
       });
       var copy = Object.assign({}, col);
@@ -329,6 +384,10 @@ window.BlogStore = {
   },
 
   // 聚合全站标签（记忆化：resolveLink 解析每条互链都可能需要它）
+  tagSlug: function(name) {
+    return String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  },
+
   getAllTags: function() {
     if (this._tagsCache) return this._tagsCache;
     var tagCount = {};

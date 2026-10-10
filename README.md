@@ -23,7 +23,7 @@
 
 本系统是**零构建的纯静态单页应用 (SPA)**：没有 Node.js 打包、没有 Webpack/Vite，浏览器直接执行原生 ES5 语法脚本，秒级加载、无依赖维护成本。
 
-内容层由 `sync_posts.py` 扫描 Markdown 并编译为一份数据包 `js/posts-data.js`，前端只读该数据包渲染页面。
+内容层由 `sync_posts.py` 扫描 Markdown，生成轻量元数据索引 `js/posts-data.js` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
 
 ```text
 ~/Documents/blog/
@@ -59,7 +59,7 @@
 └── README.md               # 本文档
 ```
 
-> **关键约定**：新增文章后必须重新运行 `python3 sync_posts.py`（或 `./check.sh`）生成索引，网页才会读取到新内容。
+> **关键约定**：新增文章后运行 `npm run build`（或 `./check.sh`），同时生成索引、正文、搜索数据与静态 CSS。浏览器不再运行 Tailwind。预览必须通过 HTTP 服务器访问，不能直接打开本地 HTML。
 
 ---
 
@@ -194,7 +194,7 @@ nav: [
 
 FrontMatter 的 `type`（或 `layout`）字段决定文档类型，缺省为 `normal`：
 
-普通文章与结构化页面共用 FrontMatter 值解析：支持带引号的标量、行内/多行数组和缩进列表。字符串内的逗号与 `#` 不作为分隔符或注释；双引号转义按 JSON 字符串规则处理，单引号内的单引号写成 `''`。未闭合的数组、映射或引号会中止索引构建。这里是项目支持的格式子集，不是完整 YAML 解析器。
+普通文章与结构化页面共用 `lib/frontmatter.py`，使用 PyYAML 的安全 BaseLoader（标量统一保留为文本，不执行自定义对象标签），支持数组、嵌套映射、块文本与标准 YAML 引号转义。重复字段、非法日期、章节顺序和结构化字段类型会中止构建，并指出源文件。没有条目的列表应写 `[]`。
 
 `tocLevels: []`（或 `false`）关闭目录，省略时使用全局默认。标题锚点基于标题内容生成，重复标题追加序号；插入其他标题不会改变已有锚点。修改标题本身会改变锚点，可以在浏览器检查对应标题的 `id` 获取当前地址。
 
@@ -548,6 +548,23 @@ attachments: ["attachments/slides/quantum-computing-slides.pdf", "attachments/�
 
 ## 八、本地开发与预览
 
+首次准备构建环境（Node.js 24 与 Python 3）：
+
+```bash
+npm ci
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+npm run build
+```
+
+构建入口是 `scripts/build.js`；`run.sh` / `check.sh` 自动优先使用项目 `.venv`。使用其它 Python 环境可设置 `AURORA_PYTHON`。开发监听会同步重建 CSS 与内容，并排除生成数据、CSS、日志、依赖与缓存，避免刷新循环。
+
+公共模块分别位于 `js/components/`（导航、文章条目、论著、搜索）与 `js/lib/`（路由、滚动状态、HTML/URL 安全）。组件通过注入服务使用数据和路由，不反向依赖页面控制器。设计颜色与字体只在 `css/main.css` 令牌中定义，Tailwind 配置引用变量。
+
+Markdown 通过 DOMPurify 清理，再统一过滤链接/资源协议；前台标题与属性统一转义。搜索提供正文命中片段与安全高亮；章节标题旁的 `#` 可复制直达链接；About 提供区块跳转。普通文章按发布时间串联，专栏按章节顺序串联。
+
+标签展示名保持原文，URL 统一为小写连字符（例如 `Getting Started` → `/tags/getting-started`）；构建会拒绝重名 slug 或非英文标签路由。标签选择仍由 URL 驱动，刷新和后退可恢复筛选。
+
 内置轻量服务器已针对浏览器并发做了加固（多线程 + 守护线程、TCP 监听队列 256、HTTP/1.1 keep-alive），避免静态资源偶发 `ERR_CONNECTION_RESET` 导致的白屏。
 
 ```bash
@@ -584,10 +601,12 @@ cd ~/Documents/blog
 
 脚本依次执行：
 
-1. `./check.sh`：**先重建** `js/posts-data.js`，再对 `blog.config.js`、`js/*.js`、`sync_posts.py`、`server.py` 与全部 Shell 脚本做语法自检（顺序不可颠倒，否则生成产物逃过校验）。
+1. `./check.sh`：先统一构建，再检查导航/路由一致性、站内引用、Markdown 链接、附件与脚本依赖，随后执行语法检查和 Node/Python 回归测试。
 2. `git add .` 并创建 Commit。
 3. 推送到远程 `main` 分支。
 4. 触发云端 [`.github/workflows/static.yml`](.github/workflows/static.yml)，由 GitHub Actions 完成 Pages 打包上线。
+
+Pull Request 也执行完整检查但不发布；只有检查通过的非 PR 构建才能部署。部署仍从项目根目录打包，没有引入 `dist/` 隔离。仍使用 Hash 路由，独立静态页面与 SSG 属于后续路由迁移，不在本次改造内。
 
 > **仓库设置**：GitHub 仓库 → **Settings** → **Pages** → **Build and deployment / Source** 选择 **GitHub Actions**。
 
@@ -597,7 +616,7 @@ cd ~/Documents/blog
 
 ### Q1: 新增文章后网页没有显示？
 
-静态站点依赖索引包 `js/posts-data.js`。本地执行一次 `python3 sync_posts.py`；发布时直接运行 `./deploy.sh`（脚本与 CI 都会自动重建）。
+静态站点依赖索引与正文数据。本地执行 `npm run build`；发布时运行 `./deploy.sh`（脚本与 CI 都会自动重建并校验）。
 
 ### Q2: 改了配置刷新没变化？
 

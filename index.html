@@ -33,46 +33,30 @@
   <!-- KaTeX CSS -->
   <link rel="stylesheet" href="vendor/katex/katex.min.css">
 
+  <!-- Static utilities compiled at build time (no browser Tailwind runtime). -->
+  <link rel="stylesheet" href="css/utilities.css">
+
   <!-- Custom Linear/Vercel Dark CSS -->
   <link rel="stylesheet" href="css/main.css">
 
   <!-- Vendor JS -->
-  <script src="vendor/tailwind.js"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            page: "#0A0A0B",
-            surface: "#111113",
-            codebg: "#161618",
-            primary: "#EDEDED",
-            secondary: "#8B8B8E",
-            muted: "#5A5A5E",
-            accent: "#3B82F6",
-            cyanAccent: "#22D3EE"
-          }
-        }
-      }
-    };
-  </script>
-  <script src="vendor/marked.min.js"></script>
-  <script src="vendor/prism.js"></script>
-  <script src="vendor/prism-components/prism-javascript.min.js"></script>
-  <script src="vendor/prism-components/prism-python.min.js"></script>
-  <script src="vendor/prism-components/prism-bash.min.js"></script>
-  <script src="vendor/prism-components/prism-typescript.min.js"></script>
-  <script src="vendor/katex/katex.min.js"></script>
+  <script defer src="vendor/marked.min.js"></script>
+  <script defer src="vendor/purify.min.js"></script>
+  <script defer src="vendor/prism.js"></script>
+  <script defer src="vendor/prism-components/prism-javascript.min.js"></script>
+  <script defer src="vendor/prism-components/prism-python.min.js"></script>
+  <script defer src="vendor/prism-components/prism-bash.min.js"></script>
+  <script defer src="vendor/prism-components/prism-typescript.min.js"></script>
+  <script defer src="vendor/katex/katex.min.js"></script>
 </head>
-<body class="bg-[#0A0A0B] text-[#EDEDED] min-h-screen flex flex-col antialiased selection:bg-[#3B82F6]/20 selection:text-[#EDEDED]">
+<body class="bg-page text-primary min-h-screen flex flex-col antialiased selection:bg-accent/20 selection:text-primary">
 
   <!-- Ultra-subtle background grid (<3% opacity) -->
   <div class="fixed inset-0 pointer-events-none subtle-grid-bg z-0 opacity-40"></div>
 
   <!-- Top Reading Progress Indicator -->
   <div id="reading-progress-container" class="fixed top-0 left-0 w-full h-[2px] bg-transparent z-50 hidden">
-    <div id="reading-progress-bar" class="h-full bg-[#3B82F6] w-0 transition-all duration-75"></div>
+    <div id="reading-progress-bar" class="h-full bg-accent w-0 transition-all duration-75"></div>
   </div>
 
   <!-- 1. Fixed Header (56px, blur(12px), Full Width Page Spanning, Zoom & Scaling Resistant) -->
@@ -82,8 +66,8 @@
       <!-- Left side: Logo + Desktop Nav Group -->
       <div class="flex items-center gap-6 lg:gap-8 min-w-0">
         <!-- Logo: Monospace, font-weight 600 -->
-        <a id="brand-link" href="#/" class="flex items-center gap-2 group text-[#EDEDED] font-mono text-[14px] font-semibold tracking-tight shrink-0 whitespace-nowrap">
-          <span class="text-[#3B82F6] font-mono">/</span>
+        <a id="brand-link" href="#/" class="flex items-center gap-2 group text-primary font-mono text-[14px] font-semibold tracking-tight shrink-0 whitespace-nowrap">
+          <span class="text-accent font-mono">/</span>
           <span>aurora.notes</span>
         </a>
 
@@ -94,21 +78,21 @@
 
       <!-- Quick Actions (Search Cmd+K, Mobile menu hamburger) -->
       <div class="flex items-center gap-3 shrink-0">
-        <button id="search-action" type="button" onclick="window.BlogApp.openSearchModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-[6px] bg-[#111113] hover:bg-white/[0.04] text-[#8B8B8E] hover:text-[#EDEDED] text-[12px] border border-white/[0.08] transition-all shrink-0 cursor-pointer" title="Search articles" aria-haspopup="dialog" aria-controls="search-modal">
-          <svg class="w-3.5 h-3.5 text-[#8B8B8E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <button id="search-action" type="button" onclick="window.BlogApp.openSearchModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-[6px] bg-surface hover:bg-white/[0.04] text-secondary hover:text-primary text-[12px] border border-subtle transition-all shrink-0 cursor-pointer" title="Search articles" aria-haspopup="dialog" aria-controls="search-modal">
+          <svg class="w-3.5 h-3.5 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <span class="hidden md:inline font-mono">Search</span>
-          <kbd class="hidden md:inline-block px-1 py-0.2 text-[10px] font-mono bg-[#161618] border border-white/[0.08] rounded text-[#5A5A5E]">⌘K</kbd>
+          <kbd class="hidden md:inline-block px-1 py-0.2 text-[10px] font-mono bg-codebg border border-subtle rounded text-muted">⌘K</kbd>
         </button>
 
         <!-- Mobile menu hamburger -->
-        <button id="mobile-nav-toggle" type="button" onclick="window.BlogApp.toggleMobileDrawer()" class="md:hidden p-1.5 rounded-md text-[#8B8B8E] hover:text-[#EDEDED] hover:bg-white/[0.06] shrink-0" aria-label="Toggle navigation" aria-expanded="false" aria-controls="mobile-drawer">
+        <button id="mobile-nav-toggle" type="button" onclick="window.BlogApp.toggleMobileDrawer()" class="md:hidden p-1.5 rounded-md text-secondary hover:text-primary hover:bg-white/[0.06] shrink-0" aria-label="Toggle navigation" aria-expanded="false" aria-controls="mobile-drawer">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
       </div>
     </div>
 
     <!-- Mobile Drawer (Full width backdrop) -->
-    <nav id="mobile-drawer" aria-label="Mobile navigation" class="hidden md:hidden px-4 sm:px-6 md:px-8 py-3 space-y-2 border-t border-white/[0.06] bg-[#0A0A0B]/95 backdrop-blur-md w-full"></nav>
+    <nav id="mobile-drawer" aria-label="Mobile navigation" class="hidden md:hidden px-4 sm:px-6 md:px-8 py-3 space-y-2 border-t border-divider bg-page/95 backdrop-blur-md w-full"></nav>
   </header>
 
   <!-- 2. Main Content Container (Max width 720px, Centered, Ample breathing room) -->
@@ -117,8 +101,8 @@
   </main>
 
   <!-- 3. Minimalist Footer (Clean & quiet, contact info only in About) -->
-  <footer class="mt-24 border-t border-white/[0.06] py-10 relative z-10">
-    <div class="shell mx-auto px-4 sm:px-6 flex items-center justify-between text-[12px] text-[#5A5A5E] font-mono">
+  <footer class="mt-24 border-t border-divider py-10 relative z-10">
+    <div class="shell mx-auto px-4 sm:px-6 flex items-center justify-between text-[12px] text-muted font-mono">
       <div id="footer-copyright">
         © 2026 Alex Chen · All rights reserved.
       </div>
@@ -126,13 +110,13 @@
   </footer>
 
   <!-- Search Modal (Cmd+K) -->
-  <div id="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-modal-title" class="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-[#0A0A0B]/80 backdrop-blur-sm hidden" onclick="if(event.target === this) window.BlogApp.closeSearchModal()">
-    <div class="w-full max-w-[560px] bg-[#111113] rounded-xl border border-white/[0.12] shadow-2xl overflow-hidden">
+  <div id="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-modal-title" class="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-page/80 backdrop-blur-sm hidden" onclick="if(event.target === this) window.BlogApp.closeSearchModal()">
+    <div class="w-full max-w-[560px] bg-surface rounded-xl border border-white/[0.12] shadow-2xl overflow-hidden">
       <h2 id="search-modal-title" class="sr-only">Search articles</h2>
-      <div class="p-3.5 border-b border-white/[0.06] flex items-center gap-3">
-        <svg class="w-4 h-4 text-[#8B8B8E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input id="search-modal-input" type="search" aria-label="Search articles" oninput="window.BlogApp.runModalSearchDebounced(this.value)" placeholder="Search articles, tags, concepts..." class="w-full text-[14px] bg-transparent focus:outline-none text-[#EDEDED] placeholder-[#5A5A5E]">
-        <button type="button" onclick="window.BlogApp.closeSearchModal()" class="text-[11px] font-mono text-[#5A5A5E] hover:text-[#EDEDED] px-1.5 py-0.5 rounded bg-white/[0.04]">ESC</button>
+      <div class="p-3.5 border-b border-divider flex items-center gap-3">
+        <svg class="w-4 h-4 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input id="search-modal-input" type="search" aria-label="Search articles" oninput="window.BlogApp.runModalSearchDebounced(this.value)" placeholder="Search articles, tags, concepts..." class="w-full text-[14px] bg-transparent focus:outline-none text-primary placeholder-muted">
+        <button type="button" onclick="window.BlogApp.closeSearchModal()" class="text-[11px] font-mono text-muted hover:text-primary px-1.5 py-0.5 rounded bg-white/[0.04]">ESC</button>
       </div>
       <div id="search-modal-results" aria-live="polite" class="max-h-80 overflow-y-auto p-2 space-y-1">
         <!-- Results -->
@@ -142,33 +126,34 @@
 
   <!-- Scripts
        应用脚本统一 defer：不阻塞首屏解析，且在 DOMContentLoaded 之前按文档顺序执行完毕。
-       vendor 的 marked / prism / katex / tailwind 保持同步加载 —— 应用脚本依赖它们在解析期就绪。
+       样式在构建时生成，vendor 与应用脚本依次 defer 加载。
        PDF.js（约 1.3MB）与 slide-viewer 体积较大，改为按需懒加载（见 app.js#ensureSlideViewer）。 -->
   <script defer src="js/icons.js"></script>
   <script defer src="blog.config.js"></script>
   <script defer src="js/posts-data.js"></script>
+  <script defer src="js/lib/html.js"></script>
   <script defer src="js/store.js"></script>
   <script defer src="js/markdown.js"></script>
   <script defer src="js/components/search-modal.js"></script>
   <script defer src="js/lib/scroll-state.js"></script>
+  <script defer src="js/lib/router.js"></script>
+  <script defer src="js/components/navbar.js"></script>
+  <script defer src="js/components/footer.js"></script>
+  <script defer src="js/components/publications.js"></script>
+  <script defer src="js/components/post-item.js"></script>
   <script defer src="js/app.js"></script>
   <script>
-    // defer 脚本在 DOMContentLoaded 触发前已按序执行完毕，故此刻 BlogApp 必定就绪；
-    // 仍保留重试兜底，以防个别脚本因加载失败而缺失。
-    (function () {
-      function startApp() {
-        if (window.BlogApp && typeof window.BlogApp.init === 'function') {
-          window.BlogApp.init();
-        } else {
-          setTimeout(startApp, 40);
-        }
+    document.addEventListener('DOMContentLoaded', function () {
+      var main = document.getElementById('app-main');
+      try {
+        if (!window.BlogApp) throw new Error('Application script could not load.');
+        window.BlogApp.init();
+      } catch (error) {
+        main.textContent = 'Unable to start Aurora Notes. Please refresh or rebuild the site.';
+        main.setAttribute('role', 'alert');
+        console.error(error);
       }
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startApp);
-      } else {
-        startApp();
-      }
-    })();
+    }, { once: true });
   </script>
 </body>
 </html>

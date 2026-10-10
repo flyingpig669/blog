@@ -9,6 +9,7 @@ const context = {
   marked: require('../vendor/marked.min.js')
 };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/lib/html.js'), 'utf8'), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/markdown.js'), 'utf8'), context);
 const render = source => context.window.BlogMarkdown.render(source).html;
 

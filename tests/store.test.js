@@ -7,6 +7,7 @@ const path = require('node:path');
 function createStore() {
   const context = { window: {} };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../blog.config.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/store.js'), 'utf8'), context);
   const store = context.window.BlogStore;
   store.posts = [
@@ -18,6 +19,25 @@ function createStore() {
   store.rawColumns = [];
   return store;
 }
+
+test('lazy bodies share a request and failed validation permits retry', async () => {
+  const context = { window: {}, AbortController, setTimeout, clearTimeout, fetch: async () => { calls++; return {ok: true, json: async () => body}; } };
+  let calls = 0, body = {slug: 'wrong', content: 'body'};
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/store.js'), 'utf8'), context);
+  const store = context.window.BlogStore;
+  store._requests = new Map();
+  const doc = {slug: 'sample', bodyUrl: 'sample.json'};
+  const pending = [store.loadDocument(doc), store.loadDocument(doc)];
+  await Promise.all(pending.map(task => assert.rejects(task, /Invalid document/)));
+  assert.equal(calls, 1);
+  body = {slug: 'sample', content: 'valid'};
+  await store.loadDocument(doc);
+  assert.equal(calls, 2);
+  assert.equal(doc.content, 'valid');
+  await store.loadDocument(doc);
+  assert.equal(calls, 2);
+});
 
 test('full document paths take precedence over page basenames', () => {
   const store = createStore();
@@ -35,6 +55,8 @@ test('explicit tag references resolve to tag routes', () => {
   assert.equal(store.resolveLink('#algebra').route, '/tags/algebra');
   assert.equal(store.resolveLink('#ALGEBRA').route, '/tags/algebra');
   assert.equal(store.resolveLink('#missing'), null);
+  assert.equal(store.tagSlug('Getting Started'), 'getting-started');
+  assert.equal(store.tagSlug('Engineering'), 'engineering');
 });
 
 test('post identifiers do not match arbitrary suffixes', () => {

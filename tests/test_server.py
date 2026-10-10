@@ -1,12 +1,22 @@
 import threading
 import unittest
 import urllib.request
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import server
 
 
 class WatcherTests(unittest.TestCase):
+    def test_generated_files_and_dependencies_are_not_watched(self):
+        with tempfile.TemporaryDirectory() as root:
+            for name in ['server.log', 'css/utilities.css', 'data/documents/demo.json', 'node_modules/test.js', 'js/app.js']:
+                file = Path(root) / name
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_text('test', encoding='utf-8')
+            self.assertEqual(set(server.scan_tree(root)), {'js/app.js'})
+
     def make_watcher(self):
         with patch.object(server, "scan_tree", return_value={"latest.css": 200, "old.css": 100}):
             watcher = server.FileWatcher("/unused", auto_sync=False)

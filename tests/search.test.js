@@ -33,6 +33,7 @@ test('search reopen preserves return focus and cancels pending queries', () => {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(require.resolve('../js/components/search-modal.js'), 'utf8'), context);
   const search = context.window.BlogSearch;
+  search.configure({store: context.window.BlogStore});
   const queries = [];
   search.search = query => queries.push(query);
   search.open();
@@ -49,4 +50,25 @@ test('search reopen preserves return focus and cancels pending queries', () => {
   search.open();
   for (const fn of pending.values()) fn();
   assert.deepEqual(queries, ['', '']);
+});
+
+test('late queries and closed modal never publish stale results', async () => {
+  const pending = [];
+  const results = {};
+  const context = { window: {}, document: {getElementById: () => results} };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/components/search-modal.js'), 'utf8'), context);
+  const search = context.window.BlogSearch;
+  search.configure({store: {loadSearch: () => new Promise(resolve => pending.push(resolve))}});
+  const rendered = [];
+  search.renderResults = query => rendered.push(query);
+  const old = search.search('old');
+  const current = search.search('new');
+  pending[1](); await current;
+  pending[0](); await old;
+  assert.deepEqual(rendered, ['new']);
+  const closed = search.search('closed');
+  search.revision++;
+  pending[2](); await closed;
+  assert.deepEqual(rendered, ['new']);
 });

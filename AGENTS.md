@@ -205,6 +205,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 | :--- | :--- | :--- |
 | Home | `/` | 首页，使用根路径 |
 | About | `/about` | 关于页面，单数 |
+| Roadmap | `/roadmap` | 规划单页，归入主导航 About 折叠组 |
 | Post Detail | `/posts/:slug` | 文章详情，使用语义化 slug |
 | Posts（兼容别名） | `/posts` | **不渲染独立页面**：命中后立即 `replaceState` 收敛到 `/archive`，避免同一内容存在两个 URL |
 | Columns | `/columns` | 专栏列表，复数 |

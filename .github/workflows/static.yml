@@ -4,22 +4,18 @@ name: Deploy static content to Pages
 on:
   push:
     branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,9 +26,43 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Sync Markdown Posts
-        run: |
-          python3 sync_posts.py
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install build dependencies
+        run: npm ci && python3 -m pip install -r requirements.txt
+
+      - name: Validate, build and test
+        run: ./check.sh
+
+      - name: Upload checked build
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: checked-site
+          path: |
+            .
+            !node_modules
+            !.venv
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download checked build
+        uses: actions/download-artifact@v4
+        with:
+          name: checked-site
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

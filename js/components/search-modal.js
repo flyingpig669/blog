@@ -1,8 +1,10 @@
 // Search owns its modal lifecycle; the app supplies routing and escaping only.
 window.BlogSearch = {
   timer: null,
+  revision: 0,
+  configure: function(services) { this.services = services; },
   open: function() {
-    if (((window.BlogStore.config || {}).features || {}).searchModal === false) return;
+    if (((this.services.store.config || {}).features || {}).searchModal === false) return;
     var modal = document.getElementById('search-modal');
     var input = document.getElementById('search-modal-input');
     if (!modal || !input) return;
@@ -23,6 +25,7 @@ window.BlogSearch = {
     modal.addEventListener('keydown', this.keyHandler);
   },
   close: function() {
+    this.revision++;
     clearTimeout(this.timer);
     var modal = document.getElementById('search-modal');
     if (!modal || modal.classList.contains('hidden')) return;
@@ -34,6 +37,7 @@ window.BlogSearch = {
     this.returnFocus = null;
   },
   debounce: function(query) {
+    this.revision++;
     clearTimeout(this.timer);
     // Remove stale selectable results while a new query is pending.
     document.getElementById('search-modal-results').innerHTML = '<p class="search-status">Searching…</p>';
@@ -45,12 +49,24 @@ window.BlogSearch = {
   search: function(query) {
     var results = document.getElementById('search-modal-results');
     if (!results) return;
-    var posts = window.BlogStore.searchPosts(query);
-    var app = window.BlogApp;
+    var self = this, revision = ++this.revision;
+    results.innerHTML = '<p class="search-status" role="status">Searching…</p>';
+    return this.services.store.loadSearch().then(function() {
+      if (self.revision !== revision) return;
+      self.renderResults(query, results);
+    }).catch(function() {
+      if (self.revision !== revision) return;
+      results.innerHTML = '<p class="search-status" role="alert">Search could not load.</p><button type="button" class="btn-secondary" data-search-retry>Retry</button>';
+      results.querySelector('[data-search-retry]').onclick = function() { self.search(query); };
+    });
+  },
+  renderResults: function(query, results) {
+    var store = this.services.store, htmlTools = this.services.html, services = this.services;
+    var posts = store.searchPosts(query);
     var html = '<p class="search-status" role="status">' + posts.length + ' results · ↑ ↓ navigate · Enter open</p>';
     if (!posts.length) html += '<p class="search-status">No matching articles. Try a shorter keyword or a tag.</p>';
     posts.forEach(function(post) {
-      html += '<a class="search-result" href="' + app.escapeHtml(app.postHref(post)) + '"><span class="search-result-title">' + app.escapeHtml(post.title) + '</span><span class="search-result-meta">' + app.escapeHtml(post.date) + ' · ' + app.escapeHtml(post.readTime || '') + '</span></a>';
+      html += '<a class="search-result" href="' + htmlTools.escapeHtml(services.postHref(post)) + '"><span class="search-result-title">' + htmlTools.highlight(post.title, query) + '</span><span class="search-result-meta">' + htmlTools.escapeHtml(post.date) + ' · ' + htmlTools.escapeHtml(post.readTime || '') + '</span><span class="search-result-snippet">' + htmlTools.highlight(store.searchSnippet(post, query), query) + '</span></a>';
     });
     results.innerHTML = html;
     results.scrollTop = 0;

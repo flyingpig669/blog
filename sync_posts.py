@@ -11,6 +11,10 @@ import os
 import re
 import json
 import time
+import hashlib
+import subprocess
+from xml.sax.saxutils import escape as escape_xml
+from lib.frontmatter import parse_frontmatter
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 POSTS_DIR = os.path.join(BASE_DIR, "posts")
@@ -23,15 +27,6 @@ IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachme
 #   post   = 结构化独立页（支持 status/quote/bio/timeline/focusAreas/social 等区块，类似 about）
 # 兼容旧写法：page / page-mode / standalone 等一律归一化为 post。
 RICH_DOC_TYPES = {"post", "page", "page-mode", "standalone", "single", "page_mode"}
-
-# 结构化独立页 (type: post) 支持的列表型区块。
-# 其中 publications 的条目除标量字段外还允许一个嵌套映射 links:（pdf / doi / arxiv / code），
-# 由 read_frontmatter_value 的「嵌套映射」分支负责装配，见该函数注释。
-STRUCTURED_LIST_KEYS = ["timeline", "focusAreas", "publications", "social", "contacts", "links"]
-
-# 嵌套映射字段：值不是字符串而是 { key: value } 字典（如论文的 links）。
-NESTED_MAP_KEYS = ["links"]
-
 
 def slugify(value):
     """生成 URL 安全的 slug：转小写，保留中日韩字符，其余非字母数字折叠为单个连字符。
@@ -50,73 +45,22 @@ def estimate_word_units(text):
     return ascii_words + cjk_chars
 
 
-def extract_object_block(content, key):
-    """定位 `key: {` 并返回花括号配平后的对象文本（支持嵌套）。
-
-    用于取代原先 `content[idx:content.find("}", idx)+1]` 的截断式解析 ——
-    后者只要配置里出现嵌套对象就会静默截断，读取到错误的配置。
-    """
-    idx = content.find(key)
-    if idx == -1:
-        return ""
-    start = content.find("{", idx)
-    if start == -1:
-        return ""
-    depth = 0
-    for i in range(start, len(content)):
-        ch = content[i]
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return content[start:i + 1]
-    return ""
-
-
-def extract_scalar(block, key, default=None):
-    """从配置对象块中取一个标量值（自动去除两端引号与行尾 # 注释）。"""
-    if not block:
-        return default
-    m = re.search(r"(?:^|[\s{,])" + re.escape(key) + r"\s*:\s*([^,\n}]+)", block)
-    if not m:
-        return default
-    return m.group(1).split(" #")[0].strip().strip("'\"")
-
-
-def parse_str_list(block, key):
-    """解析 `key: ["a", "b"]` 形式的字符串数组。"""
-    m = re.search(re.escape(key) + r"\s*:\s*\[(.*?)\]", block, re.S)
-    if not m:
-        return []
-    return [x.strip().strip("'\"") for x in m.group(1).split(",") if x.strip()]
-
-
 def load_config():
     """读取 blog.config.js 中编译期需要的配置：exclude 规则、阅读速度、站点地址。"""
     cfg = {"showTest": True, "files": [], "dirs": [], "wordsPerMinute": 300, "siteUrl": ""}
     config_path = os.path.join(BASE_DIR, "blog.config.js")
     if not os.path.exists(config_path):
         return cfg
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            content = f.read()
-    except Exception:
-        return cfg
-
-    site_block = extract_object_block(content, "site:")
-    wpm = extract_scalar(site_block, "wordsPerMinute")
-    if wpm and str(wpm).isdigit():
-        cfg["wordsPerMinute"] = max(1, int(wpm))
-    cfg["siteUrl"] = (extract_scalar(site_block, "url", "") or "").strip().rstrip("/")
-
-    exclude_block = extract_object_block(content, "exclude:")
-    if exclude_block:
-        show_test = extract_scalar(exclude_block, "showTest")
-        if show_test is not None:
-            cfg["showTest"] = (str(show_test).lower() != "false")
-        cfg["files"] = parse_str_list(exclude_block, "files")
-        cfg["dirs"] = parse_str_list(exclude_block, "dirs")
+    script = 'const fs=require("fs"),vm=require("vm"),ctx={window:{}};vm.runInNewContext(fs.readFileSync(process.argv[1],"utf8"),ctx,{timeout:1000});process.stdout.write(JSON.stringify(ctx.window.BlogConfig));'
+    result = subprocess.run(['node', '-e', script, config_path], capture_output=True, text=True, check=True)
+    config = json.loads(result.stdout)
+    site = config.get('site', {})
+    exclude = config.get('exclude', {})
+    cfg.update(exclude)
+    cfg['wordsPerMinute'] = int(site.get('wordsPerMinute', 300))
+    if cfg['wordsPerMinute'] < 1:
+        raise ValueError('site.wordsPerMinute 必须是正整数')
+    cfg['siteUrl'] = site.get('url', '').rstrip('/')
     return cfg
 
 
@@ -164,31 +108,10 @@ def parse_md_file(filepath, words_per_minute=300):
     if m:
         order = int(m.group(1))
 
-    fm_pattern = re.compile(r"^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*[\r\n]+([\s\S]*)$")
-    fm_match = fm_pattern.match(raw)
-    if fm_match:
-        fm = fm_match.group(1)
-        content = fm_match.group(2).strip()
-
-        lines = fm.splitlines()
-        index = 0
-        while index < len(lines):
-            raw_line = lines[index]
-            index += 1
-            if not raw_line.strip() or raw_line.startswith(" ") or raw_line.startswith("	") or raw_line.strip().startswith("-"):
-                continue
-            line = raw_line.strip()
-            if line.startswith('#'):
-                continue
-            if ":" not in line:
-                continue
-            key, val = line.split(":", 1)
-            key = key.strip().lower()
-            value, index = read_frontmatter_value(lines, index - 1, val)
-            if key in ['tags', 'attachment', 'attachments'] and not (
-                isinstance(value, str) or isinstance(value, list) and all(isinstance(item, str) for item in value)
-            ):
-                raise ValueError(f"{rel_path}: {key} 必须是文本或文本数组")
+    metadata, content = parse_frontmatter(raw, filepath)
+    if metadata:
+        for key, value in metadata.items():
+            key = key.lower()
             val = str(value)
             if key == "title":
                 title = val
@@ -305,203 +228,6 @@ def normalize_toc_levels(value):
     return list(dict.fromkeys(int(level) for level in values))
 
 
-def strip_yaml_comment(text):
-    """只去除引号之外的注释，保留字符串内的 # 与转义引号。"""
-    quote = None
-    escaped = False
-    for i, ch in enumerate(text):
-        if escaped:
-            escaped = False
-            continue
-        if quote == '"' and ch == '\\':
-            escaped = True
-        elif ch == quote:
-            quote = None
-        elif not quote and ch in "\"'":
-            quote = ch
-        elif not quote and ch == '#' and (i == 0 or text[i - 1].isspace()):
-            return text[:i].rstrip()
-    return text.strip()
-
-
-def parse_scalar(text):
-    text = strip_yaml_comment(text).strip()
-    if text.startswith('"'):
-        if not text.endswith('"'):
-            raise ValueError("FrontMatter: 未闭合的双引号")
-        return json.loads(text)
-    if text.startswith("'"):
-        if not text.endswith("'"):
-            raise ValueError("FrontMatter: 未闭合的单引号")
-        return text[1:-1].replace("''", "'")
-    return text
-
-
-def split_flow_entries(inner):
-    """按「引号感知」的逗号切分 flow 容器内部文本。
-
-    逐字符扫描引号状态，因此项内包含逗号（如 "Raft, Paxos"）也能正确切分。
-    parse_flow_list / parse_flow_map 共用这一份切分逻辑，避免两套规则漂移。
-    """
-    items = []
-    buf = ""
-    quote = None
-    escaped = False
-    for ch in inner:
-        if escaped:
-            buf += ch
-            escaped = False
-            continue
-        if quote:
-            buf += ch
-            if quote == '"' and ch == '\\':
-                escaped = True
-            if ch == quote:
-                quote = None
-        elif ch in "\"'":
-            quote = ch
-            buf += ch
-        elif ch == ",":
-            if buf.strip():
-                items.append(buf.strip())
-            buf = ""
-        else:
-            buf += ch
-    if quote:
-        raise ValueError("FrontMatter: 未闭合的数组引号")
-    if buf.strip():
-        items.append(buf.strip())
-    return items
-
-
-def parse_flow_list(text):
-    """把 `["a", "b"]` / `[a, b]` / `['a']` 解析为字符串列表；不是数组则返回 None。"""
-    t = (text or "").strip()
-    if not (t.startswith("[") and t.endswith("]")):
-        return None
-    inner = t[1:-1].strip()
-    if not inner:
-        return []
-    return [parse_scalar(i) for i in split_flow_entries(inner) if i.strip()]
-
-
-def parse_flow_map(text):
-    """把 `{ pdf: "a.pdf", doi: "10.x" }` 解析为字典；不是映射则返回 None。
-
-    论文条目的 links 既能写成 flow 映射（单行），也能写成缩进块映射（多行）；
-    后者由 read_frontmatter_value 的嵌套映射分支收集，最终都归一到同一个 dict。
-    """
-    t = (text or "").strip()
-    if not (t.startswith("{") and t.endswith("}")):
-        return None
-    inner = t[1:-1].strip()
-    if not inner:
-        return {}
-    out = {}
-    for entry in split_flow_entries(inner):
-        if ":" not in entry:
-            continue
-        k, v = entry.split(":", 1)
-        k = k.strip().strip("\"'")
-        if not k:
-            continue
-        out[k] = parse_scalar(v)
-    return out
-
-
-def line_indent(line):
-    """返回一行的缩进宽度（制表符按 1 计，本文件格式只使用空格）。"""
-    return len(line) - len(line.lstrip())
-
-
-def read_frontmatter_value(lines, idx, inline):
-    """读取第 idx 行 `key:` 之后的值，必要时向下吞掉续行。
-
-    返回 (value, next_index)，value 为 str / list[str] / dict：
-
-        key: "文本"            -> "文本"
-        key: ["a",             -> ["a", "b"]      # flow 数组可跨行
-             "b"]
-        key:                   -> ["a", "b"]      # 块序列
-          - "a"
-          - "b"
-        key: { pdf: "x.pdf" }  -> {"pdf": "x.pdf"} # flow 映射
-        key:                   -> {"pdf": "x.pdf"} # 嵌套映射（缩进更深）
-          pdf: "x.pdf"
-        key: []                -> []              # 显式空数组
-
-    旧实现只取行内子串，于是跨行数组会把字面量 `["a",` 当成正文显示、
-    并把后续行整段丢弃（roadmap 的 timeline.desc 就是这样被吃掉的）。
-
-    「块序列」与「嵌套映射」的区别只在于缩进更深的那些行长什么样：
-    以 `- ` 开头的是序列，形如 `name: value` 的是映射。判据必须是「相对本行缩进更深」，
-    否则 `links:` 的映射会一路吞掉紧随其后的兄弟字段（abstract / year 等）。
-    """
-    head = strip_yaml_comment(inline or "")
-
-    # 情况 1：本行没有值，值全部在缩进更深的后续行里
-    if head == "":
-        base_indent = line_indent(lines[idx])
-        j = idx + 1
-        if j < len(lines):
-            seq_m = re.match(r"^(\s+)-\s+(.*)$", lines[j])
-            if seq_m and line_indent(lines[j]) > base_indent:
-                item_indent = line_indent(lines[j])
-                block = []
-                k = j
-                while k < len(lines):
-                    m = re.match(r"^\s+-\s+(.*)$", lines[k])
-                    if not m or line_indent(lines[k]) < item_indent:
-                        break
-                    block.append(parse_scalar(m.group(1)))
-                    k += 1
-                if block:
-                    return block, k
-
-            # 嵌套映射：缩进更深的一批 `name: value`。
-            # 值本身仍递归交给本函数解析 —— 否则 `paper: ["a", "b"]` 会被当成
-            # 带方括号的普通字符串，数组语义在中途丢失。
-            nested = {}
-            k = j
-            while k < len(lines):
-                m = re.match(r"^(\s+)([a-zA-Z0-9_-]+):\s*(.*)$", lines[k])
-                if not m or line_indent(lines[k]) <= base_indent:
-                    break
-                value, next_k = read_frontmatter_value(lines, k, m.group(3))
-                nested[m.group(2)] = value
-                k = next_k if next_k > k else k + 1
-            if nested:
-                return nested, k
-        return "", idx + 1
-
-    # 情况 2：flow 数组（可能跨多行）
-    if head.startswith("["):
-        buf = head
-        j = idx
-        while not buf.rstrip().endswith("]") and j + 1 < len(lines):
-            j += 1
-            buf += " " + strip_yaml_comment(lines[j])
-        parsed = parse_flow_list(buf)
-        if parsed is not None:
-            return parsed, j + 1
-        raise ValueError("FrontMatter: 未闭合的数组")
-
-    # 情况 3：flow 映射（单行 `{ k: v, ... }`）
-    if head.startswith("{"):
-        buf = head
-        j = idx
-        while not buf.rstrip().endswith("}") and j + 1 < len(lines):
-            j += 1
-            buf += " " + strip_yaml_comment(lines[j])
-        parsed_map = parse_flow_map(buf)
-        if parsed_map is not None:
-            return parsed_map, j + 1
-        raise ValueError("FrontMatter: 未闭合的映射")
-
-    # 情况 4：普通标量
-    return parse_scalar(head), idx + 1
-
-
 def parse_structured_page_file(filepath):
     """结构化解析任意独立 Page 文档为原生高级组件数据对象"""
     if not os.path.exists(filepath):
@@ -531,70 +257,15 @@ def parse_structured_page_file(filepath):
         "raw": text,
         "tocLevels": None
     }
-    fm_match = re.match(r"^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*[\r\n]*([\s\S]*)$", text)
-    if not fm_match:
-        content = text.strip()
+    metadata, content = parse_frontmatter(text, filepath)
+    if not metadata:
         h1_match = re.search(r"^#\s+(.+)$", content, re.M)
         if h1_match:
             data["title"] = h1_match.group(1).strip()
             content = re.sub(r"^#\s+.+[\r\n]+", "", content, count=1).strip()
-        data["content"] = content
-        return data
-
-    fm = fm_match.group(1)
-    notes = fm_match.group(2).strip()
-    data["notes"] = notes
-    data["content"] = notes
-
-    current_section = None
-    current_item = None
-
-    lines = fm.splitlines()
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        trimmed = line.strip()
-        if not trimmed or trimmed.startswith("#"):
-            i += 1
-            continue
-
-        top_m = re.match(r"^([a-zA-Z0-9_-]+):\s*(.*)$", line)
-        if top_m and not line.startswith(" ") and not line.startswith("\t"):
-            key = top_m.group(1)
-            if key in STRUCTURED_LIST_KEYS:
-                # 「对象列表」区块（timeline / focusAreas / social / contacts / links）：
-                # 其下每个条目由 item_start / field_m 分支逐行装配。
-                # 这里绝不能走 read_frontmatter_value 的「块序列」分支 ——
-                # 否则 `timeline:` 会把紧随其后所有 `- period:` 行当成标量列表吞掉，
-                # 结果是整份文档的第一个条目凭空消失。
-                current_section = key
-                current_item = None
-                data.setdefault(key, [])
-                i += 1
-                continue
-            value, i = read_frontmatter_value(lines, i, top_m.group(2))
-            current_section = None
-            current_item = None
-            data[key] = value
-            continue
-
-        if current_section in STRUCTURED_LIST_KEYS:
-            item_start = re.match(r"^\s*-\s+([a-zA-Z0-9_-]+):\s*(.*)$", line)
-            if item_start:
-                k = item_start.group(1)
-                value, i = read_frontmatter_value(lines, i, item_start.group(2))
-                current_item = {k: value}
-                data[current_section].append(current_item)
-                continue
-
-            field_m = re.match(r"^\s+([a-zA-Z0-9_-]+):\s*(.*)$", line)
-            if field_m and current_item is not None:
-                k = field_m.group(1)
-                value, i = read_frontmatter_value(lines, i, field_m.group(2))
-                current_item[k] = value
-                continue
-
-        i += 1
+    data.update(metadata)
+    data["notes"] = content
+    data["content"] = content
 
     # 缺省、显式禁用与层级校验在两类文档中使用同一入口。
     toc = next((data[key] for key in ['tocLevels', 'toclevels', 'toc_levels', 'toc'] if data.get(key) is not None), None)
@@ -616,7 +287,7 @@ def write_sitemap(site_url):
     today = time.strftime("%Y-%m-%d")
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    xml += f'  <url>\n    <loc>{site_url}/</loc>\n    <lastmod>{today}</lastmod>\n    <changefreq>daily</changefreq>\n  </url>\n'
+    xml += f'  <url>\n    <loc>{escape_xml(site_url)}/</loc>\n    <lastmod>{today}</lastmod>\n    <changefreq>daily</changefreq>\n  </url>\n'
     xml += '</urlset>\n'
     with open(os.path.join(BASE_DIR, "sitemap.xml"), "w", encoding="utf-8") as f:
         f.write(xml)
@@ -700,10 +371,15 @@ def sync():
 
     # 结构化扫描所有独立单页 (Pages: 包含根目录 md 文件及 posts/ 下声明 type: page 的独立页面)
     pages_map = {}
-    custom_pages = {}
+    def register_page(key, page):
+        previous = pages_map.get(key)
+        if previous and previous['sourcePath'] != page['sourcePath']:
+            raise ValueError(f"重复文档路径 {key}: {previous['sourcePath']} 与 {page['sourcePath']}")
+        pages_map[key] = page
+
     if about_data:
-        pages_map["about"] = about_data
-        pages_map["about.md"] = about_data
+        register_page("about", about_data)
+        register_page("about.md", about_data)
 
     for filename in sorted(os.listdir(BASE_DIR)):
         if filename.endswith(".md") and filename not in ["README.md", "about.md", "AGENTS.md"]:
@@ -711,9 +387,8 @@ def sync():
             p_data = parse_structured_page_file(p_path)
             if p_data:
                 p_id = os.path.splitext(filename)[0]
-                pages_map[p_id] = p_data
-                pages_map[filename] = p_data
-                custom_pages[p_id] = p_data["raw"]
+                register_page(p_id, p_data)
+                register_page(filename, p_data)
                 print(f" -> 扫描独立单页 [根目录]: {filename}")
 
     for p in synced_posts:
@@ -726,26 +401,73 @@ def sync():
                 p_data["slug"] = p["slug"]
                 p_data["sourcePath"] = "posts/" + p["relPath"]
                 p_id = p.get("slug") or p.get("id")
-                pages_map[p_id] = p_data
-                pages_map[p["relPath"]] = p_data
-                pages_map[os.path.basename(p["relPath"])] = p_data
-                custom_pages[p_id] = p_data["raw"]
+                register_page(p_id, p_data)
+                register_page(p["relPath"], p_data)
                 print(f" -> 扫描独立单页 [posts]: {p['relPath']}")
 
-    source_paths = md_files + [p for p in [about_path, os.path.join(BASE_DIR, "blog.config.js")] if os.path.exists(p)]
-    latest_source_mtime = max((os.path.getmtime(path) for path in source_paths), default=0)
-
+    # Each document is owned once. Collections and aliases contain IDs only.
+    documents = {}
+    aliases = {}
+    bodies = {}
+    for post in synced_posts:
+        doc = pages_map.get(post['slug']) if post['type'] == 'post' else post
+        doc = dict(post, **(doc or {}))
+        doc['sourcePath'] = 'posts/' + post['relPath'].replace(os.sep, '/')
+        documents[post['slug']] = doc
+    for key, page in pages_map.items():
+        slug = page['slug']
+        if slug not in documents:
+            documents[slug] = dict(page, type='post')
+        elif documents[slug]['sourcePath'] != page['sourcePath']:
+            raise ValueError(f"重复文档标识 {slug}: {page['sourcePath']}")
+        previous = aliases.get(key.lower())
+        if previous and previous != slug:
+            raise ValueError(f'重复文档路径 {key}')
+        aliases[key.lower()] = slug
+    search = {}
+    for slug, doc in documents.items():
+        if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', slug):
+            raise ValueError(f"{doc['sourcePath']}: 请声明英文小写 slug")
+        for alias in [slug, doc.get('id'), doc['sourcePath'], doc.get('relPath')]:
+            if alias:
+                alias = alias.lower()
+                if alias in aliases and aliases[alias] != slug:
+                    raise ValueError(f'重复文档路径 {alias}')
+                aliases[alias] = slug
+        clean_doc = {key: value for key, value in doc.items() if key not in ['raw', 'notes']}
+        body = json.dumps(clean_doc, ensure_ascii=False, separators=(',', ':'))
+        digest = hashlib.sha256(body.encode('utf-8')).hexdigest()[:16]
+        body_url = f'data/documents/{slug}.{digest}.json'
+        bodies[body_url] = body
+        keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'category', 'tags',
+                'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'isTest', 'excerpt', 'tocLevels']
+        documents[slug] = {key: doc[key] for key in keep if key in doc}
+        documents[slug]['bodyUrl'] = body_url
+        if doc.get('type', 'normal') == 'normal':
+            search[slug] = doc.get('content', '')
+    search_builder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts', 'search-text.js')
+    search_text = subprocess.run(['node', search_builder], input=json.dumps(search, ensure_ascii=False), text=True, capture_output=True, check=True).stdout
+    search_digest = hashlib.sha256(search_text.encode('utf-8')).hexdigest()[:16]
+    search_url = f'data/search.{search_digest}.json'
+    bodies[search_url] = search_text
+    for url, body in bodies.items():
+        target = os.path.join(BASE_DIR, url)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, 'w', encoding='utf-8') as file:
+            file.write(body)
+    for column in columns_list:
+        column['postIds'] = [post['slug'] for post in column.pop('posts')]
     payload = {
-        "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(latest_source_mtime)),
-        "posts": synced_posts,
-        "columns": columns_list,
-        "about": about_data,
-        "pages": pages_map,
-        "customPages": custom_pages
+        'schemaVersion': 2,
+        'documents': documents,
+        'aliases': aliases,
+        'posts': [post['slug'] for post in synced_posts],
+        'columns': columns_list,
+        'about': about_data['slug'] if about_data else None,
+        'searchUrl': search_url
     }
     js_output = "/** Auto-generated by sync_posts.py - Do not edit manually */\n"
     js_output += "window.BlogPostsData = " + json.dumps(payload, ensure_ascii=False, indent=2) + ";\n"
-    js_output += "window.BlogSampleData = window.BlogPostsData; // Backwards compatibility\n"
 
     os.makedirs(os.path.dirname(POSTS_DATA_FILE), exist_ok=True)
     with open(POSTS_DATA_FILE, "w", encoding="utf-8") as f:

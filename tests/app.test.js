@@ -10,6 +10,7 @@ function createApp() {
     head: { appendChild(script) { scripts.push(script); } }
   } };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/lib/router.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(require.resolve('../js/app.js'), 'utf8'), context);
   return { app: context.window.BlogApp, context, scripts };
 }
@@ -21,6 +22,25 @@ test('missing file navigation renders not found', () => {
   app.renderNotFoundView = file => { missing = file; };
   app.renderFileTarget('missing.md', {});
   assert.equal(missing, 'missing.md');
+});
+
+test('a stale document response cannot replace a newer route', async () => {
+  const { app, context } = createApp();
+  let resolve;
+  context.history = {state: {auroraScroll: 100}};
+  context.window.BlogStore = {loadDocument: () => new Promise(done => {resolve = done;})};
+  const main = {};
+  context.document.getElementById = () => main;
+  app.setDocumentTitle = () => {};
+  app.routeRevision = 1;
+  let rendered = false;
+  app.loadDocumentView({title: 'old'}, () => {rendered = true;});
+  app.routeRevision = 2;
+  main.innerHTML = 'new route';
+  resolve();
+  await new Promise(done => setImmediate(done));
+  assert.equal(rendered, false);
+  assert.equal(main.innerHTML, 'new route');
 });
 
 test('lazy dependency failures notify all callers and permit retry', () => {

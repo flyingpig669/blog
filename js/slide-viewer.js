@@ -46,8 +46,8 @@ window.BlogSlideViewer = {
 function SlidePlayer(container, options, id) {
   this.container = container;
   this.options = options || {};
-  this.url = options.url || '';
-  this.title = options.title || 'Presentation';
+  this.url = window.BlogHtml.safeUrl(this.options.url, true);
+  this.title = this.options.title || 'Presentation';
   this.id = id;
 
   this.pdfDoc = null;
@@ -76,37 +76,37 @@ SlidePlayer.prototype.buildDOM = function() {
   this.container.className = 'slide-deck-player-wrapper select-none my-8';
 
   var root = document.createElement('div');
-  root.className = 'slide-player-root bg-[#0A0A0B] border border-white/[0.08] rounded-xl overflow-hidden relative flex flex-col transition-all';
+  root.className = 'slide-player-root bg-page border border-subtle rounded-xl overflow-hidden relative flex flex-col transition-all';
   root.id = this.id;
 
   // 1. 顶部专业工具栏 (Header Toolbar)
   var header = document.createElement('div');
-  header.className = 'slide-player-header flex items-center justify-between px-3 sm:px-4 py-2.5 bg-[#111113] border-b border-white/[0.06] text-[13px]';
+  header.className = 'slide-player-header flex items-center justify-between px-3 sm:px-4 py-2.5 bg-surface border-b border-divider text-[13px]';
 
   // 左侧：徽章 + 演示标题
   var leftGroup = document.createElement('div');
   leftGroup.className = 'flex items-center gap-2.5 min-w-0 pr-2';
-  leftGroup.innerHTML = '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#3B82F6]/15 text-[#3B82F6] shrink-0 uppercase tracking-wider">SLIDE DECK</span>' +
-    '<span class="text-[#EDEDED] font-sans font-medium text-[13px] truncate">' + self.escapeHtml(self.title) + '</span>';
+  leftGroup.innerHTML = '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-accent/15 text-accent shrink-0 uppercase tracking-wider">SLIDE DECK</span>' +
+    '<span class="text-primary font-sans font-medium text-[13px] truncate">' + self.escapeHtml(self.title) + '</span>';
 
   // 中间：分页指示器与前后导航
   var centerGroup = document.createElement('div');
-  centerGroup.className = 'flex items-center gap-1.5 shrink-0 bg-[#161618] border border-white/[0.08] rounded-lg px-1.5 py-0.5';
+  centerGroup.className = 'flex items-center gap-1.5 shrink-0 bg-codebg border border-subtle rounded-lg px-1.5 py-0.5';
 
   var prevBtn = document.createElement('button');
   prevBtn.type = 'button';
-  prevBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1 rounded transition-colors cursor-pointer';
+  prevBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1 rounded transition-colors cursor-pointer';
   prevBtn.title = 'Previous Slide (← / Space)';
   prevBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
   prevBtn.onclick = function(e) { e.stopPropagation(); self.onPrevPage(); };
 
   var pageDisplay = document.createElement('div');
   pageDisplay.className = 'flex items-center gap-1 text-[12px] font-mono px-1';
-  pageDisplay.innerHTML = '<span class="curr-page text-[#EDEDED] font-semibold">01</span><span class="text-[#5A5A5E]">/</span><span class="total-page text-[#8B8B8E]">--</span>';
+  pageDisplay.innerHTML = '<span class="curr-page text-primary font-semibold">01</span><span class="text-muted">/</span><span class="total-page text-secondary">--</span>';
 
   var nextBtn = document.createElement('button');
   nextBtn.type = 'button';
-  nextBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1 rounded transition-colors cursor-pointer';
+  nextBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1 rounded transition-colors cursor-pointer';
   nextBtn.title = 'Next Slide (→ / Enter)';
   nextBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
   nextBtn.onclick = function(e) { e.stopPropagation(); self.onNextPage(); };
@@ -123,7 +123,7 @@ SlidePlayer.prototype.buildDOM = function() {
   // 结果是移动端完全无法缩放 —— 而窄屏恰恰是最需要缩放的场景，故改为始终可见。
   var zoomOutBtn = document.createElement('button');
   zoomOutBtn.type = 'button';
-  zoomOutBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors cursor-pointer inline-flex';
+  zoomOutBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1.5 rounded transition-colors cursor-pointer inline-flex';
   zoomOutBtn.title = 'Zoom Out (-)';
   zoomOutBtn.setAttribute('aria-label', '缩小');
   zoomOutBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
@@ -131,7 +131,7 @@ SlidePlayer.prototype.buildDOM = function() {
 
   var zoomInBtn = document.createElement('button');
   zoomInBtn.type = 'button';
-  zoomInBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors cursor-pointer inline-flex';
+  zoomInBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1.5 rounded transition-colors cursor-pointer inline-flex';
   zoomInBtn.title = 'Zoom In (+)';
   zoomInBtn.setAttribute('aria-label', '放大');
   zoomInBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
@@ -140,7 +140,7 @@ SlidePlayer.prototype.buildDOM = function() {
   // 全屏演示按钮 (Presentation Mode)
   var fsBtn = document.createElement('button');
   fsBtn.type = 'button';
-  fsBtn.className = 'slide-action-btn flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#161618] hover:bg-white/[0.06] text-[#EDEDED] hover:text-[#3B82F6] border border-white/[0.08] text-[11px] font-mono transition-all cursor-pointer';
+  fsBtn.className = 'slide-action-btn flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-codebg hover:bg-white/[0.06] text-primary hover:text-accent border border-subtle text-[11px] font-mono transition-all cursor-pointer';
   fsBtn.title = 'Enter Presentation Mode (F)';
   fsBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg><span>Present</span>';
   fsBtn.onclick = function(e) { e.stopPropagation(); self.toggleFullscreen(); };
@@ -149,7 +149,7 @@ SlidePlayer.prototype.buildDOM = function() {
   var dlBtn = document.createElement('a');
   dlBtn.href = self.url;
   dlBtn.download = '';
-  dlBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors inline-flex items-center';
+  dlBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1.5 rounded transition-colors inline-flex items-center';
   dlBtn.title = 'Download PDF File';
   dlBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
 
@@ -158,7 +158,7 @@ SlidePlayer.prototype.buildDOM = function() {
   popBtn.href = self.url;
   popBtn.target = '_blank';
   popBtn.rel = 'noopener noreferrer';
-  popBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors hidden sm:inline-flex items-center';
+  popBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1.5 rounded transition-colors hidden sm:inline-flex items-center';
   popBtn.title = 'Open in New Tab';
   popBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
 
@@ -174,17 +174,17 @@ SlidePlayer.prototype.buildDOM = function() {
 
   // 2. 核心演示舞台 (Stage Viewport)
   var stage = document.createElement('div');
-  stage.className = 'slide-stage relative w-full flex items-center justify-center bg-[#0A0A0B] overflow-hidden min-h-[360px] sm:min-h-[440px] md:min-h-[480px]';
+  stage.className = 'slide-stage relative w-full flex items-center justify-center bg-page overflow-hidden min-h-[360px] sm:min-h-[440px] md:min-h-[480px]';
 
   // 左右热区 (Hotspots - 点击左侧上一页，点击右侧下一页)
   var leftHotspot = document.createElement('div');
   leftHotspot.className = 'slide-hotspot slide-hotspot-left absolute inset-y-0 left-0 w-[25%] sm:w-[20%] z-20 cursor-pointer flex items-center justify-start pl-3 opacity-0 hover:opacity-100 transition-opacity';
-  leftHotspot.innerHTML = '<div class="w-8 h-8 rounded-full bg-[#111113]/80 backdrop-blur-md border border-white/[0.12] text-[#EDEDED] flex items-center justify-center text-[16px] shadow-lg">‹</div>';
+  leftHotspot.innerHTML = '<div class="w-8 h-8 rounded-full bg-surface/80 backdrop-blur-md border border-white/[0.12] text-primary flex items-center justify-center text-[16px] shadow-lg">‹</div>';
   leftHotspot.onclick = function(e) { e.stopPropagation(); self.onPrevPage(); };
 
   var rightHotspot = document.createElement('div');
   rightHotspot.className = 'slide-hotspot slide-hotspot-right absolute inset-y-0 right-0 w-[25%] sm:w-[20%] z-20 cursor-pointer flex items-center justify-end pr-3 opacity-0 hover:opacity-100 transition-opacity';
-  rightHotspot.innerHTML = '<div class="w-8 h-8 rounded-full bg-[#111113]/80 backdrop-blur-md border border-white/[0.12] text-[#EDEDED] flex items-center justify-center text-[16px] shadow-lg">›</div>';
+  rightHotspot.innerHTML = '<div class="w-8 h-8 rounded-full bg-surface/80 backdrop-blur-md border border-white/[0.12] text-primary flex items-center justify-center text-[16px] shadow-lg">›</div>';
   rightHotspot.onclick = function(e) { e.stopPropagation(); self.onNextPage(); };
 
   // 画布容器
@@ -212,9 +212,9 @@ SlidePlayer.prototype.buildDOM = function() {
 
   // 加载中指示器 (Loader / Skeleton)
   var loader = document.createElement('div');
-  loader.className = 'slide-loader absolute inset-0 flex flex-col items-center justify-center bg-[#0A0A0B]/80 backdrop-blur-sm z-30 transition-opacity';
-  loader.innerHTML = '<div class="w-6 h-6 border-2 border-white/[0.15] border-t-[#3B82F6] rounded-full animate-spin"></div>' +
-    '<span class="text-[12px] font-mono text-[#8B8B8E] mt-3">Loading presentation...</span>';
+  loader.className = 'slide-loader absolute inset-0 flex flex-col items-center justify-center bg-page/80 backdrop-blur-sm z-30 transition-opacity';
+  loader.innerHTML = '<div class="w-6 h-6 border-2 border-white/[0.15] border-t-accent rounded-full animate-spin"></div>' +
+    '<span class="text-[12px] font-mono text-secondary mt-3">Loading presentation...</span>';
 
   stage.appendChild(leftHotspot);
   stage.appendChild(canvasWrapper);
@@ -226,18 +226,18 @@ SlidePlayer.prototype.buildDOM = function() {
   var progressTrack = document.createElement('div');
   progressTrack.className = 'slide-progress-track w-full h-[2px] bg-white/[0.06] relative overflow-hidden';
   var progressFill = document.createElement('div');
-  progressFill.className = 'slide-progress-fill h-full bg-[#3B82F6] transition-all duration-200';
+  progressFill.className = 'slide-progress-fill h-full bg-accent transition-all duration-200';
   progressFill.style.width = '0%';
   progressTrack.appendChild(progressFill);
 
   // 4. 全屏模式灵动控制岛 (Fullscreen Floating Island)
   var fsIsland = document.createElement('div');
-  fsIsland.className = 'slide-fs-island fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111113]/90 backdrop-blur-xl border border-white/[0.16] shadow-2xl transition-all duration-300 opacity-0 pointer-events-none';
-  fsIsland.innerHTML = '<button type="button" class="fs-prev-btn text-[#8B8B8E] hover:text-white p-1.5 rounded-full hover:bg-white/[0.08] cursor-pointer"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>' +
-    '<div class="flex items-center gap-1 font-mono text-[12px] px-2 text-[#EDEDED]"><span class="fs-curr font-semibold">01</span><span class="text-[#5A5A5E]">/</span><span class="fs-total text-[#8B8B8E]">--</span></div>' +
-    '<button type="button" class="fs-next-btn text-[#8B8B8E] hover:text-white p-1.5 rounded-full hover:bg-white/[0.08] cursor-pointer"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>' +
+  fsIsland.className = 'slide-fs-island fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface/90 backdrop-blur-xl border border-hover shadow-2xl transition-all duration-300 opacity-0 pointer-events-none';
+  fsIsland.innerHTML = '<button type="button" class="fs-prev-btn text-secondary hover:text-white p-1.5 rounded-full hover:bg-white/[0.08] cursor-pointer"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>' +
+    '<div class="flex items-center gap-1 font-mono text-[12px] px-2 text-primary"><span class="fs-curr font-semibold">01</span><span class="text-muted">/</span><span class="fs-total text-secondary">--</span></div>' +
+    '<button type="button" class="fs-next-btn text-secondary hover:text-white p-1.5 rounded-full hover:bg-white/[0.08] cursor-pointer"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>' +
     '<div class="w-[1px] h-3.5 bg-white/[0.12] mx-1"></div>' +
-    '<button type="button" class="fs-exit-btn flex items-center gap-1 text-[11px] font-mono text-[#8B8B8E] hover:text-white px-2 py-1 rounded-full hover:bg-white/[0.08] cursor-pointer"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg><span>Exit (ESC)</span></button>';
+    '<button type="button" class="fs-exit-btn flex items-center gap-1 text-[11px] font-mono text-secondary hover:text-white px-2 py-1 rounded-full hover:bg-white/[0.08] cursor-pointer"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg><span>Exit (ESC)</span></button>';
 
   fsIsland.querySelector('.fs-prev-btn').onclick = function(e) { e.stopPropagation(); self.onPrevPage(); };
   fsIsland.querySelector('.fs-next-btn').onclick = function(e) { e.stopPropagation(); self.onNextPage(); };
@@ -575,18 +575,16 @@ SlidePlayer.prototype.destroy = function() {
 SlidePlayer.prototype.renderFallback = function() {
   // 优雅降级方案 (若 PDF.js 未就绪或发生解析异常)
   var self = this;
-  this.container.innerHTML = '<div class="p-6 rounded-xl bg-[#111113] border border-white/[0.08] text-center">' +
-    '<h3 class="text-[15px] font-semibold text-[#EDEDED] mb-2">' + self.escapeHtml(self.title) + '</h3>' +
-    '<p class="text-[13px] text-[#8B8B8E] mb-4">This article includes an academic presentation slide deck.</p>' +
+  this.container.innerHTML = '<div class="p-6 rounded-xl bg-surface border border-subtle text-center">' +
+    '<h3 class="text-[15px] font-semibold text-primary mb-2">' + self.escapeHtml(self.title) + '</h3>' +
+    '<p class="text-[13px] text-secondary mb-4">This article includes an academic presentation slide deck.</p>' +
     '<div class="flex items-center justify-center gap-3">' +
-      '<a href="' + self.url + '" target="_blank" rel="noopener noreferrer" class="linear-btn linear-btn-primary">↗ Open Full Screen</a>' +
-      '<a href="' + self.url + '" download class="linear-btn">↓ Download PDF</a>' +
+      '<a href="' + self.escapeHtml(self.url) + '" target="_blank" rel="noopener noreferrer" class="linear-btn linear-btn-primary">↗ Open Full Screen</a>' +
+      '<a href="' + self.escapeHtml(self.url) + '" download class="linear-btn">↓ Download PDF</a>' +
     '</div>' +
   '</div>';
 };
 
 SlidePlayer.prototype.escapeHtml = function(str) {
-  return (str || '').replace(/[&<>"']/g, function(m) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
-  });
+  return window.BlogHtml.escapeHtml(str);
 };

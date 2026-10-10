@@ -1,0 +1,11 @@
+{
+  "name": "aurora-notes",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i styles/utilities.css -o css/utilities.css --minify",
+    "build": "node scripts/build.js",
+    "test": "node --test tests/*.test.js",
+    "check": "bash check.sh"
+  },
+  "devDependencies": { "@tailwindcss/cli": "4.3.0", "tailwindcss": "4.3.0", "dompurify": "3.4.16" }
+}

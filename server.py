@@ -15,7 +15,7 @@ Aurora Blog - 本地开发服务器 (Local Development Server)
 另提供开发期的「保存即刷新」能力（默认开启，仅存在于本地开发服务器）：
 
 4. FileWatcher 轮询项目文件的 mtime，变更后通过 SSE (/__livereload) 通知浏览器刷新。
-5. 若改动的是 Markdown 或 blog.config.js，会先自动重跑 sync_posts.py 重建索引再刷新，
+5. 内容、脚本与样式变更时，先统一重建内容索引和静态 CSS 再刷新，
    因此改文章也能立刻看到结果，无需手动执行同步脚本。
 6. 刷新脚本是「响应期内注入」的 —— 只在服务器返回 HTML 时加进内存，
    磁盘上的 index.html 保持原样，GitHub Pages 等生产环境完全不受影响。
@@ -137,8 +137,8 @@ def enable_line_buffering():
 # server.log 必须排除：--daemon 模式下服务器把日志写进这个文件，而每个 HTTP 请求
 # 都会追加一行 —— 一旦把它纳入快照，就会形成「请求 -> 日志 mtime 变化 -> 广播刷新
 # -> 浏览器重新请求 -> 日志再变化」的无限重载循环。任何运行期产物都不该参与监听。
-WATCH_IGNORED_DIRS = {"__pycache__", "node_modules"}
-WATCH_IGNORED_FILES = {"server.log"}
+WATCH_IGNORED_DIRS = {"__pycache__", "node_modules", "data", "output"}
+WATCH_IGNORED_FILES = {"server.log", "utilities.css"}
 WATCH_IGNORED_SUFFIXES = (".log", ".pyc", ".pyo", ".swp", ".swo")
 
 
@@ -171,10 +171,10 @@ class FileWatcher(threading.Thread):
     """
 
     # sync_posts.py 的输出：它们是同步动作的结果，不应再单独触发一次刷新
-    GENERATED = {"js/posts-data.js", "sitemap.xml"}
+    GENERATED = {"js/posts-data.js", "sitemap.xml", "vendor/purify.min.js"}
     # 改动这些扩展名/文件后，需要先重建索引再刷新
-    SYNC_TRIGGERS = (".md", ".markdown")
-    SYNC_FILES = {"blog.config.js"}
+    SYNC_TRIGGERS = (".md", ".markdown", ".js", ".html", ".css")
+    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "sync_posts.py", "lib/frontmatter.py"}
 
     def __init__(self, root, auto_sync=True, log=None):
         super().__init__(name="aurora-file-watcher")
@@ -269,29 +269,29 @@ class FileWatcher(threading.Thread):
         self._broadcast()
 
     def _run_sync(self):
-        script = os.path.join(self.root, "sync_posts.py")
+        script = os.path.join(self.root, "scripts", "build.js")
         if not os.path.exists(script):
             return
         try:
             result = subprocess.run(
-                [sys.executable, script],
+                ["node", script],
                 cwd=self.root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=30,
+                timeout=60,
             )
         except subprocess.TimeoutExpired:
-            self.log("⚠️  sync_posts.py 执行超时（>30s），已跳过本次索引重建")
+            self.log("⚠️  构建执行超时（>60s）")
             return
         except Exception as exc:
-            self.log(f"⚠️  sync_posts.py 无法执行: {exc}")
+            self.log(f"⚠️  构建无法执行: {exc}")
             return
 
         if result.returncode != 0:
             tail = result.stdout.decode("utf-8", "replace").strip().splitlines()[-3:]
-            self.log("⚠️  sync_posts.py 失败: " + " / ".join(tail))
+            self.log("⚠️  构建失败: " + " / ".join(tail))
         else:
-            self.log("📦 已重建 js/posts-data.js")
+            self.log("📦 已重建内容索引与静态样式")
 
     def _broadcast(self):
         payload = {"v": self.version_ms()}

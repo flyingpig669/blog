@@ -5,3 +5,6 @@ __pycache__/
 .cache/
 .playwright-cli/
 .workbuddy/
+node_modules/
+.venv/
+output/playwright/
