@@ -150,5 +150,99 @@ for (const match of entry.matchAll(/(?:src|href)="([^"#]+)"/g)) {
   if (!/^(https?:|mailto:|tel:|data:image\/svg\+xml,)/i.test(match[1])) checkAsset(match[1], 'index.html');
 }
 for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js', 'js/slide-viewer.js']) checkAsset(name, 'PDF viewer');
+
+// 代码围栏语言 × Prism 注册表互查。
+// markdown.js 对未注册语言**静默退回无高亮**（只用真正注册过的语法，这是修过的
+// 历史问题），用户视角就是「高亮没了」且构建全绿 —— 这里在构建期拦下：
+//   a) posts/ 与 templates/ 里用到的每个围栏语言，都必须被核心或组件注册；
+//   b) vendor/prism-components/ 里的每个组件文件，都必须被 index.html 引入
+//      （否则校验器加载了它、语言"已注册"，浏览器却没加载，照样丢高亮）。
+{
+  // 用独立的 vm 上下文加载 Prism（而不是 require + global.window）：
+  // validate-content.js 本身可能被 tests/validation.test.js 放进另一个 vm 沙箱执行，
+  // 那里的 global 与宿主 realm 互不相通，require 加载的 prism.js 会因宿主无 window
+  // 而把 Prism 挂到一次性对象上丢掉。独立上下文不碰任何全局，两种宿主下行为一致。
+  const prismCtx = { window: {}, console };
+  vm.createContext(prismCtx);
+  vm.runInContext(fs.readFileSync(path.join(root, 'vendor/prism.js'), 'utf8'), prismCtx, { filename: 'vendor/prism.js' });
+  const componentsDir = path.join(root, 'vendor/prism-components');
+  const components = fs.readdirSync(componentsDir).sort();
+  for (const comp of components) {
+    vm.runInContext(fs.readFileSync(path.join(componentsDir, comp), 'utf8'), prismCtx, { filename: 'vendor/prism-components/' + comp });
+  }
+  const HELPERS = new Set(['extend', 'insertBefore', 'DFS']); // languages 上的非语言成员
+  const registered = new Set(Object.keys(prismCtx.Prism.languages).filter(l => !HELPERS.has(l)));
+  const fenceLangs = new Map();
+  for (const dir of ['posts', 'templates']) {
+    for (const file of fs.readdirSync(path.join(root, dir), { recursive: true })) {
+      if (typeof file !== 'string' || !file.endsWith('.md')) continue;
+      const src = fs.readFileSync(path.join(root, dir, file), 'utf8');
+      // 注意 [ \t]* 而非 \s*：\s 会跨行，把「闭合围栏 + 空行 + ---」误吞成一次匹配
+      for (const m of src.matchAll(/^```[ \t]*([A-Za-z0-9_+-]*)[ \t]*$/gm)) {
+        const lang = (m[1] || 'text').toLowerCase();
+        if (!fenceLangs.has(lang)) fenceLangs.set(lang, new Set());
+        fenceLangs.get(lang).add(path.join(dir, file));
+      }
+    }
+  }
+  for (const [lang, files] of [...fenceLangs].sort()) {
+    if (!registered.has(lang)) fail(`代码围栏语言 "${lang}" 未注册 Prism 语法（${[...files].join(', ')}）—— 运行时会静默退回无高亮。请在 vendor/prism-components/ 添加组件并在 index.html 引入`);
+  }
+  for (const comp of fs.readdirSync(componentsDir)) {
+    if (!entry.includes('vendor/prism-components/' + comp)) fail(`Prism 组件 ${comp} 存在但未被 index.html 引入 —— 浏览器不会加载它，对应语言会丢高亮`);
+  }
+}
+
+// KaTeX 改为按需注入后不再出现在 index.html 的 src/href 扫描范围里，
+// 这里补上加载器内 vendor 路径的存在性与白名单校验 —— 否则路径写错时
+// 构建全绿、直到某篇带公式的文章被打开才 404。
+{
+  const loaderSource = fs.readFileSync(path.join(root, 'js/lib/katex-loader.js'), 'utf8');
+  for (const m of loaderSource.matchAll(/'((?:vendor|css|js)\/[^']+)'/g)) {
+    checkAsset(m[1], 'js/lib/katex-loader.js');
+  }
+}
+// 静态分享 / SEO 元信息 × blog.config.js 互查。
+// 社交爬虫（微信 / Telegram / X）不执行 JS，看不到 app.js#setDocumentTitle 的
+// 运行时改写，只能读静态标签 —— og:image / og:url / canonical 必须在
+// index.html 里就写成绝对地址，且与 site.url 同源；description 的三处静态
+// 出现也必须与配置逐字一致（否则 navbar.js 启动覆盖后前后两个值）。
+{
+  const site = (config && config.site) || {};
+  const siteUrl = String(site.url || '').replace(/\/+$/, '');
+  if (siteUrl) {
+    const metaValue = name => {
+      const m = entry.match(new RegExp('<meta (?:property|name)="' + name + '" content="([^"]*)"'));
+      return m ? m[1] : null;
+    };
+    const expectations = [
+      ['og:url', siteUrl + '/'], ['og:image', siteUrl + '/og-image.png'], ['twitter:image', siteUrl + '/og-image.png']
+    ];
+    for (const [name, expected] of expectations) {
+      const actual = metaValue(name);
+      if (actual === null) fail(`index.html: 缺少 ${name} meta 标签`);
+      else if (actual !== expected) fail(`index.html: ${name} 应为绝对地址 ${expected}（当前 ${actual}）—— 社交爬虫不执行 JS，相对地址会丢分享卡片`);
+    }
+    const canonical = entry.match(/<link rel="canonical"[^>]*href="([^"]*)"/);
+    if (!canonical) fail('index.html: 缺少 canonical 链接');
+    else if (canonical[1] !== siteUrl + '/') fail(`index.html: canonical 应为 ${siteUrl}/（当前 ${canonical[1]}）`);
+    // 站点名同样不能两处漂移：<title> 是首屏兜底，og:site_name / og:title / twitter:title /
+    // og:image:alt 是爬虫唯一能看到的值（app.js 只会在运行时覆盖 og:title 与 twitter:title）。
+    if (site.title) {
+      const titleEl = entry.match(/<title>([^<]*)<\/title>/);
+      if (!titleEl) fail('index.html: 缺少 <title> 标签');
+      else if (titleEl[1] !== site.title) fail(`index.html: <title> 应为 ${site.title}（当前 ${titleEl[1]}）—— 与 blog.config.js 的 site.title 保持一致`);
+      for (const name of ['og:site_name', 'og:title', 'twitter:title', 'og:image:alt']) {
+        const actual = metaValue(name);
+        if (actual !== site.title) fail(`index.html: ${name} 应为 ${site.title}（当前 ${actual}）—— 社交爬虫不执行 JS，读的是静态值`);
+      }
+    }
+    if (site.description) {
+      const descCount = (entry.match(new RegExp(escapeRegExp(site.description), 'g')) || []).length;
+      if (descCount < 3) fail(`index.html: description 应在页面静态出现 3 次（name/og/twitter），实际 ${descCount} 次 —— 与 blog.config.js 的 site.description 逐字一致`);
+    }
+  }
+}
+function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
 else console.log(`Content checks passed: ${Object.keys(store.documents).length} documents, ${context.window.BlogRouteTable.length} routes, ${navigation.length} navigation entries.`);

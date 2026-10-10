@@ -3,7 +3,7 @@ title: "量子态矢量模拟引擎设计"
 date: "2026-10-09"
 category: "physics"
 tags: ["quantum", "systems"]
-slide: "attachments/slides/24物理-入党申请人PPT汇总.pdf"
+slide: "attachments/slides/quantum-computing-slides.pdf"
 excerpt: "基于高维复希尔伯特空间演化的轻量级量子计算仿真核心架构，附带演讲幻灯片展示。"
 ---
 

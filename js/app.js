@@ -43,6 +43,16 @@ window.BlogApp = {
     });
   },
 
+  // 按需加载 KaTeX：正文不含公式时直接放行（连网络请求都不发）。
+  // 加载器失败也不拦截渲染 —— 公式会退化成等宽文本，页面照常出来。
+  ensureKaTeX: function(content) {
+    if (!window.BlogKatex) return Promise.resolve(false);
+    var features = (window.BlogStore && window.BlogStore.config && window.BlogStore.config.features)
+      || (window.BlogConfig && window.BlogConfig.features) || {};
+    if (features.mathKaTeX === false) return Promise.resolve(false);
+    return window.BlogKatex.ensure(content);
+  },
+
   // 辅助函数: 扁平化多级导航菜单 (展开数组折叠项与 items/children)
   // 为每个导航项预计算 _route（实际路由路径），供 handleRoute 匹配与高亮使用。
   ensureSlideViewer: function(callback) {
@@ -97,9 +107,14 @@ window.BlogApp = {
     container.innerHTML = '<div class="shell mx-auto px-4 sm:px-6 pt-16 pb-20"><p class="view-status" role="status">Loading document…</p></div>';
     window.BlogStore.loadDocument(doc).then(function() {
       if (self.routeRevision !== revision) return;
-      render();
-      if (typeof savedScroll === 'number') history.replaceState(Object.assign({}, history.state, { auroraScroll: savedScroll }), '', window.location.href);
-      self.restoreDocumentPosition();
+      // 正文已到手：只有检测到公式时才按需加载 KaTeX（75KB gzip），
+      // 无公式的文档与所有列表页因此完全不用下载这份资源。
+      return self.ensureKaTeX(doc.content).then(function() {
+        if (self.routeRevision !== revision) return;
+        render();
+        if (typeof savedScroll === 'number') history.replaceState(Object.assign({}, history.state, { auroraScroll: savedScroll }), '', window.location.href);
+        self.restoreDocumentPosition();
+      });
     }).catch(function() {
       if (self.routeRevision !== revision) return;
       container.innerHTML = '<div class="shell mx-auto px-4 sm:px-6 pt-16 pb-20"><h1 class="text-[32px] text-primary font-bold mb-3">Document could not load</h1><p class="view-status">Check your connection and try again.</p><button type="button" class="btn-secondary" data-document-retry>Retry</button></div>';
@@ -186,8 +201,9 @@ window.BlogApp = {
     this.setMetaContent('meta[property="og:title"]', full);
     this.setMetaContent('meta[name="twitter:title"]', full);
     this.setMetaContent('meta[property="og:url"]', url);
-    // 分享图与站点根同源，写成绝对地址（部分抓取器不解析相对 og:image）。
-    // 静态 HTML 里的 ./og-image.png 只是无 JS 时的兜底。
+    // 分享图与站点根同源，写成绝对地址。静态 index.html 里已是同样的绝对地址
+    // （社交爬虫不执行 JS，只读静态值），这里的运行时改写是纵深防御：
+    // site.url 配置变化而静态标签未同步时，至少浏览器侧保持正确。
     this.setMetaContent('meta[property="og:image"]', url + 'og-image.png');
     this.setMetaContent('meta[name="twitter:image"]', url + 'og-image.png');
     var canonicalEl = document.getElementById('canonical-link');

@@ -94,12 +94,12 @@
       nav: { label: 'About', group: 'about', target: 'file:about.md' },
       note: '单页展示型，内容来自 about.md。'
     },
-    {
-      name: 'roadmap', path: '/roadmap', view: 'page', shell: 'shell', kind: 'page',
-      page: 'posts/roadmap.md',
-      nav: { label: 'Roadmap', group: 'about', target: 'file:posts/roadmap.md' },
-      note: '归入主导航的 About 折叠组。'
-    }
+    // {
+    //   name: 'roadmap', path: '/roadmap', view: 'page', shell: 'shell', kind: 'page',
+    //   page: 'posts/roadmap.md',
+    //   nav: { label: 'Roadmap', group: 'about', target: 'file:posts/roadmap.md' },
+    //   note: '归入主导航的 About 折叠组。'
+    // }
   ];
 
   window.BlogRouteRegistry = {

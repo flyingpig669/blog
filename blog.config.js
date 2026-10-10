@@ -21,13 +21,13 @@ window.BlogConfig = {
   // 1. 站点基础信息 (Site Metadata)
   site: {
     // 博客标题 (显示在浏览器标签页与顶部 Logo)
-    title: "Aurora Notes",
+    title: "CCC de Notes",
     // 顶部 Logo 标识 (支持等宽文字与前缀)
-    brand: "aurora.notes",
+    brand: "CCC de Notes",
     // 网站一句话介绍 (显示在首页大标题下方)
-    tagline: "Curated research essays, system architecture notes, and computing fundamentals.",
+    tagline: "Personal technical blog focused on Physics, Math, and Computer Science.",
     // SEO 与元描述
-    description: "Personal technical blog focused on modern computing architecture, elegant systems, and clean code.",
+    description: "A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.",
     // 页脚版权说明。此前这里沿用了模板自带的 "Alex Chen"，与下面 author.name 不是同一个人，
     // 属于上线前必须清掉的模板残留；署名统一以 author.name 为准。
     footerText: "© 2026 CCC · All rights reserved.",
@@ -43,7 +43,7 @@ window.BlogConfig = {
     name: "CCC",
     title: "Student",
     bio: "Physics, Math, and Computer Science Enthusiast.",
-    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=CCC&backgroundColor=161618&textColor=EDEDED&fontWeight=600",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=CC C&backgroundColor=161618&textColor=EDEDED&fontWeight=600",
     location: "Shandong, China",
     email: "flyingpig06@outlook.com",
     github: "https://github.com/flyingpig669",
@@ -77,7 +77,7 @@ window.BlogConfig = {
     // 文章详情页常驻右侧悬浮 Outline (目录导航与自动 Scrollspy 高亮)
     outlineSidebar: true,
     // Outline 目录标题追踪层级 (统一单选数组，如 [2, 3] 仅追踪 h2 和 h3，[2, 3, 4] 追踪至 h4)
-    tocLevels: [2, 3, 4],
+    tocLevels: [2, 3, 4, 5, 6],
     // 启用 Cmd+K / Ctrl+K 全文即时检索
     searchModal: true,
     // 启用数学公式 KaTeX 解析渲染（false 时公式以纯文本代码形式展示）

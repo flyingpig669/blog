@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aurora Notes</title>
-  <meta name="description" content="Personal technical blog focused on modern computing architecture, elegant systems, and clean code.">
+  <title>CCC de Notes</title>
+  <meta name="description" content="A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.">
   <!--
     分享 / SEO 元信息。本站为 Hash 路由 SPA（每条路由共享同一个物理 URL），
     因此 canonical 与 og:url 一律指向站点根；配置了 blog.config.js 的 site.url 后，
@@ -18,25 +18,29 @@
        全部是英文，因此声明 en；中文正文属于文章内容，不改变外壳的语言。
        若希望整站按中文声明，改这一处即可（并把上面的 description 换成中文）。
   -->
-  <link rel="canonical" id="canonical-link" href="./">
+  <link rel="canonical" id="canonical-link" href="https://flyingpig669.github.io/blog/">
   <meta name="theme-color" content="#0A0A0B">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Aurora Notes">
-  <meta property="og:title" content="Aurora Notes">
-  <meta property="og:description" content="Personal technical blog focused on modern computing architecture, elegant systems, and clean code.">
-  <meta property="og:url" content="./">
+  <meta property="og:site_name" content="CCC de Notes">
+  <meta property="og:title" content="CCC de Notes">
+  <meta property="og:description" content="A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.">
+  <meta property="og:url" content="https://flyingpig669.github.io/blog/">
   <!--
     og:image 由 `npm run build:og` 生成（scripts/generate-og-image.js，文案取自 blog.config.js）。
-    这里写相对地址作静态兜底，app.js#setDocumentTitle 启动后会改写成绝对地址。
+    og:image / og:url / canonical 在静态 HTML 里就必须是绝对地址：
+    微信 / Telegram / X 等社交爬虫不执行 JS，看不到 app.js#setDocumentTitle 的运行时改写，
+    相对路径会直接丢分享卡片（OG 规范也要求绝对 URL）。
+    这几处取值来自 blog.config.js 的 site.url，scripts/validate-content.js 会构建期互查，
+    换域名时只改 site.url，再按报错提示同步这里。
   -->
-  <meta property="og:image" content="./og-image.png">
+  <meta property="og:image" content="https://flyingpig669.github.io/blog/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Aurora Notes">
+  <meta property="og:image:alt" content="CCC de Notes">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Aurora Notes">
-  <meta name="twitter:description" content="Personal technical blog focused on modern computing architecture, elegant systems, and clean code.">
-  <meta name="twitter:image" content="./og-image.png">
+  <meta name="twitter:title" content="CCC de Notes">
+  <meta name="twitter:description" content="A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.">
+  <meta name="twitter:image" content="https://flyingpig669.github.io/blog/og-image.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0A0B'/%3E%3Cpath d='M39 10 22 54' stroke='%233B82F6' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
 
   <!--
@@ -47,8 +51,8 @@
     html, body { margin: 0; background: #0A0A0B; color: #EDEDED; }
   </style>
 
-  <!-- KaTeX CSS -->
-  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+  <!-- KaTeX 样式与脚本改为按正文需要动态注入（见 js/lib/katex-loader.js）：
+       全站只有少数文章用到公式，列表页与无公式文章不再下载这 75KB。 -->
 
   <!-- Static utilities compiled at build time (no browser Tailwind runtime). -->
   <link rel="stylesheet" href="css/utilities.css">
@@ -64,7 +68,10 @@
   <script defer src="vendor/prism-components/prism-python.min.js"></script>
   <script defer src="vendor/prism-components/prism-bash.min.js"></script>
   <script defer src="vendor/prism-components/prism-typescript.min.js"></script>
-  <script defer src="vendor/katex/katex.min.js"></script>
+  <script defer src="vendor/prism-components/prism-yaml.min.js"></script>
+  <script defer src="vendor/prism-components/prism-bibtex.min.js"></script>
+  <script defer src="vendor/prism-components/prism-markdown.min.js"></script>
+  <script defer src="js/lib/katex-loader.js"></script>
 </head>
 <body class="bg-page text-primary min-h-screen flex flex-col antialiased selection:bg-accent/20 selection:text-primary">
 
@@ -170,7 +177,7 @@
         if (!window.BlogApp) throw new Error('Application script could not load.');
         window.BlogApp.init();
       } catch (error) {
-        main.textContent = 'Unable to start Aurora Notes. Please refresh or rebuild the site.';
+        main.textContent = 'Unable to start CCC de Notes. Please refresh or rebuild the site.';
         main.setAttribute('role', 'alert');
         console.error(error);
       }

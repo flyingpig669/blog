@@ -51,7 +51,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "基于高维复希尔伯特空间演化的轻量级量子计算仿真核心架构，附带演讲幻灯片展示。",
       "tocLevels": null,
-      "bodyUrl": "data/documents/quantum-simulator.3de6154a041ba0d4.json"
+      "bodyUrl": "data/documents/quantum-simulator.f50dc4c1afa13658.json"
     },
     "roadmap": {
       "id": "post-roadmap",
@@ -111,7 +111,7 @@ window.BlogPostsData = {
       "type": "post",
       "sourcePath": "about.md",
       "tocLevels": null,
-      "bodyUrl": "data/documents/about.b7e6ec7e7cf72d05.json"
+      "bodyUrl": "data/documents/about.e69ea30227abf7a6.json"
     }
   },
   "aliases": {
