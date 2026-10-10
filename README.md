@@ -299,11 +299,22 @@ tags: ["algebra", "math"]
 status: "Physics, Math & Computer Science"     # 顶部状态胶囊
 quote: "Turning complexity into clean order."  # 引言格言
 bio: "一句话自述，位于标题下方。"
+publications:                                  # 论著列表：按年份倒序分组，卡片可展开
+  - title: "Quantum State Vector Simulation at Scale"
+    slug: "quantum-state-vector-simulation"
+    authors: ["CCC", "L. Wang"]
+    venue: "Physical Review A"
+    year: 2026
+    citations: 12
+    links: { pdf: "attachments/papers/qsvs.pdf", doi: "10.1103/PhysRevA.113.012345" }
+    abstract: "展开卡片后显示的摘要。"
 timeline:                                      # 发光导轨纵向时间线
   - period: "2024 – PRESENT"
     title: "架构设计与前沿计算探索"
-    desc: "..."
-focusAreas:                                    # 关注领域
+    desc: "始终可见的一句话概述。"
+    detail: "点击标题后展开的补充说明。"
+    links: { paper: "quantum-state-vector-simulation", code: "https://github.com/..." }
+focusAreas:                                    # 关注领域（与 timeline 同一套展开逻辑）
   - title: "分布式系统与高可用架构"
     desc: "..."
 social:                                        # 名片区纯文字外链（自动加 ↗）
@@ -314,9 +325,48 @@ social:                                        # 名片区纯文字外链（自�
 
 > 关于页与所有 `type: post` 的独立页**共用同一套渲染器**，字段完全通用。
 
+### 论著列表 (Publications)
+
+`publications` 是面向学术场景的结构化区块，渲染规则如下：
+
+| 规则 | 说明 |
+| :--- | :--- |
+| **年份分组** | 按 `year` 倒序自动分组，未填年份的条目沉到末尾并标注 `UNYEARED` |
+| **折叠卡片** | 默认折叠，只显示标题 / 署名 / 期刊 / 年份 / 引用数 / 资源徽章 |
+| **点击展开** | 点标题或卡片空白处展开，显示 `abstract` 与 PDF 预览入口 |
+| **PDF 懒加载** | 展开**不会**下载 PDF；只有点「预览 PDF」才创建 iframe，再点一次收起 |
+| **署名高亮** | `authors` 里与 `blog.config.js` 的 `author.name` 同名者自动加粗 |
+| **链接补全** | `doi: "10.1103/…"` → `https://doi.org/10.1103/…`；`arxiv: "2601.00001"` → `https://arxiv.org/abs/2601.00001` |
+
+`links` 可用的 key 与徽章文案：`pdf` / `doi` / `arxiv` / `code` / `slides` / `dataset` / `video` / `poster` / `site` / `bib`。**未登记的 key 会自动大写生成徽章**，可随时自造 `dataset:`、`podcast:` 之类。区块右上角还会汇总 `N Papers · M Citations`（没有任何 `citations` 时只显示篇数）。
+
+### 时间线 / 关注领域条目可展开
+
+`timeline` 与 `focusAreas` 的条目除 `desc`（始终可见）外，还支持两个可选字段：
+
+```yaml
+timeline:
+  - period: "2022 – 2024"
+    title: "核心系统研发与基础设施优化"
+    desc: "始终可见的一句话概述。"
+    detail: "点击标题后展开的补充说明，可以写得更长。"     # 可选
+    links:                                              # 可选
+      paper: ["paper-slug-a", "paper-slug-b"]            # 同一类资源可挂多个（数组）
+      post: "my-first-post"
+      tag: "distributed-systems"
+      code: "https://github.com/..."
+```
+
+- **两者都为空时不渲染箭头**，条目退化为纯静态展示 —— 不会出现「点了没反应」的空箭头。
+- 整条可点（含标题与正文），但在条目里拖选文字不会误触折叠。
+- `links` 的 key 决定筹码类型（`paper` / `post` / `note` / `slides` / `code` / `doi` / `tag` / `link`，未登记的大写直出）：
+  - `paper` 写 `publications[].slug` 或完整标题时，筹码会变成**页内锚点**：点击滚动到该论著卡片并自动展开、高亮 1.6 秒；
+  - `post` 命中博文 slug 时跳到文章详情页；`tag` 跳到标签筛选页；
+  - 其余外链显示域名（`github.com ↗`），站内相对路径显示文件名。
+
 ### 文本字段可以写成多行数组
 
-`bio`、`quote`、`timeline[].desc`、`focusAreas[].desc` 都同时接受**字符串**与**数组**两种写法。写成数组时按行渲染，适合一条里程碑里放多句话：
+`bio`、`quote`、`timeline[].desc`、`timeline[].title`、`timeline[].detail`、`focusAreas[].desc` 都同时接受**字符串**与**数组**两种写法。写成数组时按行渲染，适合一条里程碑里放多句话：
 
 ```yaml
 timeline:
@@ -415,6 +465,16 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 ```
 
 两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）；若正文已内嵌 `::: slide`，FrontMatter 的 `slide` 不会重复挂载。
+
+播放器交互：
+
+| 操作 | 效果 |
+| :--- | :--- |
+| **点击画布** | 进入全屏演示（鼠标悬停时底部会出现「点击展开全屏演示」引导；全屏态下不再响应，避免误点退出） |
+| 点击画布左/右 25% 热区 | 上一页 / 下一页 |
+| `←` `→` `Space` `PageUp` `PageDown` `Home` `End` | 翻页与首末页（鼠标悬停或全屏时生效） |
+| `F` / `Esc` | 进入 / 退出全屏演示 |
+| 工具栏 `○−` `○＋` | 缩放（**移动端同样可见**：窄屏才是最需要缩放的场景） |
 
 > **性能**：PDF.js（约 1.3MB）与 `slide-viewer.js` 不会随首屏加载。只有真的渲染到带演示文稿的文章时，才由 `app.js#ensureSlideViewer()` 按需注入，首页与普通文章零额外开销。
 
@@ -548,6 +608,26 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 在 `blog.config.js` 的 `site.url` 填入部署后的站点根地址（**含子路径、末尾不带 `/`**），例如 `https://<用户名>.github.io/<仓库名>`，然后重跑 `python3 sync_posts.py`。
 
 `site.url` 留空时会跳过 sitemap 生成，同时 `og:url` / `canonical` 退回「当前文档目录」，本地预览与子路径部署都能自洽。
+
+### Q10: `publications` 里的条目没显示 / 显示成一堆 YAML 文本？
+
+三个最常见的成因：
+
+1. **缩进断层**：`publications:` 下的条目必须以 `-` 开头并比 `publications:` 更深一级缩进，字段再比条目深一级。YAML 对缩进敏感，混用 Tab 与空格会解析失败。
+2. **年份写成非数字**：`year: "2026 年"` 可以（只取前四位），但 `year: "待定"` 会进入 `UNYEARED` 组而不是报错 —— 这是刻意设计，避免整页渲染失败。
+3. **`abstract` / `links` 被吞掉**：解析器按「相对本行缩进更深」判定嵌套映射。若把 `abstract:` 写得比 `links:` 的**子键**还深，它会被当成 `links` 的一部分。请保持同一层级的字段左对齐。
+
+改完执行 `python3 sync_posts.py`（或保存文件后由实时刷新自动重建 `js/posts-data.js`）。
+
+### Q11: 时间线条目后面没有展开箭头？
+
+箭头只在条目**确实有折叠内容**时才渲染，判据是 `detail` 或 `links` 至少有一个非空。这是刻意的：一个点了没反应的箭头比没有箭头更糟。
+
+### Q12: 本地预览时浏览器一直在自己刷新？
+
+已修复。历史版本把 `server.log` 也纳入了文件监听快照 —— 而 `--daemon` 模式下每个 HTTP 请求都会往这个文件写日志，于是形成「请求 → 日志 mtime 变化 → 广播刷新 → 浏览器重新请求」的无限重载循环。
+
+现在 `server.py` 的监听层统一排除 `*.log` / `*.pyc` / `*.swp` 等运行期产物（见 `WATCH_IGNORED_FILES` / `WATCH_IGNORED_SUFFIXES`）。若你自定义了其它运行期产物文件，请一并加入该列表。
 
 ---
 

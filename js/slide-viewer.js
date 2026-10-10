@@ -117,18 +117,21 @@ SlidePlayer.prototype.buildDOM = function() {
   var rightGroup = document.createElement('div');
   rightGroup.className = 'flex items-center gap-1 shrink-0';
 
-  // 缩放组
+  // 缩放组。早期版本用 `hidden md:inline-flex` 把这两个按钮限制在桌面端，
+  // 结果是移动端完全无法缩放 —— 而窄屏恰恰是最需要缩放的场景，故改为始终可见。
   var zoomOutBtn = document.createElement('button');
   zoomOutBtn.type = 'button';
-  zoomOutBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors cursor-pointer hidden md:inline-flex';
+  zoomOutBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors cursor-pointer inline-flex';
   zoomOutBtn.title = 'Zoom Out (-)';
+  zoomOutBtn.setAttribute('aria-label', '缩小');
   zoomOutBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
   zoomOutBtn.onclick = function(e) { e.stopPropagation(); self.zoom(-0.15); };
 
   var zoomInBtn = document.createElement('button');
   zoomInBtn.type = 'button';
-  zoomInBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors cursor-pointer hidden md:inline-flex';
+  zoomInBtn.className = 'slide-tool-btn text-[#8B8B8E] hover:text-[#EDEDED] p-1.5 rounded transition-colors cursor-pointer inline-flex';
   zoomInBtn.title = 'Zoom In (+)';
+  zoomInBtn.setAttribute('aria-label', '放大');
   zoomInBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
   zoomInBtn.onclick = function(e) { e.stopPropagation(); self.zoom(0.15); };
 
@@ -190,6 +193,21 @@ SlidePlayer.prototype.buildDOM = function() {
   canvas.className = 'slide-canvas rounded-lg shadow-2xl transition-opacity duration-150';
   canvasWrapper.appendChild(canvas);
 
+  // 点击画布即进入全屏演示 —— 幻灯片是被内嵌在正文里的，读者看两页就会想放大，
+  // 找不到 Present 按钮时这里是最自然的入口。左右热区各自 stopPropagation，
+  // 因此不会与翻页冲突；全屏状态下不再响应，避免误点退出演示。
+  canvasWrapper.classList.add('cursor-zoom-in');
+  canvasWrapper.title = '点击进入全屏演示';
+  canvasWrapper.onclick = function() {
+    if (self.isFullscreen) return;
+    self.enterFullscreen();
+  };
+
+  // 悬停提示（纯视觉引导，pointer-events-none 保证不抢画布的点击）
+  var expandHint = document.createElement('div');
+  expandHint.className = 'slide-expand-hint';
+  expandHint.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg><span>点击展开全屏演示</span>';
+
   // 加载中指示器 (Loader / Skeleton)
   var loader = document.createElement('div');
   loader.className = 'slide-loader absolute inset-0 flex flex-col items-center justify-center bg-[#0A0A0B]/80 backdrop-blur-sm z-30 transition-opacity';
@@ -199,6 +217,7 @@ SlidePlayer.prototype.buildDOM = function() {
   stage.appendChild(leftHotspot);
   stage.appendChild(canvasWrapper);
   stage.appendChild(rightHotspot);
+  stage.appendChild(expandHint);
   stage.appendChild(loader);
 
   // 3. 底部进度条 (Progress Track)

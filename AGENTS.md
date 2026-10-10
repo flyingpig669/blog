@@ -130,6 +130,23 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 - 节点圆点：9px 直径，历史节点为弱色 `#5A5A5E`，当前最新节点为 `#3B82F6` 并带微弱外发光。
 - 外圈遮罩：`box-shadow: 0 0 0 4px #0A0A0B`（以页面底色作为安全遮罩）。
 
+### 5.7 可展开条目与论著卡片 (Collapsible Entry & Publications Card)
+
+`timeline[]` / `focusAreas[]` 的条目与 `publications[]` 的论著卡片共用同一套折叠机制，实现集中在 `js/app.js`：
+
+| 关注点 | 约定 |
+| :--- | :--- |
+| 触发器 | `toggleHeadingHtml()` 生成「看起来是标题、行为是按钮」的 `<button class="entry-toggle" data-expand-target="<panelId>" aria-expanded aria-controls>`；无折叠内容时退化为纯标题，**不渲染空箭头** |
+| 箭头位置 | 箭头是文本流内的 `inline-block`（`.entry-chevron`），跟随标题最后一行；**不得**改为独立的 flex 尾项，否则标题换行时箭头会飘到版心最右侧 |
+| 状态 | 面板状态记在 `hidden` 属性上，视觉态记在容器类 `is-expanded` 上，两者分离以便 CSS 决定动画 |
+| 交互绑定 | 统一走 `bindExpandables(container)` 的**事件委托**，绑在 `#app-main` 上一次即可覆盖后续所有重渲染；禁止在每次 `innerHTML` 后逐个 `addEventListener` |
+| 链接优先 | 委托处理里必须先判断 `a` / `[data-pub-jump]` / `[data-pub-preview]` 并提前 `return`，否则点外链会顺手把面板收起 |
+| 文本选择 | 拖选文字时 `window.getSelection()` 非空则跳过折叠，避免复制正文时误触 |
+| 论著卡片 | 序号 `font-mono` + 标题 + 署名（`<strong class="pub-author-self">`）+ 期刊/年份/引用 + 右对齐资源徽章；`is-expanded` 时加 1px 边框与 `8px` 圆角 |
+| PDF 预览 | **必须懒加载**：`iframe` 只在用户点「预览 PDF」时创建，再次点击改为收起；展开摘要绝不能顺带下载 PDF |
+
+新增任何「点击展开」区块都必须复用上述机制，禁止另写一套开关逻辑。
+
 ---
 
 ## 6. 路由架构约束 (Routing Architecture Rules)
@@ -277,6 +294,9 @@ Agent 进行前端编写时，以下行为一律判定为违规：
 11. **严禁未转义地拼接文本进 `innerHTML`**：任何来自 FrontMatter / Markdown 正文 / `blog.config.js` 的文本，在其进入 HTML 字符串前必须经过 `escapeHtml()`（含属性值）。唯一豁免是由代码内部生成的、字符集可证明安全的值（如 `'section-' + n`）。
 12. **严禁绕过 `applyTagSelection()` 写标签选中状态**：标签筛选遵循「URL 即状态」，`selectedSortedTags` 只能由路由解析或 `applyTagSelection()` 写入；禁止在视图中直接 `this.selectedSortedTags.add(...)`，否则地址栏与页面内容会脱节。
 13. **严禁在 `<head>` 同步引入大体积依赖**：PDF.js（约 1.3MB）与 `slide-viewer.js` 必须通过 `app.js#ensureSlideViewer()` 按需注入。新增任何 >100KB 的依赖都必须走同样的懒加载路径，禁止直接写 `<script src>` 阻塞首屏。
+14. **严禁把运行期产物纳入文件监听**：`server.py` 的 `scan_tree()` 必须排除 `server.log` 及 `WATCH_IGNORED_SUFFIXES` 中的一切扩展名。监听器一旦覆盖到服务端自己会写的文件（日志、缓存、临时锁），就会形成「请求 → 文件变化 → 广播刷新 → 浏览器再请求」的无限重载循环。
+15. **严禁用 `display` 属性覆盖 `hidden`**：折叠面板依赖 `hidden` 属性表达状态。给 `.pub-panel` / `.entry-panel` 之类元素写 `display: flex/grid` 会静默让 `hidden` 失效、面板永远可见。需要布局时在内部再包一层。
+16. **严禁在移动端隐藏必要控件**：缩放、翻页、展开等操作入口不得用 `hidden md:inline-flex` 之类的断点类移除 —— 窄屏恰恰是最需要它们的场景（历史缺陷：幻灯片缩放按钮在移动端完全不可用）。
 
 ---
 

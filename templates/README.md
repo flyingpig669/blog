@@ -12,6 +12,7 @@
 | **`template-column-chapter.md`** | 专栏 / 系列连载章节 | 包含 `column` 与 `order` 标识，专栏内部上下篇定向翻页，系列全景侧边栏 |
 | **`template-slide-presentation.md`** | PPT / PDF 演示文稿课件 | 支持 `::: slide` 嵌入本地 PDF 课件，具备 Retina 矢量放映与真全屏演播 |
 | **`template-independent-page.md`** | 结构化独立页 (type: post) | 声明 `type: "post"`，支持时间线/关注领域/社交等区块，可被导航 `target: "file:xxx.md"` 绑定为独立页 |
+| **`template-publications-page.md`** | 论著 / 学术产出页 | `publications` 按年份分组、卡片展开摘要与 PDF 预览；`timeline[].links.paper` 与论著形成可点闭环 |
 | **`template-math-physics-paper.md`** | 理论数学与物理推导长文 | 严格兼容 Codex 双美元符号 KaTeX，狄拉克符号、矩阵与多行对齐方程推导 |
 | **`template-collection.md`** | 文章收录 / 阅读索引页 | 用 `[[slug]]` 双链与相对 `.md` 链接把全站文章整理成可跳转索引 |
 
@@ -33,6 +34,9 @@ cp templates/template-slide-presentation.md posts/my-presentation.md
 
 # 示例 4：创建一个文章收录 / 索引页
 cp templates/template-collection.md posts/collection.md
+
+# 示例 5：创建一个论著 / 学术产出页
+cp templates/template-publications-page.md posts/publications.md
 ```
 
 ---
@@ -62,6 +66,28 @@ pinned: false                        # 是否在首页置顶展示 (true / false
 # 附件与演示文稿
 slide: "attachments/slides/xxx.pdf"  # 挂载的演示文稿文件路径
 attachments: ["attachments/xxx.zip"] # 下载类附件
+
+# 结构化区块（仅 type: post 生效，详见 template-independent-page.md 与 template-publications-page.md）
+publications:                        # 论著列表：按 year 倒序分组、卡片可展开摘要与 PDF 预览
+  - title: "..."
+    slug: "paper-slug"               # 供 timeline[].links.paper 回指
+    authors: ["Your Name", "Co Author"]
+    venue: "..."
+    year: 2026
+    citations: 12
+    links: { pdf: "...", doi: "...", arxiv: "...", code: "..." }
+    abstract: "..."
+timeline:
+  - period: "..."
+    title: "..."
+    desc: "..."                      # 始终可见
+    detail: "..."                    # 点击标题后展开
+    links: { paper: "paper-slug", post: "post-slug", code: "https://..." }
+focusAreas:
+  - title: "..."
+    desc: "..."
+    detail: "..."                    # 与 timeline 同一套展开逻辑
+    links: { paper: "paper-slug" }
 
 # 大纲目录配置 (单篇覆盖)
 tocLevels: [2, 3]                    # 指定 TOC 追踪的标题层级数组 (如 [2, 3]、[2, 3, 4] 或 false)

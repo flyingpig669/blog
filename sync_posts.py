@@ -24,8 +24,13 @@ IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachme
 # 兼容旧写法：page / page-mode / standalone 等一律归一化为 post。
 RICH_DOC_TYPES = {"post", "page", "page-mode", "standalone", "single", "page_mode"}
 
-# 结构化独立页 (type: post) 支持的列表型区块
-STRUCTURED_LIST_KEYS = ["timeline", "focusAreas", "social", "contacts", "links"]
+# 结构化独立页 (type: post) 支持的列表型区块。
+# 其中 publications 的条目除标量字段外还允许一个嵌套映射 links:（pdf / doi / arxiv / code），
+# 由 read_frontmatter_value 的「嵌套映射」分支负责装配，见该函数注释。
+STRUCTURED_LIST_KEYS = ["timeline", "focusAreas", "publications", "social", "contacts", "links"]
+
+# 嵌套映射字段：值不是字符串而是 { key: value } 字典（如论文的 links）。
+NESTED_MAP_KEYS = ["links"]
 
 
 def slugify(value):
@@ -280,18 +285,12 @@ def parse_md_file(filepath, words_per_minute=300):
         "content": content
     }
 
-def parse_flow_list(text):
-    """把 `["a", "b"]` / `[a, b]` / `['a']` 解析为字符串列表；不是数组则返回 None。
+def split_flow_entries(inner):
+    """按「引号感知」的逗号切分 flow 容器内部文本。
 
-    按引号状态逐字符扫描，因此项内包含逗号（如 "Raft, Paxos"）也能正确切分。
+    逐字符扫描引号状态，因此项内包含逗号（如 "Raft, Paxos"）也能正确切分。
+    parse_flow_list / parse_flow_map 共用这一份切分逻辑，避免两套规则漂移。
     """
-    t = (text or "").strip()
-    if not (t.startswith("[") and t.endswith("]")):
-        return None
-    inner = t[1:-1].strip()
-    if not inner:
-        return []
-
     items = []
     buf = ""
     quote = None
@@ -311,13 +310,53 @@ def parse_flow_list(text):
             buf += ch
     if buf.strip():
         items.append(buf.strip())
-    return [i.strip().strip("\"'") for i in items if i.strip()]
+    return items
+
+
+def parse_flow_list(text):
+    """把 `["a", "b"]` / `[a, b]` / `['a']` 解析为字符串列表；不是数组则返回 None。"""
+    t = (text or "").strip()
+    if not (t.startswith("[") and t.endswith("]")):
+        return None
+    inner = t[1:-1].strip()
+    if not inner:
+        return []
+    return [i.strip().strip("\"'") for i in split_flow_entries(inner) if i.strip()]
+
+
+def parse_flow_map(text):
+    """把 `{ pdf: "a.pdf", doi: "10.x" }` 解析为字典；不是映射则返回 None。
+
+    论文条目的 links 既能写成 flow 映射（单行），也能写成缩进块映射（多行）；
+    后者由 read_frontmatter_value 的嵌套映射分支收集，最终都归一到同一个 dict。
+    """
+    t = (text or "").strip()
+    if not (t.startswith("{") and t.endswith("}")):
+        return None
+    inner = t[1:-1].strip()
+    if not inner:
+        return {}
+    out = {}
+    for entry in split_flow_entries(inner):
+        if ":" not in entry:
+            continue
+        k, v = entry.split(":", 1)
+        k = k.strip().strip("\"'")
+        if not k:
+            continue
+        out[k] = re.split(r"\s+#", v.strip())[0].strip().strip("\"'")
+    return out
+
+
+def line_indent(line):
+    """返回一行的缩进宽度（制表符按 1 计，本文件格式只使用空格）。"""
+    return len(line) - len(line.lstrip())
 
 
 def read_frontmatter_value(lines, idx, inline):
     """读取第 idx 行 `key:` 之后的值，必要时向下吞掉续行。
 
-    返回 (value, next_index)，value 为 str 或 list[str]：
+    返回 (value, next_index)，value 为 str / list[str] / dict：
 
         key: "文本"            -> "文本"
         key: ["a",             -> ["a", "b"]      # flow 数组可跨行
@@ -325,25 +364,53 @@ def read_frontmatter_value(lines, idx, inline):
         key:                   -> ["a", "b"]      # 块序列
           - "a"
           - "b"
+        key: { pdf: "x.pdf" }  -> {"pdf": "x.pdf"} # flow 映射
+        key:                   -> {"pdf": "x.pdf"} # 嵌套映射（缩进更深）
+          pdf: "x.pdf"
         key: []                -> []              # 显式空数组
 
     旧实现只取行内子串，于是跨行数组会把字面量 `["a",` 当成正文显示、
     并把后续行整段丢弃（roadmap 的 timeline.desc 就是这样被吃掉的）。
+
+    「块序列」与「嵌套映射」的区别只在于缩进更深的那些行长什么样：
+    以 `- ` 开头的是序列，形如 `name: value` 的是映射。判据必须是「相对本行缩进更深」，
+    否则 `links:` 的映射会一路吞掉紧随其后的兄弟字段（abstract / year 等）。
     """
     head = re.split(r"\s+#", (inline or "").strip())[0].strip()
 
-    # 情况 1：本行没有值，紧跟的缩进行以 "- " 开头 -> 块序列
+    # 情况 1：本行没有值，值全部在缩进更深的后续行里
     if head == "":
-        block = []
+        base_indent = line_indent(lines[idx])
         j = idx + 1
-        while j < len(lines):
-            m = re.match(r"^\s+-\s+(.*)$", lines[j])
-            if not m:
-                break
-            block.append(m.group(1).strip().strip("\"'"))
-            j += 1
-        if block:
-            return block, j
+        if j < len(lines):
+            seq_m = re.match(r"^(\s+)-\s+(.*)$", lines[j])
+            if seq_m and line_indent(lines[j]) > base_indent:
+                item_indent = line_indent(lines[j])
+                block = []
+                k = j
+                while k < len(lines):
+                    m = re.match(r"^\s+-\s+(.*)$", lines[k])
+                    if not m or line_indent(lines[k]) < item_indent:
+                        break
+                    block.append(m.group(1).strip().strip("\"'"))
+                    k += 1
+                if block:
+                    return block, k
+
+            # 嵌套映射：缩进更深的一批 `name: value`。
+            # 值本身仍递归交给本函数解析 —— 否则 `paper: ["a", "b"]` 会被当成
+            # 带方括号的普通字符串，数组语义在中途丢失。
+            nested = {}
+            k = j
+            while k < len(lines):
+                m = re.match(r"^(\s+)([a-zA-Z0-9_-]+):\s*(.*)$", lines[k])
+                if not m or line_indent(lines[k]) <= base_indent:
+                    break
+                value, next_k = read_frontmatter_value(lines, k, m.group(3))
+                nested[m.group(2)] = value
+                k = next_k if next_k > k else k + 1
+            if nested:
+                return nested, k
         return "", idx + 1
 
     # 情况 2：flow 数组（可能跨多行）
@@ -358,7 +425,19 @@ def read_frontmatter_value(lines, idx, inline):
             return parsed, j + 1
         return head.strip("\"'"), j + 1
 
-    # 情况 3：普通标量
+    # 情况 3：flow 映射（单行 `{ k: v, ... }`）
+    if head.startswith("{"):
+        buf = head
+        j = idx
+        while not buf.rstrip().endswith("}") and j + 1 < len(lines):
+            j += 1
+            buf += " " + lines[j].strip()
+        parsed_map = parse_flow_map(buf)
+        if parsed_map is not None:
+            return parsed_map, j + 1
+        return head.strip("\"'"), j + 1
+
+    # 情况 4：普通标量
     return head.strip("\"'"), idx + 1
 
 
@@ -380,6 +459,7 @@ def parse_structured_page_file(filepath):
         "bio": "",
         "timeline": [],
         "focusAreas": [],
+        "publications": [],
         "social": [],
         "contacts": [],
         "links": [],

@@ -662,6 +662,301 @@ html, body {
   color: var(--text-muted);
   transition: all 150ms ease-out;
 }
+/* ---------------------------------------------------------------------------
+   Publications / 可展开条目 (Publications & Collapsible Entries)
+   --------------------------------------------------------------------------- */
+
+/* 折叠触发器归零为「看起来是标题、行为是按钮」：保留键盘可达性，但不带按钮外观 */
+.entry-toggle {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.entry-toggle-text { display: inline; }
+.entry-chevron {
+  display: inline-block;
+  vertical-align: -2px;
+  width: 13px;
+  height: 13px;
+  margin-left: 6px;
+  color: var(--text-muted);
+  transition: transform 180ms ease-out, color 150ms ease-out;
+}
+.entry-toggle:hover .entry-chevron { color: var(--text-primary); }
+.entry-toggle:hover .entry-toggle-text { color: var(--accent-primary); }
+.is-expanded .entry-chevron {
+  transform: rotate(180deg);
+  color: var(--accent-primary);
+}
+
+@keyframes entry-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.entry-panel {
+  margin-top: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--divider);
+  animation: entry-panel-in 180ms ease-out;
+}
+.entry-panel[hidden],
+.pub-panel[hidden],
+.pub-preview-slot[hidden] { display: none; }
+
+.entry-detail {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+/* 关联资源筹码 (PAPER / POST / CODE / DOI ...) */
+.entry-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.entry-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: all 150ms ease-out;
+}
+.entry-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+.entry-chip-label {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.entry-chip:hover .entry-chip-label { color: var(--accent-primary); }
+.entry-chip-text {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry-chip-arrow { color: var(--text-muted); }
+.entry-chip-paper .entry-chip-label { color: var(--accent-secondary); }
+
+/* 关注领域条目：与时间线条目共用展开交互 */
+.about-focus-item { transition: color 150ms ease-out; }
+.about-focus-item.is-expandable { cursor: pointer; }
+
+/* --- 论著列表 --- */
+.pub-year-group { margin-bottom: 24px; }
+.pub-year-group:last-child { margin-bottom: 0; }
+.pub-year-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pub-year-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent-primary);
+}
+.pub-year-rule { flex: 1; height: 1px; background: var(--divider); }
+.pub-year-count {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.pub-card {
+  position: relative;
+  border-bottom: 1px solid var(--divider);
+  border-radius: 0;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+.pub-card:last-child { border-bottom-color: transparent; }
+.pub-card.is-expanded {
+  border-radius: 8px;
+  border-color: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.015);
+}
+.pub-card.is-expanded:last-child { border-bottom-color: var(--border-subtle); }
+.pub-card.is-highlighted {
+  border-radius: 8px;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+.pub-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 12px;
+  border-radius: 8px;
+  transition: background-color 150ms ease-out;
+}
+.pub-card.is-expandable .pub-card-head { cursor: pointer; }
+.pub-card.is-expandable .pub-card-head:hover { background: rgba(255, 255, 255, 0.02); }
+
+.pub-seq {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.pub-card-main { flex: 1; min-width: 0; }
+.pub-title {
+  margin: 0 0 5px 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.pub-authors {
+  margin: 0 0 5px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.pub-author-self { color: var(--text-primary); font-weight: 600; }
+.pub-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.pub-venue { color: var(--text-secondary); }
+.pub-meta-sep { opacity: 0.5; }
+.pub-cite { color: var(--accent-secondary); }
+
+/* 资源徽章（PDF / DOI / arXiv / CODE ...） */
+.pub-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+  max-width: 38%;
+  padding-top: 2px;
+}
+.pub-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  transition: all 150ms ease-out;
+}
+.pub-badge:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.05);
+}
+.pub-badge-pdf {
+  color: var(--accent-primary);
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.08);
+}
+.pub-badge-pdf:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+.pub-badge-arrow { font-size: 9px; opacity: 0.7; }
+
+.pub-panel {
+  padding: 0 12px 16px 42px;
+  animation: entry-panel-in 180ms ease-out;
+}
+.pub-abstract {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+.pub-preview { margin-top: 12px; }
+.pub-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pub-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+.pub-preview-btn svg { width: 12px; height: 12px; }
+.pub-preview-btn:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+.pub-preview-link {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: color 150ms ease-out;
+}
+.pub-preview-link:hover { color: var(--accent-primary); }
+.pub-preview-slot { margin-top: 10px; }
+.pub-preview-frame {
+  width: 100%;
+  height: min(72vh, 620px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+@media (max-width: 640px) {
+  .pub-card-head { flex-wrap: wrap; }
+  .pub-badges {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    padding-left: 30px;
+  }
+  .pub-panel { padding-left: 12px; }
+  .entry-chip-text { max-width: 150px; }
+  .pub-preview-frame { height: 58vh; }
+}
+
 /* Home Tag Filter Pills */
 .tag-filter-pill {
   display: inline-flex;
@@ -716,6 +1011,46 @@ html, body {
   display: block;
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* 画布本身即全屏入口：常态下给出缩放光标，进入演示后收回 */
+.slide-canvas-wrapper { cursor: zoom-in; }
+.slide-player-root:fullscreen .slide-canvas-wrapper,
+.slide-player-root:-webkit-full-screen .slide-canvas-wrapper,
+.theater-presentation-mode .slide-canvas-wrapper { cursor: default; }
+
+/* 悬停引导：只在鼠标停在舞台上时淡入，纯视觉、不抢点击 */
+.slide-expand-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(17, 17, 19, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+.slide-expand-hint svg { width: 12px; height: 12px; color: var(--accent-primary); }
+.slide-stage:hover .slide-expand-hint { opacity: 1; }
+.slide-player-root:fullscreen .slide-expand-hint,
+.slide-player-root:-webkit-full-screen .slide-expand-hint,
+.theater-presentation-mode .slide-expand-hint { display: none !important; }
+
+/* 触屏设备没有 hover，常驻显示引导 */
+@media (hover: none) {
+  .slide-expand-hint { opacity: 0.85; }
 }
 
 .slide-hotspot {
