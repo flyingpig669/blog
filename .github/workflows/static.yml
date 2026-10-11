@@ -64,7 +64,13 @@ jobs:
           # 因此页内相对路径一律不可用。站点根按 Pages 的规则推导后注入：
           # 项目站点是 /<repo>/，用户站点（仓库名 = <owner>.github.io）是 /。
           owner="${GITHUB_REPOSITORY%%/*}"; repo="${GITHUB_REPOSITORY#*/}"
-          if [ "$repo" = "${owner}.github.io" ]; then base="/"; else base="/${repo}/"; fi
+          if [ -s CNAME ]; then
+            base="/"
+          elif [ "$repo" = "${owner}.github.io" ]; then
+            base="/"
+          else
+            base="/${repo}/"
+          fi
           if [ -f _site/404.html ]; then
             sed -i "s|__SITE_BASE__|${base}|g" _site/404.html
             if grep -q '__SITE_BASE__' _site/404.html; then

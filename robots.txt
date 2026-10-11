@@ -3,4 +3,4 @@ Allow: /
 
 # 本站为 Hash 路由单页应用，所有内容都在 /#/... 下，物理上只有一个 index.html，
 # 因此 sitemap 里只有站点根这一个 URL（这是 Hash 路由的固有结果，不是配置遗漏）。
-Sitemap: https://flyingpig669.github.io/blog/sitemap.xml
+Sitemap: https://notes.theccyy.com/sitemap.xml

@@ -28,12 +28,11 @@ window.BlogConfig = {
     tagline: "Personal technical blog focused on Physics, Math, and Computer Science.",
     // SEO 与元描述
     description: "A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.",
-    // 页脚版权说明。此前这里沿用了模板自带的 "Alex Chen"，与下面 author.name 不是同一个人，
-    // 属于上线前必须清掉的模板残留；署名统一以 author.name 为准。
+    // 页脚版权说明 (由 js/components/footer.js 写入全局页脚)
     footerText: "© 2026 CCC · All rights reserved.",
     // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。
     // 填好后 sync_posts.py 会产出 sitemap.xml，app.js#absoluteSiteUrl 也会用它作 canonical。
-    url: "https://flyingpig669.github.io/blog",
+    url: "https://notes.theccyy.com",
     // 文章预估阅读速度 (每分钟字数)：由 sync_posts.py 在编译期读取，用于估算 readTime
     wordsPerMinute: 300,
   },
@@ -43,7 +42,7 @@ window.BlogConfig = {
     name: "CCC",
     title: "Student",
     bio: "Physics, Math, and Computer Science Enthusiast.",
-    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=CC C&backgroundColor=161618&textColor=EDEDED&fontWeight=600",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=CCC&backgroundColor=161618&textColor=EDEDED&fontWeight=600",
     location: "Shandong, China",
     email: "flyingpig06@outlook.com",
     github: "https://github.com/flyingpig669",

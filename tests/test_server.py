@@ -49,6 +49,37 @@ class WatcherTests(unittest.TestCase):
         sync.assert_called_once()
 
 
+
+class RedirectTests(unittest.TestCase):
+    def test_legacy_blog_path_redirects_to_root(self):
+        class QuietHandler(server.CustomHandler):
+            def log_message(self, *_args):
+                pass
+
+        class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+            def http_error_302(self, req, fp, code, msg, headers):
+                return fp
+
+        opener = urllib.request.build_opener(NoRedirectHandler)
+        httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), QuietHandler)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{httpd.server_port}"
+            for path, expected_loc in [
+                ("/blog", "/"),
+                ("/blog/", "/"),
+                ("/blog/archive", "/archive"),
+                ("/blog?k=v", "/?k=v"),
+            ]:
+                req = urllib.request.Request(base + path)
+                resp = opener.open(req, timeout=5)
+                self.assertEqual(resp.headers.get("Location"), expected_loc)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join()
+
 class HtmlInjectionTests(unittest.TestCase):
     def test_root_and_explicit_index_both_include_live_reload(self):
         class QuietHandler(server.CustomHandler):

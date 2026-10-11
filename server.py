@@ -330,6 +330,21 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         if WATCHER is not None and self.path.split("?", 1)[0] == LIVE_PATH:
             self._serve_event_stream()
             return
+
+        clean_path = self.path.split("?", 1)[0]
+        if clean_path in ("/blog", "/blog/"):
+            query = ("?" + self.path.split("?", 1)[1]) if "?" in self.path else ""
+            self.send_response(302)
+            self.send_header("Location", "/" + query)
+            self.end_headers()
+            return
+        elif clean_path.startswith("/blog/"):
+            sub = self.path[len("/blog"): ]
+            self.send_response(302)
+            self.send_header("Location", sub)
+            self.end_headers()
+            return
+
         super().do_GET()
 
     def _serve_event_stream(self):

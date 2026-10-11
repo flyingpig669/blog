@@ -243,6 +243,25 @@ for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
     }
   }
 }
+
+// CNAME 与 site.url 一致性校验：防范部署域名与站点生成配置漂移。
+{
+  const cnamePath = path.join(root, 'CNAME');
+  if (fs.existsSync(cnamePath)) {
+    const cnameDomain = fs.readFileSync(cnamePath, 'utf8').trim();
+    if (cnameDomain) {
+      const site = (config && config.site) || {};
+      const siteUrl = String(site.url || '').trim();
+      const m = siteUrl.match(/^https?:\/\/([^\/:]+)/);
+      if (!m) {
+        fail('blog.config.js site.url 格式无效: "' + siteUrl + '"');
+      } else if (m[1] !== cnameDomain) {
+        fail('CNAME 域名 "' + cnameDomain + '" 与 blog.config.js 中 site.url 的域名 "' + m[1] + '" 不一致');
+      }
+    }
+  }
+}
+
 function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
 else console.log(`Content checks passed: ${Object.keys(store.documents).length} documents, ${context.window.BlogRouteTable.length} routes, ${navigation.length} navigation entries.`);
