@@ -1,7 +1,7 @@
 ---
 # 状态标签与个人座右铭
 author: "CCC"
-avatar: "https://api.dicebear.com/7.x/initials/png?seed=CC C&backgroundColor=161618&textColor=EDEDED&fontWeight=600"
+avatar: "https://api.dicebear.com/7.x/initials/svg?seed=CCC&backgroundColor=161618&textColor=EDEDED&fontWeight=600"
 focus: "Physics, Math & Computer Science"
 quote: "Turning complexity into clean order through rigorous logic, mathematics, and craft."
 bio: "Physics, Math, and Computer Science Enthusiast. Exploring the frontiers of quantum computing, system architecture, and elegant engineering."
@@ -73,8 +73,8 @@ focusAreas:
   - title: "量子信息与量子计算"
     desc: "量子计算，量子信息在机器学习以及密码学中的应用。"
     detail: "探索量子计算的基础理论与应用，研究量子信息在机器学习和密码学中的潜力。通过模拟和实验验证量子算法的性能，并分析其在实际问题中的可行性。"
-    links:
-      paper: "consensus-adversarial-partitions"
+    # links:
+    #   paper: "consensus-adversarial-partitions"
   - title: "数学与理论物理同构"
     desc: "复线性代数、高维希尔伯特空间、信息熵与统计热力学。"
     detail: "核心假设是：自注意力的软最大化与统计力学的配分函数之间存在结构同构，而注意力权的数值稳定性问题可以在这一视角下被重新表述。"
