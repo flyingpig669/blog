@@ -72,5 +72,10 @@ echo "  GitHub Actions 已自动被触发，正在为您构建上线。"
 echo "  首次使用请确保在 GitHub 仓库中开启 Pages："
 echo "   -> 打开仓库 Settings -> Pages"
 echo "   -> 在 'Build and deployment' 的 Source 中选择 'GitHub Actions'"
-echo "  上线后可通过 https://<用户名>.github.io/<仓库名> 访问！"
+if [ -s CNAME ]; then
+  cname=$(tr -d '[:space:]' < CNAME)
+  echo "  上线后可通过 https://${cname} 访问！"
+else
+  echo "  上线后可通过 https://<用户名>.github.io/<仓库名> 访问！"
+fi
 echo "=========================================================="

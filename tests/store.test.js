@@ -77,3 +77,16 @@ test('archive ignores pinning and search ranks title above body', () => {
   assert.equal(store.getPosts({sort: 'date'})[0].slug, 'new');
   assert.equal(store.searchPosts('needle')[0].slug, 'needle');
 });
+
+test('store site fallback defaults align with brand metadata', () => {
+  const context = {
+    window: { BlogPostsData: { schemaVersion: 2, documents: {}, posts: [], columns: [], aliases: {}, searchUrl: '' } },
+    document: { documentElement: { classList: { toggle() {}, add() {}, remove() {} }, setAttribute() {} } }
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/store.js'), 'utf8'), context);
+  const store = context.window.BlogStore;
+  store.init();
+  assert.equal(store.site.title, 'CCC de Notes');
+  assert.equal(store.site.brand, 'CCC de Notes');
+});

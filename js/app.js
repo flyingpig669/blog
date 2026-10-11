@@ -693,10 +693,10 @@ window.BlogApp = {
     // Hero Section
     html += '<section class="pt-10 md:pt-14 pb-8 border-b border-divider mb-2">';
     html += '  <h1 class="text-[34px] sm:text-[38px] md:text-[42px] font-bold text-primary tracking-[-0.03em] leading-[1.15] mb-2.5 font-sans">';
-    html += this.escapeHtml(site.title || 'Aurora Notes');
+    html += this.escapeHtml(site.title || 'CCC de Notes');
     html += '  </h1>';
     html += '  <p class="text-[15px] sm:text-[16px] text-secondary leading-relaxed max-w-[620px]">';
-    html += this.escapeHtml(site.tagline || 'Curated technical writings, system architecture notes, and computing fundamentals.');
+    html += this.escapeHtml(site.tagline || 'Personal technical blog focused on Physics, Math, and Computer Science.');
     html += '  </p>';
 
     html += '</section>';

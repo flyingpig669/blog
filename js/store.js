@@ -22,10 +22,10 @@ window.BlogStore = {
     var config = window.BlogConfig || {};
     this.config = config;
     this.site = config.site || {
-      title: "Aurora Notes",
-      brand: "aurora.notes",
-      tagline: "Curated research essays and computing fundamentals.",
-      description: "Personal technical blog.",
+      title: "CCC de Notes",
+      brand: "CCC de Notes",
+      tagline: "Personal technical blog focused on Physics, Math, and Computer Science.",
+      description: "A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.",
       footerText: "© 2026 CCC · All rights reserved."
     };
 
