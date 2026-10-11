@@ -17,7 +17,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Page Not Found · Aurora Notes</title>
+  <title>Page Not Found · CCC de Notes</title>
   <!-- 该页只在 HTTP 404 响应下返回；显式 noindex 以免任何爬虫把它当成一个正常页面。 -->
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#0A0A0B">
@@ -74,7 +74,7 @@
   <main>
     <a class="brand" href="__SITE_BASE__">
       <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161618'/%3E%3Cpath d='M39 10 22 54' stroke='%233B82F6' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E" alt="">
-      <span>aurora.notes</span>
+      <span>CCC de Notes</span>
     </a>
     <div class="code">404 · <span id="not-found-path">/</span></div>
     <h1>Page not found</h1>
@@ -85,9 +85,48 @@
       <a class="btn ghost" href="__SITE_BASE__#/tags">Tags</a>
     </div>
   </main>
-  <!-- 显示被请求的物理路径（服务端返回本页时 URL 不变，所以这里读得真实路径）。 -->
+  <!--
+    物理 404 捕获与 SPA 路由自动重定向：
+    1. 剥离自定义域名下可能残留的 /blog 前缀（解决旧仓库子路径或外链跳转导致的 404）
+    2. 将真实存在的单页路径自动转换为 Hash 路由并立即跳转（如 /posts/xxx -> /#/posts/xxx，/archive -> /#/archive）
+    3. 兜底未匹配路径显示友好的 404 错误界面，并安全补全站点基础链接
+  -->
   <script>
-    document.getElementById('not-found-path').textContent = location.pathname + location.search;
+    (function () {
+      var base = '__SITE_BASE__';
+      if (!base || base.indexOf('__') === 0) base = '/';
+      var path = location.pathname;
+
+      // 1. 兼容自定义域名下历史 /blog 前缀
+      var clean = path;
+      if (clean.indexOf('/blog/') === 0) {
+        clean = clean.slice('/blog'.length);
+      } else if (clean === '/blog') {
+        clean = '/';
+      }
+
+      // 2. 若访问的是纯 /blog 或 /blog/，直接回到 base
+      if (path !== clean && (clean === '/' || clean === '')) {
+        location.replace(base + (location.search || '') + (location.hash || ''));
+        return;
+      }
+
+      // 3. SPA 物理路径自动重定向为 Hash 路由：
+      if (clean !== '/' && clean !== base && clean !== '') {
+        var hashRoute = '#' + (clean.charAt(0) === '/' ? clean : '/' + clean);
+        var targetUrl = base + hashRoute + (location.search || '') + (location.hash || '');
+        location.replace(targetUrl);
+        return;
+      }
+
+      var pathEl = document.getElementById('not-found-path');
+      if (pathEl) pathEl.textContent = location.pathname + location.search;
+
+      // 兜底补全未被 CI 模板替换的 __SITE_BASE__ 占位符
+      document.querySelectorAll('a[href^="__SITE_BASE__"]').forEach(function (a) {
+        a.setAttribute('href', a.getAttribute('href').replace('__SITE_BASE__', base));
+      });
+    })();
   </script>
 </body>
 </html>

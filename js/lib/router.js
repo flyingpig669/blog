@@ -118,13 +118,20 @@ window.BlogRouter = {
     var query = hash.indexOf('?') === -1 ? '' : hash.slice(hash.indexOf('?'));
     var legacyPath = path;
 
+    // 0. 自定义域名下清理残留的 /blog 前缀（兼容旧仓库子路径或历史书签）
+    if (path === '/blog' || path === '/blog/') {
+      path = defaultRoute;
+    } else if (path.indexOf('/blog/') === 0) {
+      path = path.slice('/blog'.length);
+    }
+
     // 旧版 Hash 路由兼容：规范化地址但保留既有外链可用性。
-    if (legacyPath.indexOf('/post/') === 0) {
-      path = (this.getRoutes().posts || '/posts') + legacyPath.slice('/post'.length);
-    } else if (legacyPath === '/archives') {
+    if (path.indexOf('/post/') === 0) {
+      path = (this.getRoutes().posts || '/posts') + path.slice('/post'.length);
+    } else if (path === '/archives') {
       path = this.getRoutes().archive || '/archive';
-    } else if (legacyPath === '/categories' || legacyPath.indexOf('/categories/') === 0) {
-      path = (this.getRoutes().tags || '/tags') + legacyPath.slice('/categories'.length);
+    } else if (path === '/categories' || path.indexOf('/categories/') === 0) {
+      path = (this.getRoutes().tags || '/tags') + path.slice('/categories'.length);
     }
     if (path !== legacyPath) {
       hash = path + query;

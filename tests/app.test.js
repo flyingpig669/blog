@@ -10,6 +10,7 @@ function createApp() {
     head: { appendChild(script) { scripts.push(script); } }
   } };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/lib/html.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(require.resolve('../js/lib/router.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(require.resolve('../js/app.js'), 'utf8'), context);
   return { app: context.window.BlogApp, context, scripts };
@@ -32,6 +33,7 @@ test('a stale document response cannot replace a newer route', async () => {
   const main = {};
   context.document.getElementById = () => main;
   app.setDocumentTitle = () => {};
+  app.renderArchivesView = () => {};
   app.routeRevision = 1;
   let rendered = false;
   app.loadDocumentView({title: 'old'}, () => {rendered = true;});
@@ -58,4 +60,34 @@ test('lazy dependency failures notify all callers and permit retry', () => {
   scripts[1].onload();
   scripts[2].onload();
   assert.equal(results[2], undefined);
+});
+
+test('legacy hash paths with /blog prefix normalize via replaceState', () => {
+  const { app, context } = createApp();
+  let replaced = null;
+  context.history = {
+    replaceState(_state, _title, url) {
+      replaced = url;
+    }
+  };
+  context.window.location = { hash: '#/blog/archive', pathname: '/', search: '' };
+  context.window.BlogStore = {
+    getPosts: () => [],
+    config: { defaultRoute: '/' }
+  };
+  context.window.BlogScrollState = { restore() {} };
+  context.window.BlogRouteRegistry = { aliasOf: () => null };
+  context.window.BlogRoutes = { home: '/', archive: '/archive', posts: '/posts', tags: '/tags', columns: '/columns' };
+  context.window.scrollTo = () => {};
+  context.document.querySelectorAll = () => [];
+  context.document.getElementById = () => ({ innerHTML: '' });
+  app.closeMobileDrawer = () => {};
+  app.closeMobileOutline = () => {};
+  app.closeNavDropdowns = () => {};
+  app.setActiveNav = () => {};
+  app.setDocumentTitle = () => {};
+  app.renderArchivesView = () => {};
+
+  app.handleRoute();
+  assert.equal(replaced, '/#/archive');
 });
