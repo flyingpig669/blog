@@ -61,28 +61,37 @@
   window.BlogRouteTable = [
     {
       name: 'home', path: '/', view: 'home', shell: 'shell', kind: 'page',
+      title: 'Home',
       nav: { label: 'Home' },
       note: '首页，使用根路径。'
     },
     {
       name: 'columns', path: '/columns', view: 'columns', shell: 'shell', kind: 'collection',
+      title: 'Columns',
+      description: 'Curated technical collections and deep dives into computing fundamentals.',
       detail: '/columns/:columnSlug',
       nav: { label: 'Columns' },
       note: '专栏列表；二级为该专栏下的文章列表。'
     },
     {
       name: 'archive', path: '/archive', view: 'archive', shell: 'shell', kind: 'page',
+      title: 'Archive',
+      description: 'Chronological timeline of research essays, architecture notes, and publications.',
       nav: { label: 'Archive' },
       note: '归档时间线，也是文章总览的唯一正式路由（/posts 收敛到这里）。'
     },
     {
       name: 'tags', path: '/tags', view: 'tags', shell: 'shell', kind: 'collection',
+      title: 'Tags',
+      headerTitle: 'Tags & Sorted Topics',
+      description: 'Select single or multiple tags to filter articles with precise multi-dimensional intersection.',
       detail: '/tags/:tag',
       nav: { label: 'Tags' },
       note: '标签索引；二级为单标签或多标签交集筛选，额外兼容 ?tag= 查询参数。'
     },
     {
       name: 'posts', path: '/posts', view: 'post', shell: 'shell-detail', kind: 'prefix',
+      title: 'Posts',
       alias: 'archive',
       nav: null,
       note: '不是页面，只是文章详情的路径前缀。裸命 /posts 由 alias 收敛到 /archive，' +
@@ -90,15 +99,18 @@
     },
     {
       name: 'about', path: '/about', view: 'page', shell: 'shell', kind: 'page',
+      title: 'About',
       page: 'about.md',
       nav: { label: 'About', group: 'about', target: 'file:about.md' },
       note: '单页展示型，内容来自 about.md。'
     },
+    // roadmap 归入 About 折叠组（如需启用，取消注释并在 routes 与 Markdown 同步即可）
     // {
     //   name: 'roadmap', path: '/roadmap', view: 'page', shell: 'shell', kind: 'page',
+    //   title: 'Roadmap',
     //   page: 'posts/roadmap.md',
     //   nav: { label: 'Roadmap', group: 'about', target: 'file:posts/roadmap.md' },
-    //   note: '归入主导航的 About 折叠组。'
+    //   note: '规划单页，归入主导航 About 折叠组。'
     // }
   ];
 
@@ -128,6 +140,21 @@
     aliasOf: function (name) {
       var def = this.get(name);
       return def && def.alias ? this.get(def.alias) : null;
+    },
+
+    getTitle: function (name, fallback) {
+      var def = this.get(name);
+      return (def && def.title) || fallback || '';
+    },
+
+    getHeaderTitle: function (name, fallback) {
+      var def = this.get(name);
+      return (def && (def.headerTitle || def.title)) || fallback || '';
+    },
+
+    getDescription: function (name, fallback) {
+      var def = this.get(name);
+      return (def && def.description) || fallback || '';
     },
 
     // 派生路由字典：name -> path。router.js / store.js / app.js 读的就是它。

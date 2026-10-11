@@ -254,7 +254,7 @@ window.BlogApp = {
 
   setDocumentTitle: function(title) {
     var site = (window.BlogStore && window.BlogStore.site) || {};
-    var siteTitle = site.title || 'Aurora Notes';
+    var siteTitle = site.title || 'CCC de Notes';
     var full = title && title !== siteTitle ? title + ' · ' + siteTitle : siteTitle;
     document.title = full;
     // Hash 路由下所有页面共享同一个物理 URL，故 og:url / canonical 始终指向站点根。
@@ -525,7 +525,11 @@ window.BlogApp = {
       '<div class="text-[12px] font-mono text-muted mb-3">404 · ' + this.escapeHtml(path || '/') + '</div>' +
       '<h1 class="text-[32px] font-bold text-primary mb-3 font-sans">Page not found</h1>' +
       '<p class="text-[15px] text-secondary mb-6">The requested route does not exist or has moved.</p>' +
-      '<a href="' + this.routeHref('home') + '" class="btn-primary inline-flex">Back to home</a>' +
+      '<div class="flex items-center justify-center gap-3">' +
+      '  <a href="' + this.routeHref('home') + '" class="btn-primary inline-flex">Back to home</a>' +
+      '  <a href="' + this.routeHref('archive') + '" class="px-3 py-1.5 rounded-lg text-[13px] font-medium bg-[#111113] border border-white/[0.08] hover:border-white/[0.16] text-[#EDEDED] transition-all inline-flex">Archive</a>' +
+      '  <a href="' + this.routeHref('tags') + '" class="px-3 py-1.5 rounded-lg text-[13px] font-medium bg-[#111113] border border-white/[0.08] hover:border-white/[0.16] text-[#EDEDED] transition-all inline-flex">Tags</a>' +
+      '</div>' +
       '</div>';
   },
 
@@ -1089,10 +1093,14 @@ window.BlogApp = {
       return;
     }
 
-    this.setDocumentTitle('Columns');
+    var colTitle = (window.BlogRouteRegistry && window.BlogRouteRegistry.getHeaderTitle('columns')) || 'Columns';
+    var colDesc = (window.BlogRouteRegistry && window.BlogRouteRegistry.getDescription('columns')) || 'Curated technical collections and deep dives into computing fundamentals.';
+    this.setDocumentTitle(colTitle);
     html += '  <header class="mb-10 pb-6 border-b border-divider">';
-    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-2 font-sans">Columns</h1>';
-    html += '    <p class="text-[16px] text-secondary leading-relaxed max-w-[620px]">Curated technical collections and deep dives into computing fundamentals.</p>';
+    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + this.escapeHtml(colTitle) + '</h1>';
+    if (colDesc) {
+      html += '    <p class="text-[16px] text-secondary leading-relaxed max-w-[620px]">' + this.escapeHtml(colDesc) + '</p>';
+    }
     html += '  </header>';
 
     if (columns.length === 0) {
@@ -1157,13 +1165,17 @@ window.BlogApp = {
 
     var years = Object.keys(yearMap).sort().reverse();
 
-    this.setDocumentTitle('Archive');
+    var archiveTitle = (window.BlogRouteRegistry && window.BlogRouteRegistry.getHeaderTitle('archive')) || 'Archive';
+    var archiveDesc = (window.BlogRouteRegistry && window.BlogRouteRegistry.getDescription('archive')) || 'Chronological timeline of research essays, architecture notes, and publications.';
+    this.setDocumentTitle(archiveTitle);
     var html = '<div class="shell mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
     // 归档页不使用任何横向分割线（页面头部、年份分组、条目行都不画线）：
     // 层次完全靠字号、等宽体与留白建立，与全站「细线」语言区分开，是本页既有的设计语言。
     html += '  <header class="mb-10">';
-    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-2 font-sans">Archive</h1>';
-    html += '    <p class="text-[16px] text-secondary">Chronological timeline of research essays, architecture notes, and publications.</p>';
+    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + this.escapeHtml(archiveTitle) + '</h1>';
+    if (archiveDesc) {
+      html += '    <p class="text-[16px] text-secondary">' + this.escapeHtml(archiveDesc) + '</p>';
+    }
     html += '  </header>';
 
     years.forEach(function(yr) {
@@ -1250,11 +1262,16 @@ window.BlogApp = {
       });
     }
 
-    this.setDocumentTitle('Tags');
+    var tagTitle = (window.BlogRouteRegistry && window.BlogRouteRegistry.getTitle('tags')) || 'Tags';
+    var tagHeaderTitle = (window.BlogRouteRegistry && window.BlogRouteRegistry.getHeaderTitle('tags')) || 'Tags & Sorted Topics';
+    var tagDesc = (window.BlogRouteRegistry && window.BlogRouteRegistry.getDescription('tags')) || 'Select single or multiple tags to filter articles with precise multi-dimensional intersection.';
+    this.setDocumentTitle(tagTitle);
     var html = '<div class="shell mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
     html += '  <header class="mb-8 pb-6 border-b border-divider">';
-    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] mb-2 font-sans">Tags & Sorted Topics</h1>';
-    html += '    <p class="text-[16px] text-secondary">Select single or multiple tags to filter articles with precise multi-dimensional intersection.</p>';
+    html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] mb-2 font-sans">' + this.escapeHtml(tagHeaderTitle) + '</h1>';
+    if (tagDesc) {
+      html += '    <p class="text-[16px] text-secondary">' + this.escapeHtml(tagDesc) + '</p>';
+    }
     html += '  </header>';
 
     // 标签索引：紧凑胶囊云，换行排列（保留既有 UI，不做桌面端整行磁贴展开）

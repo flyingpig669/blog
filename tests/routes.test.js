@@ -104,3 +104,13 @@ test('validation catches navigation declaration and alias violations', () => {
   assert.match(validateWith(t => { t[4].alias = 'nowhere'; }), /alias 指向的模块 "nowhere" 不存在/);
   assert.match(validateWith(t => { t[4].alias = 'posts'; }), /alias 不能指向自己/);
 });
+
+test('route registry provides title, header title and description helpers', () => {
+  const { BlogRouteRegistry: registry } = load();
+  assert.equal(registry.getTitle('columns'), 'Columns');
+  assert.equal(registry.getHeaderTitle('tags'), 'Tags & Sorted Topics');
+  assert.equal(registry.getTitle('tags'), 'Tags');
+  assert.match(registry.getDescription('archive'), /Chronological timeline/);
+  assert.equal(registry.getTitle('missing', 'Fallback'), 'Fallback');
+  assert.equal(registry.getDescription('missing'), '');
+});
