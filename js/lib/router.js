@@ -4,34 +4,14 @@ window.BlogRouter = {
     var raw = (window.BlogStore.config && window.BlogStore.config.nav) || (window.BlogConfig && window.BlogConfig.nav) || [];
     var list = [];
     var self = this;
-    raw.forEach(function(item) {
-      if (Array.isArray(item)) {
-        item.forEach(function(sub, idx) {
-          var copy = Object.assign({}, sub);
-          copy._parentGroup = item[0].id;
-          copy._isFolded = idx > 0;
-          copy._route = self.navItemRoute(copy);
-          list.push(copy);
-        });
-      } else if (item && (item.items || item.children)) {
-        var copyParent = Object.assign({}, item);
-        copyParent._route = self.navItemRoute(copyParent);
-        list.push(copyParent);
-        var subs = item.items || item.children;
-        if (Array.isArray(subs)) {
-          subs.forEach(function(sub) {
-            var copySub = Object.assign({}, sub);
-            copySub._parentGroup = item.id;
-            copySub._isFolded = true;
-            copySub._route = self.navItemRoute(copySub);
-            list.push(copySub);
-          });
-        }
-      } else if (item) {
-        var single = Object.assign({}, item);
-        single._route = self.navItemRoute(single);
-        list.push(single);
-      }
+    window.BlogRouteRegistry.navGroups(raw).forEach(function(group) {
+      [group.head].concat(group.folded).forEach(function(item, index) {
+        var copy = Object.assign({}, item);
+        if (group.folded.length) copy._parentGroup = group.head.id;
+        copy._isFolded = index > 0;
+        copy._route = self.navItemRoute(copy);
+        list.push(copy);
+      });
     });
     return list;
   },
@@ -140,7 +120,6 @@ window.BlogRouter = {
 
     var routes = this.getRoutes();
     var postsRoute = routes.posts || '/posts';
-    var columnsRoute = routes.columns || '/columns';
     var tagsRoute = routes.tags || '/tags';
 
     document.querySelectorAll('[data-nav-link]').forEach(function(link) {
@@ -182,22 +161,31 @@ window.BlogRouter = {
       return;
     }
 
-    // 专栏统一多级路由: #/columns, #/columns/:colId, #/columns/:colId/:postSlug
-    if (path === columnsRoute || path.indexOf(columnsRoute + '/') === 0) {
-      var colParts = path.slice(columnsRoute.length).replace(/^\//, '').split('/').filter(Boolean);
-      this.setActiveNav('columns');
-      if (colParts.length === 0) {
-        this.currentRoute = { name: 'columns', params: {} };
-        this.renderColumnsView();
-      } else if (colParts.length === 1) {
-        var columnId = this.safeDecode(colParts[0]);
-        this.currentRoute = { name: 'column-detail', params: { colId: columnId } };
-        this.renderColumnsView(columnId);
-      } else {
-        // 兼容旧的 /columns/:column/:post，并收敛为 /posts/:slug。
-        var columnPostSlug = this.safeDecode(colParts.slice(1).join('/'));
-        window.location.replace(this.postHref(columnPostSlug));
+    // Collection modules share the same list/detail dispatch, derived from the registry.
+    var collectionDef = window.BlogRouteTable.find(function(def) {
+      return def.view === 'columns' && def.kind === 'collection' &&
+        (path === def.path || path.indexOf(def.path + '/') === 0);
+    });
+    if (collectionDef) {
+      var colParts = path.slice(collectionDef.path.length).replace(/^\//, '').split('/').filter(Boolean);
+      this.setActiveNav(collectionDef.name);
+      if (colParts.length > 1) {
+        if (collectionDef.name === 'columns') {
+          window.location.replace(this.postHref(this.safeDecode(colParts.slice(1).join('/'))));
+        } else {
+          this.renderNotFoundView(path);
+        }
+        return;
       }
+      var columnId = colParts.length ? this.safeDecode(colParts[0]) : null;
+      var column = columnId && window.BlogStore.getColumnById(columnId);
+      var owner = column && window.BlogRouteRegistry.collectionFor(column);
+      if (column && owner.name !== collectionDef.name) {
+        window.location.replace(this.columnHref(column));
+        return;
+      }
+      this.currentRoute = { name: columnId ? collectionDef.name + '-detail' : collectionDef.name, params: { colId: columnId } };
+      this.renderColumnsView(columnId, collectionDef.name);
       return;
     }
 
@@ -242,9 +230,6 @@ window.BlogRouter = {
 
     if (matchedNavItem) {
       this.setActiveNav(matchedNavItem.id);
-      if (matchedNavItem._parentGroup) {
-        this.setActiveNav(matchedNavItem._parentGroup);
-      }
       this.dispatchNavItem(matchedNavItem, path);
       return;
     }
@@ -285,7 +270,7 @@ window.BlogRouter = {
       this.renderHomeView();
     } else if (view === 'columns') {
       this.currentRoute = { name: 'columns', params: {} };
-      this.renderColumnsView();
+      this.renderColumnsView(null, navId);
     } else if (view === 'archive') {
       this.currentRoute = { name: 'archive', params: {} };
       this.renderArchivesView();

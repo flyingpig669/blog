@@ -46,7 +46,11 @@ function routeExists(route) {
   const [base, query = ''] = route.replace(/^#/, '').split('?');
   if (registryPaths.includes(base) || navigation.some(item => item._route === base)) return true;
   if (base.startsWith(config.routes.posts + '/')) return !!store.getPostById(decodeURIComponent(base.slice(config.routes.posts.length + 1)));
-  if (base.startsWith(config.routes.columns + '/')) return !!store.getColumnById(decodeURIComponent(base.slice(config.routes.columns.length + 1)));
+  const collection = registry.table().find(def => def.view === 'columns' && def.kind === 'collection' && base.startsWith(def.path + '/'));
+  if (collection) {
+    const column = store.getColumnById(decodeURIComponent(base.slice(collection.path.length + 1)));
+    return !!column && registry.collectionFor(column).name === collection.name;
+  }
   if (base.startsWith(config.routes.tags + '/')) {
     const tags = store.getAllTags().map(tag => store.tagSlug(tag.name));
     return base.slice(config.routes.tags.length + 1).split('/').every(tag => tags.includes(decodeURIComponent(tag)));

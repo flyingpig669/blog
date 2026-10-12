@@ -211,6 +211,8 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 | Roadmap | `/roadmap` | 规划单页，归入主导航 About 折叠组 |
 | Post Detail | `/posts/:slug` | 文章详情，使用语义化 slug |
 | Posts（兼容别名） | `/posts` | **不渲染独立页面**：命中后立即 `replaceState` 收敛到 `/archive`（由路由表的 `alias` 字段声明），避免同一内容存在两个 URL |
+| Books | `/books` | 书目列表，复用单栏集合视图 |
+| Book Detail | `/books/:slug` | 书籍章节目录；章节正文使用 `/posts/:slug` |
 | Columns | `/columns` | 专栏列表，复数 |
 | Column Detail | `/columns/:columnSlug` | 某专栏下的文章列表 |
 | Tags | `/tags` | 标签列表 |

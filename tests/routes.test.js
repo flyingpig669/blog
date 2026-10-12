@@ -42,9 +42,9 @@ test('navigation is derived from the table with grouping preserved', () => {
   const { BlogConfig, BlogRoutes } = load();
   const nav = BlogConfig.nav;
   // vm 里的数组与宿主 realm 的 Array 不同源，比较形状前先归一化。
-  // 同样不写死清单：只校验「前四项平铺 + 末项折叠组且含 About」这一结构。
+  // Books 折叠在 Columns 下，About 保持末位。
   const shape = Array.from(nav, item => (Array.isArray(item) ? Array.from(item, sub => sub.id) : item.id));
-  assert.deepEqual(shape.slice(0, 4), ['home', 'columns', 'archive', 'tags']);
+  assert.deepEqual(shape.slice(0, 4), ['home', ['columns', 'books'], 'archive', 'tags']);
   assert.ok(Array.isArray(shape[4]), '最后一项应是折叠组');
   assert.ok(shape[4].includes('about'), '折叠组里应包含 About');
   // 顶层项直接引用路由字典的值，不再各写一份字面量。
@@ -52,8 +52,25 @@ test('navigation is derived from the table with grouping preserved', () => {
   assert.equal(nav[3].target, BlogRoutes.tags);
   // 折叠组首项常显、其余进下拉，每项各自绑定一个 Markdown 文件。
   assert.equal(nav[4][0].target, 'file:about.md');
+  assert.equal(nav[1][0].target, BlogRoutes.columns);
+  assert.equal(nav[1][1].target, BlogRoutes.books);
   // posts 显式声明「有意不放入导航」，不该出现在任何一层里。
   assert.equal(nav.flat().some(item => item.id === 'posts'), false);
+});
+
+test('navigation normalization supports existing group formats without changing input', () => {
+  const { BlogRouteRegistry: registry } = load();
+  const head = { id: 'columns' };
+  const sub = { id: 'books' };
+  for (const input of [[head, sub], { ...head, items: [sub] }, { ...head, children: [sub] }]) {
+    const before = JSON.stringify(input);
+    const groups = registry.navGroups([null, [], input]);
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].head.id, 'columns');
+    assert.equal(groups[0].folded[0].id, 'books');
+    assert.equal(JSON.stringify(input), before);
+  }
+  assert.equal(registry.navGroups([head])[0].folded.length, 0);
 });
 
 test('posts is declared as a prefix that aliases to archive', () => {

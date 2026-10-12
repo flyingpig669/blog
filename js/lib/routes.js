@@ -70,7 +70,7 @@
       title: 'Columns',
       description: 'Curated technical collections and deep dives into computing fundamentals.',
       detail: '/columns/:columnSlug',
-      nav: { label: 'Columns' },
+      nav: { label: 'Columns', group: 'collections' },
       note: '专栏列表；二级为该专栏下的文章列表。'
     },
     {
@@ -104,6 +104,16 @@
       nav: { label: 'About', group: 'about', target: 'file:about.md' },
       note: '单页展示型，内容来自 about.md。'
     },
+    {
+      name: 'books', path: '/books', view: 'columns', shell: 'shell', kind: 'collection',
+      title: 'Books',
+      description: 'Books and guides, preserved with their original chapters and illustrations.',
+      detail: '/books/:slug',
+      category: 'books',
+      collectionLabel: 'BOOK',
+      nav: { label: 'Books', group: 'collections' },
+      note: '书目列表与章节目录；章节复用文章阅读视图。'
+    },
     // roadmap 归入 About 折叠组（如需启用，取消注释并在 routes 与 Markdown 同步即可）
     // {
     //   name: 'roadmap', path: '/roadmap', view: 'page', shell: 'shell', kind: 'page',
@@ -134,6 +144,32 @@
         if (!found && def.path === path) found = def;
       });
       return found;
+    },
+
+    // A collection's category selects its owning module for all index links.
+    collectionFor: function (column) {
+      var posts = (column && column.posts) || [];
+      return this.table().find(function (def) {
+        return def.view === 'columns' && def.category && posts.length &&
+          posts.every(function (post) { return post.category === def.category; });
+      }) || this.get('columns');
+    },
+
+    collectionsFor: function (moduleName, columns) {
+      var self = this;
+      return (columns || []).filter(function (column) {
+        return self.collectionFor(column).name === moduleName;
+      });
+    },
+
+    // Normalize navigation once for desktop, mobile, and route matching.
+    navGroups: function (nav) {
+      return (nav || []).filter(function (item) {
+        return item && (!Array.isArray(item) || item.length);
+      }).map(function (item) {
+        if (Array.isArray(item)) return { head: item[0], folded: item.slice(1) };
+        return { head: item, folded: item.items || item.children || [] };
+      });
     },
 
     // alias 目标的完整定义；目标缺失时返回 null（校验会另行报错）。

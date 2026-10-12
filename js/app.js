@@ -217,6 +217,12 @@ window.BlogApp = {
     return this.routeHref('posts', slug);
   },
 
+  columnHref: function(column) {
+    if (typeof column === 'string') column = window.BlogStore.getColumnById(column);
+    var def = window.BlogRouteRegistry.collectionFor(column);
+    return this.routeHref(def.name, column.id);
+  },
+
   tagHref: function(tag) {
     return this.routeHref('tags', window.BlogStore.tagSlug(tag));
   },
@@ -282,6 +288,7 @@ window.BlogApp = {
   // ----------------------------------------------------------------------------
   setupEventListeners: function() {
     var self = this;
+    this.bindExpandables(document.getElementById('app-main'));
 
     // 键盘快捷键 (Cmd+K / Ctrl+K 搜索, ESC 关闭)
     window.addEventListener('keydown', function(e) {
@@ -516,6 +523,12 @@ window.BlogApp = {
       link.classList.add('active');
       link.setAttribute('aria-current', 'page');
     });
+    var item = this.getFlattenedNav().find(function(item) { return item.id === id; });
+    if (item && item._isFolded) {
+      document.querySelectorAll('[data-nav-link="' + item._parentGroup + '"]').forEach(function(link) {
+        link.classList.add('active');
+      });
+    }
   },
 
   renderNotFoundView: function(path) {
@@ -679,7 +692,7 @@ window.BlogApp = {
 
   // 5.1 首页视图 (Home View)
   renderPostItem: function(post, selected) {
-    return window.BlogPostItem.render(post, { escapeHtml: this.escapeHtml.bind(this), postHref: this.postHref.bind(this), tagHref: this.tagHref.bind(this), routeHref: this.routeHref.bind(this), selected: selected, showPinned: this.currentRoute.name === "home" });
+    return window.BlogPostItem.render(post, { escapeHtml: this.escapeHtml.bind(this), postHref: this.postHref.bind(this), tagHref: this.tagHref.bind(this), columnHref: this.columnHref.bind(this), routeHref: this.routeHref.bind(this), selected: selected, showPinned: this.currentRoute.name === "home" });
   },
 
   renderHomeView: function() {
@@ -751,6 +764,8 @@ window.BlogApp = {
 
     // 专栏内部上下一篇与章节解析
     var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
+    var collectionDefinition = columnInfo && window.BlogRouteRegistry.collectionFor(columnInfo);
+    if (collectionDefinition) this.setActiveNav(collectionDefinition.name);
     var colPosts = [];
     var prevPost = null;
     var nextPost = null;
@@ -800,7 +815,7 @@ window.BlogApp = {
     html += '  <a href="' + this.routeHref('home') + '" class="text-secondary hover:text-accent transition-colors shrink-0">Writing</a>';
     if (columnInfo) {
       html += '  <span>/</span>';
-      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-secondary hover:text-accent transition-colors truncate max-w-[220px]" title="' + columnInfo.name.replace(/"/g, '&quot;') + '">' + window.BlogApp.escapeHtml(columnInfo.name) + '</a>';
+      html += '  <a href="' + this.columnHref(columnInfo) + '" class="text-secondary hover:text-accent transition-colors truncate max-w-[220px]" title="' + this.escapeHtml(columnInfo.name) + '">' + window.BlogApp.escapeHtml(columnInfo.name) + '</a>';
       html += '  <span>/</span>';
       html += '  <span class="text-accent shrink-0 font-semibold">Part ' + partNumber + '</span>';
     } else {
@@ -816,7 +831,7 @@ window.BlogApp = {
       html += '    <span class="px-1.5 py-0.2 rounded bg-accent/15 text-accent text-[10.5px] font-semibold shrink-0">PART ' + partNumber + ' / ' + (totalParts < 10 ? '0' + totalParts : totalParts) + '</span>';
       html += '    <span class="text-primary font-sans truncate">' + window.BlogApp.escapeHtml(columnInfo.name) + '</span>';
       html += '  </div>';
-      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-secondary hover:text-accent transition-colors shrink-0 ml-3 text-[11px]">Series Index →</a>';
+      html += '  <a href="' + this.columnHref(columnInfo) + '" class="text-secondary hover:text-accent transition-colors shrink-0 ml-3 text-[11px]">Series Index →</a>';
       html += '</div>';
     }
 
@@ -880,7 +895,7 @@ window.BlogApp = {
       var currentDisplayPart = colIndex !== -1 ? (colIndex + 1) : (post.order || 1);
       html += '<div class="flex items-center justify-between text-[11px] font-mono text-muted">';
       html += '  <span class="text-accent font-medium">SERIES · Chapter ' + currentDisplayPart + ' of ' + colPosts.length + ' in ' + window.BlogApp.escapeHtml(columnInfo.name) + '</span>';
-      html += '  <a href="' + this.routeHref('columns', columnInfo.id) + '" class="hover:text-accent transition-colors">All ' + colPosts.length + ' Chapters →</a>';
+      html += '  <a href="' + this.columnHref(columnInfo) + '" class="hover:text-accent transition-colors">All ' + colPosts.length + ' Chapters →</a>';
       html += '</div>';
     }
     html += '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">';
@@ -929,7 +944,7 @@ window.BlogApp = {
         html += '<div class="mb-5 pb-4 border-b border-divider">';
         html += '  <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-accent font-semibold mb-2">';
         html += '    <span>Series Chapters</span>';
-        html += '    <a href="' + this.routeHref('columns', columnInfo.id) + '" class="text-muted hover:text-accent transition-colors">Index →</a>';
+        html += '    <a href="' + this.columnHref(columnInfo) + '" class="text-muted hover:text-accent transition-colors">Index →</a>';
         html += '  </div>';
         html += '  <div class="space-y-1 max-h-[190px] overflow-y-auto no-scrollbar pr-1">';
         colPosts.forEach(function(cp, cidx) {
@@ -1050,30 +1065,33 @@ window.BlogApp = {
   },
 
   // 5.3 专栏视图 (Series / Columns View)
-  renderColumnsView: function(selectedColId) {
+  renderColumnsView: function(selectedColId, moduleName) {
+    moduleName = moduleName || 'columns';
+    var definition = window.BlogRouteRegistry.get(moduleName);
+    var collectionLabel = definition.collectionLabel || 'SERIES';
     var container = document.getElementById('app-main');
-    var columns = window.BlogStore.getColumns() || [];
+    var columns = window.BlogRouteRegistry.collectionsFor(moduleName, window.BlogStore.getColumns());
 
     // 列表页与详情页同为全站统一版心 .shell —— 全站只有文章详情页是 .shell-detail
     var html = '<div class="shell mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20">';
 
     if (selectedColId) {
-      var col = window.BlogStore.getColumnById(selectedColId);
+      var col = columns.find(function(col) { return col.id === selectedColId; });
       if (!col) {
         this.setDocumentTitle('Series Not Found');
         html += '<div class="py-24 text-center text-muted font-mono text-[14px]">';
         html += '  <p class="mb-3 text-secondary">Series not found.</p>';
-        html += '  <a href="' + this.routeHref('columns') + '" class="text-accent hover:underline">← Back to all series</a>';
+        html += '  <a href="' + this.routeHref(moduleName) + '" class="text-accent hover:underline">← ' + this.escapeHtml(definition.title) + '</a>';
         html += '</div></div>';
         container.innerHTML = html;
         return;
       }
       this.setDocumentTitle(col.name);
-      html += '<a href="' + this.routeHref('columns') + '" class="inline-flex items-center gap-1.5 text-[13px] font-mono text-secondary hover:text-accent transition-colors mb-6">← All Series</a>';
-      html += '<header class="mb-8 pb-6 border-b border-divider">';
+      html += '<a href="' + this.routeHref(moduleName) + '" class="inline-flex items-center gap-1.5 text-[13px] font-mono text-secondary hover:text-accent transition-colors mb-6">← All ' + this.escapeHtml(definition.title) + '</a>';
+      html += '<header class="mb-10 pb-6 border-b border-divider">';
       html += '  <div class="flex items-center gap-2 text-[12px] font-mono text-muted mb-2">';
       var partCount = col.postsCount || (col.posts || []).length;
-      html += '    <span>SERIES</span><span>·</span><span>' + partCount + (partCount === 1 ? ' Part' : ' Parts') + '</span>';
+      html += '    <span>' + this.escapeHtml(collectionLabel) + '</span><span>·</span><span>' + partCount + (partCount === 1 ? ' Part' : ' Parts') + '</span>';
       html += '  </div>';
       html += '  <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-3 font-sans">' + window.BlogApp.escapeHtml(col.name) + '</h1>';
       if (col.desc) html += '  <p class="text-[16px] text-secondary leading-relaxed">' + window.BlogApp.escapeHtml(col.desc) + '</p>';
@@ -1093,8 +1111,8 @@ window.BlogApp = {
       return;
     }
 
-    var colTitle = (window.BlogRouteRegistry && window.BlogRouteRegistry.getHeaderTitle('columns')) || 'Columns';
-    var colDesc = (window.BlogRouteRegistry && window.BlogRouteRegistry.getDescription('columns')) || 'Curated technical collections and deep dives into computing fundamentals.';
+    var colTitle = (window.BlogRouteRegistry && window.BlogRouteRegistry.getHeaderTitle(moduleName)) || 'Columns';
+    var colDesc = (window.BlogRouteRegistry && window.BlogRouteRegistry.getDescription(moduleName)) || 'Curated technical collections and deep dives into computing fundamentals.';
     this.setDocumentTitle(colTitle);
     html += '  <header class="mb-10 pb-6 border-b border-divider">';
     html += '    <h1 class="text-[32px] sm:text-[36px] font-bold text-primary tracking-[-0.02em] leading-[1.15] mb-2 font-sans">' + this.escapeHtml(colTitle) + '</h1>';
@@ -1118,7 +1136,7 @@ window.BlogApp = {
         var parts = col.postsCount || (col.posts || []).length;
         html += '  <section class="series-item">';
         html += '    <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-muted mb-2">';
-        html += '      <span class="px-1.5 py-0.5 rounded bg-white/[0.04] border border-divider">SERIES ' + num + '</span>';
+        html += '      <span class="px-1.5 py-0.5 rounded bg-white/[0.04] border border-divider">' + window.BlogApp.escapeHtml(collectionLabel) + ' ' + num + '</span>';
         html += '      <span>' + parts + (parts === 1 ? ' Part' : ' Parts') + '</span>';
         if (col.totalWords) {
           html += '      <span>·</span>';
@@ -1126,13 +1144,16 @@ window.BlogApp = {
         }
         html += '    </div>';
 
-        html += '    <h2 class="text-[22px] font-semibold text-primary tracking-tight mb-2"><a href="' + window.BlogApp.routeHref('columns', col.id) + '" class="hover:text-accent transition-colors">' + window.BlogApp.escapeHtml(col.name) + '</a></h2>';
+        html += '    <h2 class="text-[22px] font-semibold text-primary tracking-tight mb-2"><a href="' + window.BlogApp.columnHref(col) + '" class="hover:text-accent transition-colors">' + window.BlogApp.escapeHtml(col.name) + '</a></h2>';
         if (col.desc) {
           // line-clamp-2：描述长短不一会把条目撑成不等高，截断保证列表节奏一致
           html += '    <p class="text-[14px] text-secondary leading-relaxed mb-4 line-clamp-2">' + window.BlogApp.escapeHtml(col.desc) + '</p>';
         }
 
-        html += '    <div class="space-y-2 border-l border-subtle pl-4">';
+        var panelId = 'collection-chapters-' + idx;
+        var hasChapters = (col.posts || []).length > 0;
+        html += window.BlogApp.toggleHeadingHtml('div', 'text-[13px] text-secondary font-sans', '章节目录', panelId, hasChapters);
+        html += '    <div id="' + panelId + '" class="entry-panel" hidden><div class="space-y-2">';
         (col.posts || []).forEach(function(p) {
           var partNum = p.order < 10 ? '0' + p.order : p.order;
           html += '      <a href="' + window.BlogApp.postHref(p) + '" class="group flex items-baseline gap-3 py-1 text-[14px] text-secondary hover:text-accent transition-colors">';
@@ -1141,7 +1162,7 @@ window.BlogApp = {
           if (p.slide) html += '        <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-accent/10 text-accent shrink-0">SLIDE</span>';
           html += '      </a>';
         });
-        html += '    </div>';
+        html += '    </div></div>';
         html += '  </section>';
       });
       html += '</div>';
@@ -1459,8 +1480,6 @@ window.BlogApp = {
     html += '</div>';
     container.innerHTML = html;
 
-    // 折叠 / PDF 预览走事件委托，绑定一次即可覆盖后续所有重渲染
-    this.bindExpandables(container);
   },
 
   // ----------------------------------------------------------------------------

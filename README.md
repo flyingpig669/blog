@@ -187,20 +187,9 @@ window.BlogConfig = {
 - **`nav: null`** = 有意不放入导航（如 `posts` 仅是路径前缀），构建期会要求给出 `alias` 或理由。
 - 只想加一个站外入口（RSS、外链）时，才写进 `blog.config.js` 的 `nav` 尾部，且用 `href` 而不是 `target`。
 
-当前默认导航由下表七行派生（`posts` 无导航入口，故实际产出 6 项）：
+当前默认导航为 `Home / [Columns ▾ Books] / Archive / Tags / About`。Columns 与 Books 都在路由表的 `nav.group: 'collections'` 中声明，首项常显，Books 折叠到下拉；移动端沿用同一份配置，显示缩进子入口。About 保留独立导航位置。
 
-```javascript
-// js/lib/routes.js 摘录 —— 这才是唯一来源
-{ name: 'home',    path: '/',        nav: { label: 'Home' } },
-{ name: 'columns', path: '/columns', nav: { label: 'Columns' } },
-{ name: 'archive', path: '/archive', nav: { label: 'Archive' } },
-{ name: 'tags',    path: '/tags',    nav: { label: 'Tags' } },
-{ name: 'posts',   path: '/posts',   nav: null },   // 路径前缀，不是页面
-{ name: 'about',   path: '/about',   nav: { label: 'About',   group: 'about', target: 'file:about.md' } },
-{ name: 'roadmap', path: '/roadmap', nav: { label: 'Roadmap', group: 'about', target: 'file:posts/roadmap.md' } }
-```
-
-派生结果：`Home / Columns / Archive / Tags / [About ▾ Roadmap]`。
+桌面导航、移动端抽屉和路由匹配统一使用 `BlogRouteRegistry.navGroups()` 解析分组；链接 HTML 在 Navbar 中集中生成。Books 与 Columns 共用集合视图，归属和筛选统一由 `collectionFor()` / `collectionsFor()` 决定。
 
 ### 3. 四种扩展场景
 
@@ -749,3 +738,10 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 ## 开发约束
 
 UI、路由、样式与模块化的强制约束见 [`AGENTS.md`](AGENTS.md)。撰写前端代码前请务必阅读：它定义了设计令牌、版心几何、路由命名规范、导航准入流程与交付自检清单。
+
+
+### Books
+
+Books 入口由 `js/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `category: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
+
+已收录 John Wiegley 的 **Git from the Bottom Up**，18 个章节与小节、10 张插图；原文来源和 CC BY 4.0 许可保留在每篇正文。导入日期是本地收录日期。

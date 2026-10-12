@@ -10,9 +10,12 @@ function createApp() {
     head: { appendChild(script) { scripts.push(script); } }
   } };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/lib/routes.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(require.resolve('../js/lib/html.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(require.resolve('../js/lib/router.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(require.resolve('../js/app.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/components/publications.js'), 'utf8'), context);
+  context.window.BlogApp.publications = context.window.BlogPublications.create({ html: context.window.BlogHtml });
   return { app: context.window.BlogApp, context, scripts };
 }
 
@@ -23,6 +26,29 @@ test('missing file navigation renders not found', () => {
   app.renderNotFoundView = file => { missing = file; };
   app.renderFileTarget('missing.md', {});
   assert.equal(missing, 'missing.md');
+});
+
+test('book indexes and chapter links use their owning collection module', () => {
+  const { app, context } = createApp();
+  const book = { id: 'git-from-the-bottom-up', name: 'Git from the Bottom Up', posts: [
+    { slug: 'git-bottom-up-introduction', title: 'Introduction', category: 'books', order: 1 }
+  ] };
+  const column = { id: 'physics', name: 'Physics', posts: [{ category: 'physics' }] };
+  context.window.BlogStore = { getColumns: () => [book, column] };
+  const main = {};
+  context.document.getElementById = () => main;
+  app.setDocumentTitle = () => {};
+  assert.equal(app.columnHref(book), '#/books/git-from-the-bottom-up');
+  assert.equal(app.columnHref(column), '#/columns/physics');
+  app.renderColumnsView(null, 'books');
+  assert.match(main.innerHTML, /Git from the Bottom Up/);
+  assert.doesNotMatch(main.innerHTML, /Physics/);
+  app.renderColumnsView('git-from-the-bottom-up', 'books');
+  assert.match(main.innerHTML, /#\/books"/);
+  assert.match(main.innerHTML, /#\/posts\/git-bottom-up-introduction/);
+  app.renderColumnsView(null, 'columns');
+  assert.match(main.innerHTML, /Physics/);
+  assert.doesNotMatch(main.innerHTML, /Git from the Bottom Up/);
 });
 
 test('a stale document response cannot replace a newer route', async () => {
@@ -76,7 +102,7 @@ test('legacy hash paths with /blog prefix normalize via replaceState', () => {
     config: { defaultRoute: '/' }
   };
   context.window.BlogScrollState = { restore() {} };
-  context.window.BlogRouteRegistry = { aliasOf: () => null };
+  context.window.BlogRouteRegistry.aliasOf = () => null;
   context.window.BlogRoutes = { home: '/', archive: '/archive', posts: '/posts', tags: '/tags', columns: '/columns' };
   context.window.scrollTo = () => {};
   context.document.querySelectorAll = () => [];
