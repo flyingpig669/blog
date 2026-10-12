@@ -1,7 +1,6 @@
 ---
 title: "量子态演化与希尔伯特空间映射推导"
 date: "2026-10-10"
-category: "physics"
 tags: ["physics", "quantum", "mathematics"]
 excerpt: "严格遵循 KaTeX 兼容公理的高维复空间算符推导与密度矩阵演化笔记。"
 tocLevels: [2, 3]

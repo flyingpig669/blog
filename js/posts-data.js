@@ -460,7 +460,7 @@ window.BlogPostsData = {
       "sourcePath": "posts/hello-world.md",
       "relPath": "hello-world.md",
       "date": "2026-10-09",
-      "category": "general",
+      "category": "",
       "tags": [
         "Engineering",
         "Getting Started",
@@ -471,12 +471,12 @@ window.BlogPostsData = {
       "columnDesc": "",
       "order": 999,
       "readTime": "1 min read",
-      "words": 362,
+      "words": 360,
       "pinned": false,
       "isTest": false,
       "excerpt": "Aurora Notes is a place for long-form technical writing: system architecture notes, computing fundamentals, and the occasional detour into p...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/hello-world.5b81ba546214d836.json"
+      "bodyUrl": "data/documents/hello-world.5a93840425334b7c.json"
     },
     "quantum-simulator": {
       "id": "post-quantum-simulator",
@@ -486,7 +486,7 @@ window.BlogPostsData = {
       "sourcePath": "posts/quantum-simulator.md",
       "relPath": "quantum-simulator.md",
       "date": "2026-10-09",
-      "category": "physics",
+      "category": "",
       "tags": [
         "quantum",
         "systems"
@@ -501,7 +501,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "基于高维复希尔伯特空间演化的轻量级量子计算仿真核心架构，附带演讲幻灯片展示。",
       "tocLevels": null,
-      "bodyUrl": "data/documents/quantum-simulator.f50dc4c1afa13658.json"
+      "bodyUrl": "data/documents/quantum-simulator.d265cb600bbea7b9.json"
     },
     "roadmap": {
       "id": "post-roadmap",
@@ -511,10 +511,8 @@ window.BlogPostsData = {
       "sourcePath": "posts/roadmap.md",
       "relPath": "roadmap.md",
       "date": "2026-10-12",
-      "category": "general",
-      "tags": [
-        "general"
-      ],
+      "category": "",
+      "tags": [],
       "column": "",
       "columnName": "",
       "columnDesc": "",
@@ -528,7 +526,7 @@ window.BlogPostsData = {
         2,
         3
       ],
-      "bodyUrl": "data/documents/roadmap.34edd2039aa4341a.json"
+      "bodyUrl": "data/documents/roadmap.c22137c303415bfd.json"
     },
     "group-theory-intro": {
       "id": "post-col-group-theory-group-theory-intro",
@@ -538,7 +536,7 @@ window.BlogPostsData = {
       "sourcePath": "posts/群论/01-简介.md",
       "relPath": "群论/01-简介.md",
       "date": "2026-10-09",
-      "category": "群论",
+      "category": "",
       "tags": [
         "algebra",
         "math"
@@ -553,7 +551,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "抽象代数研究代数结构及其公理化体系，从对称性到群环域。",
       "tocLevels": null,
-      "bodyUrl": "data/documents/group-theory-intro.008c8150dd828501.json"
+      "bodyUrl": "data/documents/group-theory-intro.82f4f71171a191e1.json"
     },
     "quantum-mechanics-assignments": {
       "id": "post-quantum-mechanics-assignments",
@@ -563,7 +561,7 @@ window.BlogPostsData = {
       "sourcePath": "posts/量子力学作业.md",
       "relPath": "量子力学作业.md",
       "date": "2026-10-11",
-      "category": "physics",
+      "category": "",
       "tags": [
         "quantum-mechanics",
         "assignments",
@@ -582,7 +580,7 @@ window.BlogPostsData = {
         2,
         3
       ],
-      "bodyUrl": "data/documents/quantum-mechanics-assignments.ea4aa3064ec196ad.json"
+      "bodyUrl": "data/documents/quantum-mechanics-assignments.1ed7ae08a09ffa4b.json"
     },
     "about": {
       "slug": "about",
@@ -756,5 +754,5 @@ window.BlogPostsData = {
     }
   ],
   "about": "about",
-  "searchUrl": "data/search.9e2b888f449124f4.json"
+  "searchUrl": "data/search.92e869a42a1ef01c.json"
 };

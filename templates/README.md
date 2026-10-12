@@ -50,7 +50,6 @@ cp templates/template-publications-page.md posts/publications.md
 title: "文章大标题"                    # 文章主标题 (必填)
 date: "2026-10-10"                   # 发布日期 YYYY-MM-DD (选填，默认为当前日期)
 slug: "my-article-slug"              # URL 标识 (选填，默认取文件名；支持中文；可显式声明以保持地址稳定)
-category: "engineering"              # 默认主分类 (选填)
 tags: ["tech", "systems"]            # 标签数组，用于 Tags 页面多选组合检索 (选填)
 excerpt: "一句话文章摘要简介"           # 呈现在首页与列表中的简要导读 (选填)
 
@@ -94,3 +93,6 @@ focusAreas:
 tocLevels: [2, 3]                    # 指定 TOC 追踪的标题层级数组 (如 [2, 3]、[2, 3, 4] 或 false)
 ---
 ```
+
+
+`category` 仅标识内容结构：书籍章节填写 `category: "books"`，目录／索引页填写 `category: "index"`，普通文章省略。物理、工程等主题全部放在 `tags` 中；不会再根据目录名生成分类或默认标签。

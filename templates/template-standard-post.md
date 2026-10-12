@@ -1,7 +1,6 @@
 ---
 title: "标准技术博文标题"
 date: "2026-10-10"
-category: "engineering"
 tags: ["systems", "architecture", "performance"]
 excerpt: "这里是一句话文章摘要（140字以内），将直观呈现在首页博文流与标签检索列表中。"
 pinned: false            # 是否置顶于首页 (true / false)

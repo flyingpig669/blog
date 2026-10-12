@@ -101,7 +101,7 @@ def parse_md_file(filepath, words_per_minute=300):
     filename = os.path.basename(filepath)
     title = ""
     date = time.strftime("%Y-%m-%d")
-    category = "general"
+    category = ""
     column = ""
     column_name = ""
     column_slug = ""
@@ -121,8 +121,6 @@ def parse_md_file(filepath, words_per_minute=300):
 
     if len(path_parts) >= 3 and path_parts[0] in ["columns", "series", "column"]:
         column = path_parts[1]
-    elif len(path_parts) == 2:
-        category = path_parts[0]
 
     m = re.match(r"^(\d+)[-_.]", filename)
     if m:
@@ -138,7 +136,9 @@ def parse_md_file(filepath, words_per_minute=300):
             elif key == "date":
                 date = val
             elif key == "category":
-                category = val
+                category = val.strip()
+                if category and category not in {"books", "index"}:
+                    raise ValueError(f"{rel_path}: category 仅支持 books 或 index；主题分类请使用 tags")
             elif key in ["column", "series"]:
                 column = val
             elif key in ["columnname", "column_name", "columntitle", "column_title"]:
@@ -237,7 +237,7 @@ def parse_md_file(filepath, words_per_minute=300):
         "attachments": attachments,
         "tocLevels": toc_levels,
         "excerpt": excerpt,
-        "tags": tags or [category],
+        "tags": tags,
         "content": content
     }
 

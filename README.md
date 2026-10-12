@@ -216,7 +216,7 @@ window.BlogConfig = {
 - 下拉面板样式定义在 [`css/main.css`](css/main.css) 的 `.nav-dropdown` / `.nav-dropdown-panel`，支持 **鼠标 hover、键盘 focus、点击箭头** 三种展开方式；点击页面其它区域或切换路由会自动收起。
 - **实现红线**：导航容器 `#desktop-nav` 上**禁止**使用任何 `overflow-*`。`overflow-x-auto` 会把 `overflow-y` 一并变为 `auto`，从而裁掉绝对定位的下拉面板（这正是历史 bug「展开啥都没有」的根因）。同理，下拉菜单不使用 Tailwind 命名 group 变体（`group-hover/xxx`），因为导航 HTML 是运行时注入的，命名变体样式可能来不及生成。
 
-> 路由模式导航项还可附带 `title` / `subtitle` / `category` / `tag` / `items` 字段，走通用动态栏目渲染器（按分类/标签筛选，或渲染声明式卡片集合）。
+> 路由模式导航项还可附带 `title` / `subtitle` / `tag` / `items` 字段，走通用动态栏目渲染器（按标签筛选，或渲染声明式卡片集合）。普通文章不再填写 `category`，主题使用 `tags`；书籍章节使用 `category: books`，目录／索引页使用 `category: index`。
 
 ---
 
@@ -284,7 +284,6 @@ social:
 title: "我的第一篇技术文章"
 date: "2026-10-09"
 slug: "my-first-post"        # URL 标识；支持中文，省略时从文件名生成
-category: "architecture"
 tags: ["分布式", "架构设计"]
 pinned: false
 excerpt: "一句话摘要；不填写则自动截取正文前 140 字符。"
@@ -745,3 +744,6 @@ UI、路由、样式与模块化的强制约束见 [`AGENTS.md`](AGENTS.md)。�
 Books 入口由 `js/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `category: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
 
 已收录 John Wiegley 的 **Git from the Bottom Up**，18 个章节与小节、10 张插图；原文来源和 CC BY 4.0 许可保留在每篇正文。导入日期是本地收录日期。
+
+
+普通文章与模板已移除 `physics`、`engineering`、`general` 等主题分类。`category` 现在只接受 `books`、`index` 或省略；主题使用中文或英文标签，省略标签时不会自动生成目录名标签。

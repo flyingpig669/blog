@@ -61,6 +61,21 @@ class ContentTests(unittest.TestCase):
             self.assertEqual(post['tags'], ["量子力学"])
             self.assertFalse(sync_posts.valid_resource_slug("../作业"))
 
+    def test_category_only_marks_structure_without_implicit_topic_tags(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "sample.md"
+            file.write_text("# Sample\n", encoding="utf-8")
+            post = sync_posts.parse_md_file(str(file))
+            self.assertEqual(post['category'], "")
+            self.assertEqual(post['tags'], [])
+            file.write_text('---\ncategory: books\n---\nBody\n', encoding="utf-8")
+            self.assertEqual(sync_posts.parse_md_file(str(file))['category'], "books")
+            file.write_text('---\ncategory: index\n---\nBody\n', encoding="utf-8")
+            self.assertEqual(sync_posts.parse_md_file(str(file))['category'], "index")
+            file.write_text('---\ncategory: physics\n---\nBody\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "主题分类请使用 tags"):
+                sync_posts.parse_md_file(str(file))
+
     def test_toc_levels_validate_and_deduplicate(self):
         self.assertEqual(sync_posts.normalize_toc_levels(['2', '3', '2']), [2, 3])
         self.assertEqual(sync_posts.normalize_toc_levels('false'), [])

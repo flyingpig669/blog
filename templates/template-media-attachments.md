@@ -1,7 +1,6 @@
 ---
 title: "图片、下载与多媒体嵌入指南"
 date: "2026-10-11"
-category: "engineering"
 tags: ["media", "images", "attachments"]
 excerpt: "在正文中展示图片、提供文件下载、嵌入音视频的完整写法与全部边界情况。"
 tocLevels: [2, 3]

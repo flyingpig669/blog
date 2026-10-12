@@ -1,7 +1,6 @@
 ---
 title: "Hello World: Welcome to Aurora Notes"
 date: "2026-10-09"
-category: "general"
 tags: ["Engineering", "Getting Started", "Markdown"]
 pinned: false
 ---
@@ -15,7 +14,7 @@ plain Markdown, compiled ahead of time into a static site with no server and no 
 Articles live in `posts/`. A single file is a single article — drop a `.md` file in and it
 shows up in the archive the next time the site is built.
 
-- **Standalone articles** sit directly in `posts/`, or in a category folder such as `posts/physics/`.
+- **Standalone articles** sit directly in `posts/`, or in a topic folder such as `posts/physics/`.
 - **Series** live in a folder under `posts/columns/<slug>/`, numbered `01-…`, `02-…`. Files
   sharing that folder are grouped automatically into a column with previous/next navigation.
 
@@ -25,7 +24,6 @@ Each file opens with a small block of front matter that supplies the metadata fo
 ---
 title: "Article title"
 date: "2026-10-09"
-category: "physics"
 tags: ["algebra", "math"]
 excerpt: "One sentence shown in listings and search results."
 ---
