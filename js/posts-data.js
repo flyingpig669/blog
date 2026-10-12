@@ -555,6 +555,35 @@ window.BlogPostsData = {
       "tocLevels": null,
       "bodyUrl": "data/documents/group-theory-intro.008c8150dd828501.json"
     },
+    "quantum-mechanics-assignments": {
+      "id": "post-quantum-mechanics-assignments",
+      "slug": "quantum-mechanics-assignments",
+      "title": "量子力学作业",
+      "type": "normal",
+      "sourcePath": "posts/量子力学作业.md",
+      "relPath": "量子力学作业.md",
+      "date": "2026-10-11",
+      "category": "physics",
+      "tags": [
+        "quantum-mechanics",
+        "assignments",
+        "attachments"
+      ],
+      "column": "",
+      "columnName": "",
+      "columnDesc": "",
+      "order": 999,
+      "readTime": "1 min read",
+      "words": 45,
+      "pinned": false,
+      "isTest": false,
+      "excerpt": "量子力学作业",
+      "tocLevels": [
+        2,
+        3
+      ],
+      "bodyUrl": "data/documents/quantum-mechanics-assignments.ea4aa3064ec196ad.json"
+    },
     "about": {
       "slug": "about",
       "title": "About",
@@ -654,7 +683,11 @@ window.BlogPostsData = {
     "group-theory-intro": "group-theory-intro",
     "post-col-group-theory-group-theory-intro": "group-theory-intro",
     "posts/群论/01-简介.md": "group-theory-intro",
-    "群论/01-简介.md": "group-theory-intro"
+    "群论/01-简介.md": "group-theory-intro",
+    "quantum-mechanics-assignments": "quantum-mechanics-assignments",
+    "post-quantum-mechanics-assignments": "quantum-mechanics-assignments",
+    "posts/量子力学作业.md": "quantum-mechanics-assignments",
+    "量子力学作业.md": "quantum-mechanics-assignments"
   },
   "posts": [
     "git-bottom-up-introduction",
@@ -678,7 +711,8 @@ window.BlogPostsData = {
     "hello-world",
     "quantum-simulator",
     "roadmap",
-    "group-theory-intro"
+    "group-theory-intro",
+    "quantum-mechanics-assignments"
   ],
   "columns": [
     {
@@ -722,5 +756,5 @@ window.BlogPostsData = {
     }
   ],
   "about": "about",
-  "searchUrl": "data/search.72472922324cf4a9.json"
+  "searchUrl": "data/search.9e2b888f449124f4.json"
 };
