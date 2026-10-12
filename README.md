@@ -60,7 +60,7 @@
 ├── sync_posts.py           # 内容编译脚本：扫描 posts/ 与 about.md → 生成 js/posts-data.js（+ sitemap.xml）
 ├── check.sh                # 一键自检：重建索引 → JS/Python/Shell 语法校验
 ├── server.py               # 本地预览服务器（多线程加固，默认端口 18888）
-├── run.sh                  # 启动脚本（等价于 python3 server.py）
+├── run.sh                  # 隔离预览构建并启动实时刷新服务器
 ├── deploy.sh               # 一键发布：自检 → 同步 → Commit → Push
 ├── robots.txt              # 爬虫规则（配合 blog.config.js 的 site.url 使用）
 ├── sitemap.xml             # ⚙ 自动生成：仅当 site.url 非空时产出
@@ -597,6 +597,8 @@ npm run build
 
 构建入口是 `scripts/build.js`；`run.sh` / `check.sh` 自动优先使用项目 `.venv`。使用其它 Python 环境可设置 `AURORA_PYTHON`。开发监听会同步重建 CSS 与内容，并排除生成数据、CSS、日志、依赖与缓存，避免刷新循环。
 
+**本地试改请用 `./run.sh`**：启动和保存时的生成数据、CSS、第三方依赖都写入已被 Git 忽略的 `.cache/preview/`，服务器将这些资源映射到原有 URL，浏览器仍能看到最新内容。源文件即时读取，不需要复制；预览不会改动或删除仓库中的发布产物。单独生成预览产物可用 `npm run build:preview`。正式 `npm run build`、`./check.sh` 和部署仍更新发布产物，确认发布时再将它们与源文件一起提交。
+
 公共模块分别位于 `js/components/`（导航、文章条目、论著、搜索）与 `js/lib/`（路由、滚动状态、HTML/URL 安全）。组件通过注入服务使用数据和路由，不反向依赖页面控制器。设计颜色与字体只在 `css/main.css` 令牌中定义，Tailwind 配置引用变量。
 
 Markdown 通过 DOMPurify 清理，再统一过滤链接/资源协议；前台标题与属性统一转义。搜索提供正文命中片段与安全高亮；章节标题旁的 `#` 可复制直达链接；About 提供区块跳转。普通文章按发布时间串联，专栏按章节顺序串联。
@@ -609,13 +611,13 @@ Markdown 通过 DOMPurify 清理，再统一过滤链接/资源协议；前台�
 cd ~/Documents/blog
 
 # 方式 1：后台守护进程（默认端口 18888）
-python3 server.py --daemon
+./run.sh --daemon
 
 # 方式 2：启动脚本
 ./run.sh
 
 # 方式 3：自定义端口
-python3 server.py --port 8900
+./run.sh --port 8900
 ```
 
 浏览器打开 `http://127.0.0.1:18888/` 预览。

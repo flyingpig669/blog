@@ -10,6 +10,34 @@ import sync_posts
 
 
 class ContentTests(unittest.TestCase):
+    def test_preview_outputs_and_cleanup_leave_production_files_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'source'
+            preview = Path(directory) / 'preview'
+            posts = source / 'posts'
+            posts.mkdir(parents=True)
+            article = posts / 'sample.md'
+            article.write_text('---\ndate: "2026-10-12"\n---\nFirst body\n', encoding='utf-8')
+            production = source / 'js/posts-data.js'
+            production.parent.mkdir()
+            production.write_text('production sentinel', encoding='utf-8')
+            stale = source / 'data/documents/sample.0000000000000000.json'
+            stale.parent.mkdir(parents=True)
+            stale.write_text('production body', encoding='utf-8')
+            with patch.object(sync_posts, 'BASE_DIR', str(source)), patch.object(sync_posts, 'POSTS_DIR', str(posts)), patch.dict(os.environ, AURORA_OUTPUT_DIR=str(preview)), contextlib.redirect_stdout(io.StringIO()):
+                sync_posts.sync()
+                old_bodies = list((preview / 'data/documents').glob('*.json'))
+                unchanged_mtime = old_bodies[0].stat().st_mtime_ns
+                sync_posts.sync()
+                self.assertEqual(old_bodies[0].stat().st_mtime_ns, unchanged_mtime)
+                article.write_text('---\ndate: "2026-10-12"\n---\nUpdated body\n', encoding='utf-8')
+                sync_posts.sync()
+            self.assertEqual(production.read_text(), 'production sentinel')
+            self.assertEqual(stale.read_text(), 'production body')
+            self.assertFalse(old_bodies[0].exists())
+            self.assertEqual(len(list((preview / 'data/documents').glob('*.json'))), 1)
+            self.assertIn('sample', (preview / 'js/posts-data.js').read_text())
+
     def test_shared_frontmatter_strings_and_lists(self):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "sample.md"

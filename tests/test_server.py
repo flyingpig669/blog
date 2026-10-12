@@ -2,6 +2,7 @@ import threading
 import unittest
 import urllib.request
 import tempfile
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -51,6 +52,28 @@ class WatcherTests(unittest.TestCase):
 
 
 class RedirectTests(unittest.TestCase):
+    def test_preview_serves_generated_overlay_and_sources_without_stale_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'source'
+            preview = Path(directory) / 'preview'
+            for base, name, content in [
+                (source, 'js/posts-data.js', 'production'),
+                (preview, 'js/posts-data.js', 'preview'),
+                (source, 'js/app.js', 'live source'),
+                (source, 'data/stale.json', 'stale production'),
+                (preview, 'data/documents/中文.json', 'new body'),
+            ]:
+                target = base / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content, encoding='utf-8')
+            handler = object.__new__(server.CustomHandler)
+            handler.directory = str(source)
+            with patch.dict(os.environ, AURORA_OUTPUT_DIR=str(preview)):
+                self.assertEqual(Path(handler.translate_path('/js/posts-data.js?v=1')).read_text(), 'preview')
+                self.assertEqual(Path(handler.translate_path('/js/app.js')).read_text(), 'live source')
+                self.assertEqual(Path(handler.translate_path('/data/documents/%E4%B8%AD%E6%96%87.json')).read_text(), 'new body')
+                self.assertFalse(Path(handler.translate_path('/data/stale.json')).exists())
+
     def test_legacy_blog_path_redirects_to_root(self):
         class QuietHandler(server.CustomHandler):
             def log_message(self, *_args):

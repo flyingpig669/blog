@@ -313,6 +313,16 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
 
+    def translate_path(self, path):
+        source = super().translate_path(path)
+        preview = os.environ.get("AURORA_OUTPUT_DIR")
+        relative = os.path.relpath(source, self.directory).replace(os.sep, "/")
+        generated = relative in {"js/posts-data.js", "css/utilities.css", "vendor/purify.min.js", "sitemap.xml"} or relative.startswith("data/")
+        if preview and generated:
+            # Missing preview data must 404 rather than expose stale production bodies.
+            return os.path.join(os.path.abspath(preview), relative)
+        return source
+
     # ---- 缓存策略 ----
     # 源码类资源必须每次回源，否则「保存即刷新」会刷出旧内容；
     # 但 vendor/ 是体积大且很少改动的第三方库（PDF.js 单文件 1.3MB），

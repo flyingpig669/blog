@@ -4,10 +4,11 @@ const path = require('node:path');
 const vm = require('node:vm');
 const marked = require('../vendor/marked.min.js');
 const root = path.resolve(__dirname, '..');
+const { resourcePath } = require('./generated-path');
 const context = { window: {}, console, localStorage: { removeItem() {}, getItem() {}, setItem() {} }, document: { documentElement: { classList: { add() {} } } } };
 vm.createContext(context);
 for (const name of ['js/lib/routes.js', 'blog.config.js', 'js/posts-data.js', 'js/lib/html.js', 'js/store.js', 'js/lib/router.js']) {
-  vm.runInContext(fs.readFileSync(path.join(root, name), 'utf8'), context, { filename: name });
+  vm.runInContext(fs.readFileSync(resourcePath(name), 'utf8'), context, { filename: name });
 }
 const { BlogStore: store, BlogRouter: router, BlogHtml: html, BlogConfig: config, BlogRouteRegistry: registry } = context.window;
 store.init();
@@ -90,7 +91,7 @@ function checkAsset(value, source) {
   const target = decodeURIComponent(value.split(/[?#]/)[0]).replace(/^(?:\/|\.{0,2}\/)+/, '');
   if (!target) return;
   const absolute = path.resolve(root, target);
-  if (!(absolute === root || absolute.startsWith(root + path.sep)) || !fs.existsSync(absolute)) fail(`${source}: missing resource ${value}`);
+  if (!(absolute === root || absolute.startsWith(root + path.sep)) || !fs.existsSync(resourcePath(target))) fail(`${source}: missing resource ${value}`);
   else if (!PUBLISHED_DIRS.some(dir => target.startsWith(dir)) && !PUBLISHED_FILES.has(target)) {
     fail(`${source}: resource ${value} 不在发布白名单内（本地可见、线上 404）。静态资源请放入 attachments/，见 templates/template-media-attachments.md`);
   }
@@ -129,7 +130,7 @@ function walk(tokens, source) {
 }
 for (const doc of Object.values(store.documents)) {
   checkAsset(doc.bodyUrl, doc.sourcePath);
-  const body = JSON.parse(fs.readFileSync(path.join(root, doc.bodyUrl), 'utf8'));
+  const body = JSON.parse(fs.readFileSync(resourcePath(doc.bodyUrl), 'utf8'));
   if (body.slug !== doc.slug || typeof body.content !== 'string') fail(`${doc.sourcePath}: invalid document body`);
   walk(marked.lexer(body.content), doc.sourcePath);
   for (const value of [...(body.attachments || []), body.slide, body.pdf].filter(Boolean)) checkAsset(value, doc.sourcePath);

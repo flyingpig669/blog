@@ -11,7 +11,8 @@
 #
 #   2. 以「监听文件变更 + 浏览器自动刷新」模式启动 server.py。
 #      保存 css/ js/ posts/ 下任意文件，浏览器会自动刷新；
-#      改动内容与前端源码时会先统一构建内容和 CSS 再刷新。
+#      改动内容与前端源码时会先在 .cache/preview/ 构建内容和 CSS 再刷新，
+#      不写回 Git 跟踪的发布产物。
 #
 # 用法：
 #   ./run.sh                      # 默认 18888，前台运行，Ctrl+C 停止
@@ -176,7 +177,8 @@ echo ""
 # "unbound variable"，所以绝不能把可能为空的 SERVER_ARGS 直接展开。
 PYTHON="${AURORA_PYTHON:-python3}"
 if [ -x "$DIR/.venv/bin/python" ]; then PYTHON="$DIR/.venv/bin/python"; fi
-AURORA_PYTHON="$PYTHON" npm run build
+export AURORA_OUTPUT_DIR="$DIR/.cache/preview"
+AURORA_PYTHON="$PYTHON" npm run build:preview
 CMD=("$PYTHON" server.py --port "$PORT")
 if [ "${#SERVER_ARGS[@]}" -gt 0 ]; then
   CMD+=("${SERVER_ARGS[@]}")
