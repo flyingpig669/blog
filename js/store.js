@@ -70,8 +70,8 @@ window.BlogStore = {
       return !self.isPostExcluded(p);
     });
 
-    if (filter.category && filter.category !== 'all') {
-      list = list.filter(function(p) { return p.category === filter.category; });
+    if (filter.type && filter.type !== 'all') {
+      list = list.filter(function(p) { return p.type === filter.type; });
     }
 
     if (filter.tag) {

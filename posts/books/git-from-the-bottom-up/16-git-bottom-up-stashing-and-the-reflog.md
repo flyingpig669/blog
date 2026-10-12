@@ -2,7 +2,7 @@
 title: "Stashing and the reflog"
 slug: "git-bottom-up-stashing-and-the-reflog"
 date: "2026-10-12"
-category: "books"
+type: "books"
 tags: ["Git", "Books"]
 column: "git-from-the-bottom-up"
 columnName: "Git from the Bottom Up"

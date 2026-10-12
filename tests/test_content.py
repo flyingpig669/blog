@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -10,6 +11,28 @@ import sync_posts
 
 
 class ContentTests(unittest.TestCase):
+    def test_compiled_types_keep_books_and_indexes_searchable_and_pages_separate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'source'
+            posts = source / 'posts'
+            posts.mkdir(parents=True)
+            for kind in ['normal', 'books', 'index', 'page']:
+                (posts / (kind + '.md')).write_text(f'---\ntype: {kind}\ndate: "2026-10-12"\n---\nSearchable {kind} body\n', encoding='utf-8')
+            output = Path(directory) / 'output'
+            with patch.object(sync_posts, 'BASE_DIR', str(source)), patch.object(sync_posts, 'POSTS_DIR', str(posts)), patch.dict(os.environ, AURORA_OUTPUT_DIR=str(output)), contextlib.redirect_stdout(io.StringIO()):
+                sync_posts.sync()
+            text = (output / 'js/posts-data.js').read_text()
+            index = json.loads(text.split(' = ', 1)[1].rstrip(';\n'))
+            search = json.loads((output / index['searchUrl']).read_text())
+            self.assertEqual(set(search), {'normal', 'books', 'index'})
+            self.assertEqual(index['documents']['page']['type'], 'post')
+            for kind in ['normal', 'books', 'index', 'page']:
+                doc = index['documents'][kind]
+                self.assertNotIn('category', doc)
+                body = json.loads((output / doc['bodyUrl']).read_text())
+                self.assertNotIn('category', body)
+                self.assertEqual(body['type'], doc['type'])
+
     def test_preview_outputs_and_cleanup_leave_production_files_untouched(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'source'
@@ -89,19 +112,23 @@ class ContentTests(unittest.TestCase):
             self.assertEqual(post['tags'], ["量子力学"])
             self.assertFalse(sync_posts.valid_resource_slug("../作业"))
 
-    def test_category_only_marks_structure_without_implicit_topic_tags(self):
+    def test_type_controls_structure_without_implicit_topic_tags(self):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "sample.md"
             file.write_text("# Sample\n", encoding="utf-8")
             post = sync_posts.parse_md_file(str(file))
-            self.assertEqual(post['category'], "")
+            self.assertEqual(post['type'], "normal")
+            self.assertNotIn('category', post)
             self.assertEqual(post['tags'], [])
-            file.write_text('---\ncategory: books\n---\nBody\n', encoding="utf-8")
-            self.assertEqual(sync_posts.parse_md_file(str(file))['category'], "books")
-            file.write_text('---\ncategory: index\n---\nBody\n', encoding="utf-8")
-            self.assertEqual(sync_posts.parse_md_file(str(file))['category'], "index")
+            file.write_text('---\ntype: books\n---\nBody\n', encoding="utf-8")
+            self.assertEqual(sync_posts.parse_md_file(str(file))['type'], "books")
+            file.write_text('---\ntype: index\n---\nBody\n', encoding="utf-8")
+            self.assertEqual(sync_posts.parse_md_file(str(file))['type'], "index")
+            file.write_text('---\ntype: physics\n---\nBody\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "type 仅支持"):
+                sync_posts.parse_md_file(str(file))
             file.write_text('---\ncategory: physics\n---\nBody\n', encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "主题分类请使用 tags"):
+            with self.assertRaisesRegex(ValueError, "category 已合并到 type"):
                 sync_posts.parse_md_file(str(file))
 
     def test_toc_levels_validate_and_deduplicate(self):

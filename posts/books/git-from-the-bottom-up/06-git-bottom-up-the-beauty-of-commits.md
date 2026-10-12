@@ -2,7 +2,7 @@
 title: "The beauty of commits"
 slug: "git-bottom-up-the-beauty-of-commits"
 date: "2026-10-12"
-category: "books"
+type: "books"
 tags: ["Git", "Books"]
 column: "git-from-the-bottom-up"
 columnName: "Git from the Bottom Up"

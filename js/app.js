@@ -755,7 +755,7 @@ window.BlogApp = {
       this.renderPageView(post);
       return;
     }
-    if (post.category === 'index') {
+    if (post.type === 'index') {
       this.renderIndexView(post);
       return;
     }
@@ -1494,15 +1494,15 @@ window.BlogApp = {
     }
     html += '</header>';
 
-    // 场景 A: 按分类或标签过滤博文流
-    if (item.category || item.tag) {
-      var filtered = window.BlogStore.getPosts({ category: item.category, tag: item.tag });
+    // 场景 A: 按内容类型或标签过滤博文流
+    if (item.type || item.tag) {
+      var filtered = window.BlogStore.getPosts({ type: item.type, tag: item.tag });
 
       html += '<section class="divide-y divide-white/[0.06]">';
       if (filtered.length === 0) {
         html += '<div class="py-20 text-center text-muted font-mono text-[14px]">';
         html += '  <p class="mb-2 text-secondary">No articles in this section yet.</p>';
-        html += '  <p class="text-[12px]">Add Markdown posts with <code class="text-primary bg-white/[0.06] px-1.5 py-0.5 rounded">category: "' + this.escapeHtml(item.category || item.tag) + '"</code> in posts/ to show here.</p>';
+        html += '  <p class="text-[12px]">Add Markdown posts with <code class="text-primary bg-white/[0.06] px-1.5 py-0.5 rounded">' + (item.type ? 'type: "' + this.escapeHtml(item.type) + '"' : 'tags: ["' + this.escapeHtml(item.tag) + '"]') + '</code> in posts/ to show here.</p>';
         html += '</div>';
       } else {
         filtered.forEach(function(post) { html += window.BlogApp.renderPostItem(post, null); });

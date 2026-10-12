@@ -2,7 +2,7 @@
 title: "A commit by any other name..."
 slug: "git-bottom-up-a-commit-by-any-other-name"
 date: "2026-10-12"
-category: "books"
+type: "books"
 tags: ["Git", "Books"]
 column: "git-from-the-bottom-up"
 columnName: "Git from the Bottom Up"

@@ -128,3 +128,16 @@ test('collection chapters always follow their order including zero', () => {
   store.rawColumns = [{ id: 'book', postIds: ['later', 'first', 'middle'] }];
   assert.deepEqual(Array.from(store.getColumns()[0].posts, p => p.slug), ['first', 'middle', 'later']);
 });
+
+test('content type filtering includes books and indexes in the post stream', () => {
+  const store = createStore();
+  store.posts = [
+    {slug: 'article', type: 'normal', date: '2026-10-12'},
+    {slug: 'chapter', type: 'books', date: '2026-10-12'},
+    {slug: 'index', type: 'index', date: '2026-10-12'},
+    {slug: 'page', type: 'post', date: '2026-10-12'}
+  ];
+  assert.equal(store.getPosts().length, 3);
+  assert.deepEqual(Array.from(store.getPosts({type: 'books'}), p => p.slug), ['chapter']);
+  assert.deepEqual(Array.from(store.getPosts({type: 'index'}), p => p.slug), ['index']);
+});

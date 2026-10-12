@@ -15,7 +15,7 @@ import time
 import hashlib
 import subprocess
 from xml.sax.saxutils import escape as escape_xml
-from lib.frontmatter import parse_frontmatter
+from lib.frontmatter import parse_frontmatter, normalize_doc_type
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 POSTS_DIR = os.path.join(BASE_DIR, "posts")
@@ -40,7 +40,6 @@ IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachme
 #   normal = 普通文章（默认，进入首页/归档/标签等博文流）
 #   post   = 结构化独立页（支持 focus/quote/bio/timeline/focusAreas/social 等区块，类似 about）
 # 兼容旧写法：page / page-mode / standalone 等一律归一化为 post。
-RICH_DOC_TYPES = {"post", "page", "page-mode", "standalone", "single", "page_mode"}
 
 def slugify(value):
     """生成 URL 安全的 slug：转小写，保留中日韩字符，其余非字母数字折叠为单个连字符。
@@ -96,14 +95,6 @@ process.stdout.write(JSON.stringify(context.window.BlogConfig));
     return cfg
 
 
-def normalize_doc_type(raw):
-    """把 FrontMatter 里的 type / layout 归一化为 normal 或 post。"""
-    value = (raw or "").strip().lower()
-    if value in RICH_DOC_TYPES:
-        return "post"
-    return "normal"
-
-
 def parse_md_file(filepath, words_per_minute=300):
     rel_path = os.path.relpath(filepath, POSTS_DIR)
     path_parts = rel_path.split(os.sep)
@@ -114,7 +105,6 @@ def parse_md_file(filepath, words_per_minute=300):
     filename = os.path.basename(filepath)
     title = ""
     date = time.strftime("%Y-%m-%d")
-    category = ""
     column = ""
     column_name = ""
     column_slug = ""
@@ -148,10 +138,6 @@ def parse_md_file(filepath, words_per_minute=300):
                 title = val
             elif key == "date":
                 date = val
-            elif key == "category":
-                category = val.strip()
-                if category and category not in {"books", "index"}:
-                    raise ValueError(f"{rel_path}: category 仅支持 books 或 index；主题分类请使用 tags")
             elif key in ["column", "series"]:
                 column = val
             elif key in ["columnname", "column_name", "columntitle", "column_title"]:
@@ -233,7 +219,6 @@ def parse_md_file(filepath, words_per_minute=300):
         "id": post_id,
         "slug": slug,
         "title": title,
-        "category": category,
         "column": column,
         "columnName": col_display,
         "columnDesc": column_desc,
@@ -462,6 +447,7 @@ def sync():
         aliases[key.lower()] = slug
     search = {}
     for slug, doc in documents.items():
+        doc['type'] = normalize_doc_type(doc.get('type', 'normal'))
         if not valid_resource_slug(slug):
             raise ValueError(f"{doc['sourcePath']}: slug 需使用中文、英文小写或数字")
         for alias in [slug, doc.get('id'), doc['sourcePath'], doc.get('relPath')]:
@@ -475,11 +461,11 @@ def sync():
         digest = hashlib.sha256(body.encode('utf-8')).hexdigest()[:16]
         body_url = f'data/documents/{slug}.{digest}.json'
         bodies[body_url] = body
-        keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'category', 'tags',
+        keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'tags',
                 'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'isTest', 'excerpt', 'tocLevels']
         documents[slug] = {key: doc[key] for key in keep if key in doc}
         documents[slug]['bodyUrl'] = body_url
-        if doc.get('type', 'normal') == 'normal':
+        if doc.get('type', 'normal') != 'post':
             search[slug] = doc.get('content', '')
     search_builder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts', 'search-text.js')
     search_text = subprocess.run(['node', search_builder], input=json.dumps(search, ensure_ascii=False), text=True, capture_output=True, check=True).stdout

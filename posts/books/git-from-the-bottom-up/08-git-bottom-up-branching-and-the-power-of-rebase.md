@@ -2,7 +2,7 @@
 title: "Branching and the power of rebase"
 slug: "git-bottom-up-branching-and-the-power-of-rebase"
 date: "2026-10-12"
-category: "books"
+type: "books"
 tags: ["Git", "Books"]
 column: "git-from-the-bottom-up"
 columnName: "Git from the Bottom Up"

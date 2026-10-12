@@ -60,7 +60,7 @@ columnName: "分布式系统与高可用架构"  # 专栏对外展示的中文�
 order: 1                             # 章节序号，专栏内以此顺序排定上一章/下一章 (整数)
 
 # 页面排版模式
-type: "normal"                       # "normal" (默认普通文章，进入博文流) 或 "post" (结构化独立页，类似 about)
+type: "normal"                       # normal（默认）、books（书籍章节）、index（知识索引）、post（结构化独立页）
 pinned: false                        # 是否在首页置顶展示 (true / false)
 
 # 附件与演示文稿
@@ -95,4 +95,4 @@ tocLevels: [2, 3]                    # 指定 TOC 追踪的标题层级数组 (�
 ```
 
 
-`category` 仅标识内容结构：书籍章节填写 `category: "books"`，目录／索引页填写 `category: "index"`，普通文章省略。物理、工程等主题全部放在 `tags` 中；不会再根据目录名生成分类或默认标签。
+内容结构统一使用 `type`：书籍章节填写 `type: "books"`，目录／索引页填写 `type: "index"`，普通文章省略或填写 `normal`，结构化独立页填写 `post`。`category` 已停用，物理、工程等主题全部放在 `tags` 中；不会再根据目录名生成分类或默认标签。

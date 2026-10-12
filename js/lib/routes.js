@@ -43,7 +43,7 @@
  *     target: 'dir:posts/notes', nav: { label: 'Notes' } },
  *
  * 一行即可：URL、导航项、渲染器分派、构建期校验全部就位。视图用 'dynamic' 表示
- * 交给通用动态栏目渲染器（按 category/tag 过滤、卡片集合、或渲染一份 Markdown）。
+ * 交给通用动态栏目渲染器（按 type/tag 过滤、卡片集合、或渲染一份 Markdown）。
  * 若需要全新版式，才去 app.js 写渲染器并把 view 指向它，同时同步 VIEW_VALUES。
  * ==============================================================================
  */
@@ -109,7 +109,7 @@
       title: 'Books',
       description: 'Books and guides, preserved with their original chapters and illustrations.',
       detail: '/books/:slug',
-      category: 'books',
+      contentType: 'books',
       collectionLabel: 'BOOK',
       nav: { label: 'Books', group: 'collections' },
       note: '书目列表与章节目录；章节复用文章阅读视图。'
@@ -156,12 +156,12 @@
       return /^[a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+(?:-[a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+)*$/.test(value);
     },
 
-    // A collection's category selects its owning module for all index links.
+    // A collection's content type selects its owning module for all index links.
     collectionFor: function (column) {
       var posts = (column && column.posts) || [];
       return this.table().find(function (def) {
-        return def.view === 'columns' && def.category && posts.length &&
-          posts.every(function (post) { return post.category === def.category; });
+        return def.view === 'columns' && def.contentType && posts.length &&
+          posts.every(function (post) { return post.type === def.contentType; });
       }) || this.get('columns');
     },
 

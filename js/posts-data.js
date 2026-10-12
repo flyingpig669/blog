@@ -6,11 +6,10 @@ window.BlogPostsData = {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-introduction",
       "slug": "git-bottom-up-introduction",
       "title": "Introduction",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/01-git-bottom-up-introduction.md",
       "relPath": "books/git-from-the-bottom-up/01-git-bottom-up-introduction.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -25,17 +24,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Welcome to the world of Git. I hope this document will help to advance your understanding of this powerful content tracking system, and reve...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-introduction.fd4c28e3a54b41ee.json"
+      "bodyUrl": "data/documents/git-bottom-up-introduction.1182bddacb30e63f.json"
     },
     "git-bottom-up-directory-content-tracking": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-directory-content-tracking",
       "slug": "git-bottom-up-directory-content-tracking",
       "title": "Repository: Directory content tracking",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/02-git-bottom-up-directory-content-tracking.md",
       "relPath": "books/git-from-the-bottom-up/02-git-bottom-up-directory-content-tracking.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -50,17 +48,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "As mentioned above, what Git does is quite rudimentary: it maintains snapshots of a directory’s contents. Much of its internal design can be...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-directory-content-tracking.e66f8e28c4088e5f.json"
+      "bodyUrl": "data/documents/git-bottom-up-directory-content-tracking.96a08d46bb0189c7.json"
     },
     "git-bottom-up-introducing-the-blob": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-introducing-the-blob",
       "slug": "git-bottom-up-introducing-the-blob",
       "title": "Introducing the blob",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/03-git-bottom-up-introducing-the-blob.md",
       "relPath": "books/git-from-the-bottom-up/03-git-bottom-up-introducing-the-blob.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -75,17 +72,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Now that the basic picture has been painted, let’s get into some practical examples. I’m going to start by creating a sample Git repository,...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-introducing-the-blob.67209a9696249c06.json"
+      "bodyUrl": "data/documents/git-bottom-up-introducing-the-blob.266d0fb6c562c654.json"
     },
     "git-bottom-up-blobs-are-stored-in-trees": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-blobs-are-stored-in-trees",
       "slug": "git-bottom-up-blobs-are-stored-in-trees",
       "title": "Blobs are stored in trees",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/04-git-bottom-up-blobs-are-stored-in-trees.md",
       "relPath": "books/git-from-the-bottom-up/04-git-bottom-up-blobs-are-stored-in-trees.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -100,17 +96,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "The contents of your files are stored in blobs, but those blobs are pretty featureless. They have no name, no structure — they're just \"blob...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-blobs-are-stored-in-trees.5f9f1e16f215289d.json"
+      "bodyUrl": "data/documents/git-bottom-up-blobs-are-stored-in-trees.fc403243ee958fee.json"
     },
     "git-bottom-up-how-trees-are-made": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-how-trees-are-made",
       "slug": "git-bottom-up-how-trees-are-made",
       "title": "How trees are made",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/05-git-bottom-up-how-trees-are-made.md",
       "relPath": "books/git-from-the-bottom-up/05-git-bottom-up-how-trees-are-made.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -125,17 +120,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Every commit holds a single tree, but how are trees made? We know that blobs are created by stuffing the contents of your files into blobs —...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-how-trees-are-made.996905fdc1a02dfd.json"
+      "bodyUrl": "data/documents/git-bottom-up-how-trees-are-made.e1565f9054f42048.json"
     },
     "git-bottom-up-the-beauty-of-commits": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-the-beauty-of-commits",
       "slug": "git-bottom-up-the-beauty-of-commits",
       "title": "The beauty of commits",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/06-git-bottom-up-the-beauty-of-commits.md",
       "relPath": "books/git-from-the-bottom-up/06-git-bottom-up-the-beauty-of-commits.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -150,17 +144,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Some version control systems make “branches” into magical things, often distinguishing them from the “main line” or “trunk”, while others di...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-the-beauty-of-commits.40a178f764ec7707.json"
+      "bodyUrl": "data/documents/git-bottom-up-the-beauty-of-commits.f2f091ea77a0db8a.json"
     },
     "git-bottom-up-a-commit-by-any-other-name": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-a-commit-by-any-other-name",
       "slug": "git-bottom-up-a-commit-by-any-other-name",
       "title": "A commit by any other name...",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/07-git-bottom-up-a-commit-by-any-other-name.md",
       "relPath": "books/git-from-the-bottom-up/07-git-bottom-up-a-commit-by-any-other-name.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -175,17 +168,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Understanding commits is the key to grokking Git. You’ll know you have reached the Zen plateau of branching wisdom when your mind contains o...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-a-commit-by-any-other-name.50397d2d77dc5c9e.json"
+      "bodyUrl": "data/documents/git-bottom-up-a-commit-by-any-other-name.811a53f9f2004f4a.json"
     },
     "git-bottom-up-branching-and-the-power-of-rebase": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-branching-and-the-power-of-rebase",
       "slug": "git-bottom-up-branching-and-the-power-of-rebase",
       "title": "Branching and the power of rebase",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/08-git-bottom-up-branching-and-the-power-of-rebase.md",
       "relPath": "books/git-from-the-bottom-up/08-git-bottom-up-branching-and-the-power-of-rebase.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -200,17 +192,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "One of Git’s most capable commands for manipulating commits is the innocently-named rebase command. Basically, every branch you work from ha...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-branching-and-the-power-of-rebase.f95b2c28a0b23b48.json"
+      "bodyUrl": "data/documents/git-bottom-up-branching-and-the-power-of-rebase.df06e457f19bac32.json"
     },
     "git-bottom-up-interactive-rebasing": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-interactive-rebasing",
       "slug": "git-bottom-up-interactive-rebasing",
       "title": "Interactive rebasing",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/09-git-bottom-up-interactive-rebasing.md",
       "relPath": "books/git-from-the-bottom-up/09-git-bottom-up-interactive-rebasing.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -225,17 +216,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "When rebase was run above, it automatically rewrote all the commits from W to Z in order to rebase the Z branch onto the D commit (i.e., the...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-interactive-rebasing.d1b8e6461c53db81.json"
+      "bodyUrl": "data/documents/git-bottom-up-interactive-rebasing.0498033e92ec2756.json"
     },
     "git-bottom-up-meet-the-middle-man": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-meet-the-middle-man",
       "slug": "git-bottom-up-meet-the-middle-man",
       "title": "The Index: Meet the middle man",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/10-git-bottom-up-meet-the-middle-man.md",
       "relPath": "books/git-from-the-bottom-up/10-git-bottom-up-meet-the-middle-man.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -250,17 +240,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Between your data files, which are stored on the filesystem, and your Git blobs, which are stored in the repository, there stands a somewhat...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-meet-the-middle-man.81d3ff2f047cdf67.json"
+      "bodyUrl": "data/documents/git-bottom-up-meet-the-middle-man.e2438999defa2788.json"
     },
     "git-bottom-up-taking-the-index-further": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-taking-the-index-further",
       "slug": "git-bottom-up-taking-the-index-further",
       "title": "Taking the index further",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/11-git-bottom-up-taking-the-index-further.md",
       "relPath": "books/git-from-the-bottom-up/11-git-bottom-up-taking-the-index-further.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -275,17 +264,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Let’s see, the index... With it you can pre-stage a set of changes, thus iteratively building up a patch before committing it to the reposit...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-taking-the-index-further.08e1a26382f95277.json"
+      "bodyUrl": "data/documents/git-bottom-up-taking-the-index-further.a6646828e4fa4d63.json"
     },
     "git-bottom-up-to-reset-or-not-to-reset": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-to-reset-or-not-to-reset",
       "slug": "git-bottom-up-to-reset-or-not-to-reset",
       "title": "To reset, or not to reset",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/12-git-bottom-up-to-reset-or-not-to-reset.md",
       "relPath": "books/git-from-the-bottom-up/12-git-bottom-up-to-reset-or-not-to-reset.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -300,17 +288,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "One of the more difficult commands to master in Git is reset, which seems to bite people more often than other commands. Which is understand...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-to-reset-or-not-to-reset.a98fd206b2fd91ec.json"
+      "bodyUrl": "data/documents/git-bottom-up-to-reset-or-not-to-reset.dd4ccdc1d02bc787.json"
     },
     "git-bottom-up-doing-a-mixed-reset": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-doing-a-mixed-reset",
       "slug": "git-bottom-up-doing-a-mixed-reset",
       "title": "Doing a mixed reset",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/13-git-bottom-up-doing-a-mixed-reset.md",
       "relPath": "books/git-from-the-bottom-up/13-git-bottom-up-doing-a-mixed-reset.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -325,17 +312,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "If you use the --mixed option (or no option at all, as this is the default), reset will revert parts of your index along with your HEAD refe...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-doing-a-mixed-reset.84d6372914ec86a5.json"
+      "bodyUrl": "data/documents/git-bottom-up-doing-a-mixed-reset.0a1d1fab00e7e1e3.json"
     },
     "git-bottom-up-doing-a-soft-reset": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-doing-a-soft-reset",
       "slug": "git-bottom-up-doing-a-soft-reset",
       "title": "Doing a soft reset",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/14-git-bottom-up-doing-a-soft-reset.md",
       "relPath": "books/git-from-the-bottom-up/14-git-bottom-up-doing-a-soft-reset.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -350,17 +336,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "If you use the --soft option to reset, this is the same as simply changing your HEAD reference to a different commit. Your working tree chan...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-doing-a-soft-reset.c90872ec2c9e8f88.json"
+      "bodyUrl": "data/documents/git-bottom-up-doing-a-soft-reset.d98be7fd6030780b.json"
     },
     "git-bottom-up-doing-a-hard-reset": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-doing-a-hard-reset",
       "slug": "git-bottom-up-doing-a-hard-reset",
       "title": "Doing a hard reset",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/15-git-bottom-up-doing-a-hard-reset.md",
       "relPath": "books/git-from-the-bottom-up/15-git-bottom-up-doing-a-hard-reset.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -375,17 +360,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "A hard reset (the --hard option) has the potential of being very dangerous, as it’s able to do two different things at once: First, if you d...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-doing-a-hard-reset.73af9688b0c0ecdf.json"
+      "bodyUrl": "data/documents/git-bottom-up-doing-a-hard-reset.d934a96b8354d8c8.json"
     },
     "git-bottom-up-stashing-and-the-reflog": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-stashing-and-the-reflog",
       "slug": "git-bottom-up-stashing-and-the-reflog",
       "title": "Stashing and the reflog",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/16-git-bottom-up-stashing-and-the-reflog.md",
       "relPath": "books/git-from-the-bottom-up/16-git-bottom-up-stashing-and-the-reflog.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -400,17 +384,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Until now we’ve described two ways in which blobs find their way into Git: first they’re created in your index, both without a parent tree a...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-stashing-and-the-reflog.84ab755d95b84638.json"
+      "bodyUrl": "data/documents/git-bottom-up-stashing-and-the-reflog.985631e410c484d2.json"
     },
     "git-bottom-up-conclusion": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-conclusion",
       "slug": "git-bottom-up-conclusion",
       "title": "Conclusion",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/17-git-bottom-up-conclusion.md",
       "relPath": "books/git-from-the-bottom-up/17-git-bottom-up-conclusion.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -425,17 +408,16 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Over the years I’ve used many version control systems, and many backup schemes. They all have facilities for retrieving the past contents of...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-conclusion.a929f5870ff2e7ad.json"
+      "bodyUrl": "data/documents/git-bottom-up-conclusion.0aaf727aeb110e66.json"
     },
     "git-bottom-up-further-reading": {
       "id": "post-col-git-from-the-bottom-up-git-bottom-up-further-reading",
       "slug": "git-bottom-up-further-reading",
       "title": "Further reading",
-      "type": "normal",
+      "type": "books",
       "sourcePath": "posts/books/git-from-the-bottom-up/18-git-bottom-up-further-reading.md",
       "relPath": "books/git-from-the-bottom-up/18-git-bottom-up-further-reading.md",
       "date": "2026-10-12",
-      "category": "books",
       "tags": [
         "Git",
         "Books"
@@ -450,7 +432,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "If your interest to learn Git more has been piqued, please check out the following articles:   A tour of Git: the basics - http://cworth.org...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/git-bottom-up-further-reading.fdd2ff8ad3c2d414.json"
+      "bodyUrl": "data/documents/git-bottom-up-further-reading.276452ac61343381.json"
     },
     "hello-world": {
       "id": "post-hello-world",
@@ -460,7 +442,6 @@ window.BlogPostsData = {
       "sourcePath": "posts/hello-world.md",
       "relPath": "hello-world.md",
       "date": "2026-10-09",
-      "category": "",
       "tags": [
         "Engineering",
         "Getting Started",
@@ -476,7 +457,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "Aurora Notes is a place for long-form technical writing: system architecture notes, computing fundamentals, and the occasional detour into p...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/hello-world.5a93840425334b7c.json"
+      "bodyUrl": "data/documents/hello-world.9283ae9a3bd048c2.json"
     },
     "quantum-simulator": {
       "id": "post-quantum-simulator",
@@ -486,7 +467,6 @@ window.BlogPostsData = {
       "sourcePath": "posts/quantum-simulator.md",
       "relPath": "quantum-simulator.md",
       "date": "2026-10-09",
-      "category": "",
       "tags": [
         "quantum",
         "systems"
@@ -501,7 +481,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "基于高维复希尔伯特空间演化的轻量级量子计算仿真核心架构，附带演讲幻灯片展示。",
       "tocLevels": null,
-      "bodyUrl": "data/documents/quantum-simulator.d265cb600bbea7b9.json"
+      "bodyUrl": "data/documents/quantum-simulator.59f378b761a76ca9.json"
     },
     "roadmap": {
       "id": "post-roadmap",
@@ -511,7 +491,6 @@ window.BlogPostsData = {
       "sourcePath": "posts/roadmap.md",
       "relPath": "roadmap.md",
       "date": "2026-10-12",
-      "category": "",
       "tags": [],
       "column": "",
       "columnName": "",
@@ -526,7 +505,7 @@ window.BlogPostsData = {
         2,
         3
       ],
-      "bodyUrl": "data/documents/roadmap.c22137c303415bfd.json"
+      "bodyUrl": "data/documents/roadmap.89c354e9afc925c7.json"
     },
     "group-theory-intro": {
       "id": "post-col-group-theory-group-theory-intro",
@@ -536,7 +515,6 @@ window.BlogPostsData = {
       "sourcePath": "posts/群论/01-简介.md",
       "relPath": "群论/01-简介.md",
       "date": "2026-10-09",
-      "category": "",
       "tags": [
         "algebra",
         "math"
@@ -551,7 +529,7 @@ window.BlogPostsData = {
       "isTest": false,
       "excerpt": "抽象代数研究代数结构及其公理化体系，从对称性到群环域。",
       "tocLevels": null,
-      "bodyUrl": "data/documents/group-theory-intro.82f4f71171a191e1.json"
+      "bodyUrl": "data/documents/group-theory-intro.c3910233341be142.json"
     },
     "quantum-mechanics-assignments": {
       "id": "post-quantum-mechanics-assignments",
@@ -561,7 +539,6 @@ window.BlogPostsData = {
       "sourcePath": "posts/量子力学作业.md",
       "relPath": "量子力学作业.md",
       "date": "2026-10-12",
-      "category": "",
       "tags": [
         "quantum-mechanics",
         "assignments",
@@ -580,7 +557,7 @@ window.BlogPostsData = {
         2,
         3
       ],
-      "bodyUrl": "data/documents/quantum-mechanics-assignments.6b183dbc08e6751c.json"
+      "bodyUrl": "data/documents/quantum-mechanics-assignments.3da7fe583ec0c35f.json"
     },
     "about": {
       "slug": "about",

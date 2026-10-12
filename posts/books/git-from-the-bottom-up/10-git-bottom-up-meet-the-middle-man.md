@@ -2,7 +2,7 @@
 title: "The Index: Meet the middle man"
 slug: "git-bottom-up-meet-the-middle-man"
 date: "2026-10-12"
-category: "books"
+type: "books"
 tags: ["Git", "Books"]
 column: "git-from-the-bottom-up"
 columnName: "Git from the Bottom Up"

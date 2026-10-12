@@ -216,7 +216,7 @@ window.BlogConfig = {
 - 下拉面板样式定义在 [`css/main.css`](css/main.css) 的 `.nav-dropdown` / `.nav-dropdown-panel`，支持 **鼠标 hover、键盘 focus、点击箭头** 三种展开方式；点击页面其它区域或切换路由会自动收起。
 - **实现红线**：导航容器 `#desktop-nav` 上**禁止**使用任何 `overflow-*`。`overflow-x-auto` 会把 `overflow-y` 一并变为 `auto`，从而裁掉绝对定位的下拉面板（这正是历史 bug「展开啥都没有」的根因）。同理，下拉菜单不使用 Tailwind 命名 group 变体（`group-hover/xxx`），因为导航 HTML 是运行时注入的，命名变体样式可能来不及生成。
 
-> 路由模式导航项还可附带 `title` / `subtitle` / `tag` / `items` 字段，走通用动态栏目渲染器（按标签筛选，或渲染声明式卡片集合）。普通文章不再填写 `category`，主题使用 `tags`；书籍章节使用 `category: books`，目录／索引页使用 `category: index`。
+> 路由模式导航项还可附带 `title` / `subtitle` / `type` / `tag` / `items` 字段，走通用动态栏目渲染器（按类型／标签筛选，或渲染声明式卡片集合）。内容形态统一使用 `type`：普通文章省略或填写 `normal`，书籍章节填写 `books`，目录／索引页填写 `index`，结构化独立页填写 `post`。主题使用 `tags`。
 
 ---
 
@@ -745,16 +745,23 @@ UI、路由、样式与模块化的强制约束见 [`AGENTS.md`](AGENTS.md)。�
 
 ### Books
 
-Books 入口由 `js/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `category: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
+Books 入口由 `js/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `type: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
 
 已收录 John Wiegley 的 **Git from the Bottom Up**，18 个章节与小节、10 张插图；原文来源和 CC BY 4.0 许可保留在每篇正文。导入日期是本地收录日期。
 
 
-普通文章与模板已移除 `physics`、`engineering`、`general` 等主题分类。`category` 现在只接受 `books`、`index` 或省略；主题使用中文或英文标签，省略标签时不会自动生成目录名标签。
+`category` 已合并到 `type`，旧字段会报错并提示迁移。主题使用中文或英文标签，省略标签时不会自动生成目录名标签。
+
+| type | 用途 | 进入首页／归档／搜索 |
+| --- | --- | --- |
+| `normal`（默认，可省略） | 普通 Markdown 文章 | 是 |
+| `books` | 书籍章节，按 column 归入 Books | 是 |
+| `index` | 分组知识索引布局 | 是 |
+| `post` | About 式结构化独立页 | 否 |
 
 
 ### 索引页与自动地址
 
-`category: index` 启用专门的知识索引布局：主题跳转胶囊、分组与链接计数、分组编号和编号阅读入口。正文仍使用原有 Markdown、双链、相对链接和 PDF 懒加载组件，不引入新的路由体系。示例见 `posts/阅读索引.md`。
+`type: index` 启用专门的知识索引布局：主题跳转胶囊、分组与链接计数、分组编号和编号阅读入口。正文仍使用原有 Markdown、双链、相对链接和 PDF 懒加载组件，不引入新的路由体系。示例见 `posts/阅读索引.md`。
 
 **无需手写 slug**：省略时从文件名自动生成，中文保留，英文转小写，空格和符号转为连字符。例如 `量子力学作业.md` → `量子力学作业`。手写 slug 只用于固定地址或自定义地址；修改文件名会改变自动生成的地址。已有显式 slug 保持原样。

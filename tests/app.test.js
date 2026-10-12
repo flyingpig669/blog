@@ -30,7 +30,7 @@ test('missing file navigation renders not found', () => {
 
 test('index metadata selects its layout without changing the document identifier', () => {
   const { app, context } = createApp();
-  const post = { slug: '阅读索引', title: '阅读索引', category: 'index', content: '## 数学' };
+  const post = { slug: '阅读索引', title: '阅读索引', type: 'index', content: '## 数学' };
   context.window.BlogStore = { getPostById: () => post };
   context.document.getElementById = () => ({ innerHTML: '' });
   app.setDocumentTitle = () => {};
@@ -43,9 +43,9 @@ test('index metadata selects its layout without changing the document identifier
 test('book indexes and chapter links use their owning collection module', () => {
   const { app, context } = createApp();
   const book = { id: 'git-from-the-bottom-up', name: 'Git from the Bottom Up', posts: [
-    { slug: 'git-bottom-up-introduction', title: 'Introduction', category: 'books', order: 1 }
+    { slug: 'git-bottom-up-introduction', title: 'Introduction', type: 'books', order: 1 }
   ] };
-  const column = { id: 'physics', name: 'Physics', posts: [{ category: 'physics' }] };
+  const column = { id: 'physics', name: 'Physics', posts: [{ type: 'normal' }] };
   context.window.BlogStore = { getColumns: () => [book, column] };
   const main = {};
   context.document.getElementById = () => main;

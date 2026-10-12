@@ -1,7 +1,7 @@
 ---
 title: "文章收录 · 阅读索引"
 date: "2026-10-10"
-category: "index"
+type: "index"
 tags: ["index", "collection"]
 excerpt: "本站全部文章的整理索引，按主题分组，支持站内双链跳转。"
 ---
@@ -10,7 +10,7 @@ excerpt: "本站全部文章的整理索引，按主题分组，支持站内双�
 
 本页用于把散落在各处的文章整理成一份可跳转的索引。
 
-> `category: index` 会自动使用分组索引布局；slug 可以省略，由文件名生成。
+> `type: index` 会自动使用分组索引布局；slug 可以省略，由文件名生成。
 > 复制本模板到 `posts/` 目录（如 `posts/collection.md`）即可使用。
 > 链接写法见文末「写作说明」。
 

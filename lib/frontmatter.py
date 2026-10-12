@@ -3,6 +3,19 @@ import datetime
 import re
 import yaml
 
+DOC_TYPES = {'normal', 'post', 'books', 'index'}
+RICH_DOC_TYPES = {'post', 'page', 'page-mode', 'standalone', 'single', 'page_mode'}
+
+def normalize_doc_type(raw):
+    value = (raw or '').strip().lower()
+    if value in RICH_DOC_TYPES:
+        return 'post'
+    if not value:
+        return 'normal'
+    if value in DOC_TYPES:
+        return value
+    raise ValueError('type 仅支持 normal、post、books 或 index；主题请使用 tags')
+
 
 class UniqueLoader(yaml.BaseLoader):
     def construct_mapping(self, node, deep=False):
@@ -36,7 +49,9 @@ def parse_frontmatter(text, source='<document>'):
 
 def validate_metadata(data):
     fields = {key.lower(): value for key, value in data.items()}
-    scalar_keys = ['title', 'slug', 'date', 'category', 'column', 'columnslug', 'columnname',
+    if 'category' in fields or 'categroy' in fields:
+        raise ValueError('category 已合并到 type，请改为 type: books 或 type: index；主题请使用 tags')
+    scalar_keys = ['title', 'slug', 'date', 'column', 'columnslug', 'columnname',
                    'columndesc', 'type', 'layout', 'excerpt', 'slide', 'pdf', 'focus']
     for key in scalar_keys:
         if key in fields and not isinstance(fields[key], str):
@@ -53,8 +68,10 @@ def validate_metadata(data):
         if key in fields and (not isinstance(fields[key], str) or fields[key].lower() not in ['true', 'false']):
             raise ValueError(f'{key} 必须是 true 或 false')
     for key in ['type', 'layout']:
-        if key in fields and fields[key].lower() not in ['normal', 'post', 'page', 'page-mode', 'standalone', 'single', 'page_mode']:
-            raise ValueError(f'{key} 必须是 normal 或 post')
+        if key in fields:
+            normalize_doc_type(fields[key])
+    if 'type' in fields and 'layout' in fields and normalize_doc_type(fields['type']) != normalize_doc_type(fields['layout']):
+        raise ValueError('type 与旧 layout 字段冲突，请只保留 type')
     for key in ['order', 'chapter']:
         if key in fields and (not isinstance(fields[key], str) or not fields[key].isdigit() or int(fields[key]) < 1):
             raise ValueError(f'{key} 必须是正整数')
