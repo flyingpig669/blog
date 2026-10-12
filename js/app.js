@@ -14,7 +14,7 @@ window.BlogApp = {
   // ----------------------------------------------------------------------------
   init: function() {
     // 依赖健康检查：若核心数据/配置模块缺失（脚本加载失败），给出可读提示而非白屏
-    if (!window.BlogConfig || !window.BlogStore || !window.BlogPostsData || !window.BlogHtml || !window.BlogSearch || !window.BlogScrollState || !window.BlogRouter || !window.BlogNavbar || !window.BlogFooter || !window.BlogPublications || !window.BlogPostItem || !window.DOMPurify || typeof window.BlogStore.init !== 'function') {
+    if (!window.BlogConfig || !window.BlogStore || !window.BlogPostsData || !window.BlogHtml || !window.BlogSearch || !window.BlogScrollState || !window.BlogRouter || !window.BlogNavbar || !window.BlogFooter || !window.BlogPublications || !window.BlogPostItem || !window.BlogPdfPreviews || !window.DOMPurify || typeof window.BlogStore.init !== 'function') {
       this.renderFatalError('核心脚本 (blog.config.js / js/store.js) 未能加载，请刷新页面重试。');
       return;
     }
@@ -1026,42 +1026,13 @@ window.BlogApp = {
 
     container.innerHTML = html;
 
-    // 扫描并实例化正文内的所有演示文稿播放器 (支持单篇文章内出现多个 PDF / 幻灯片演示)
-    var slideMounts = container.querySelectorAll('.article-slide-player-mount');
-    if (slideMounts.length > 0) {
-      var self = this;
-      var revision = this.routeRevision;
-      var mountSlides = function(error) {
-        if (self.routeRevision !== revision) return;
-        slideMounts.forEach(function(mountEl) {
-          if (!mountEl.isConnected) return;
-          // FrontMatter 已在顶部挂载这份课件时，剔除正文里指向同一文件的挂载点
-          // （连同占位与间距），同一份 PDF 不渲染两个播放器；其它课件不受影响。
-          if (mountEl.getAttribute('data-slide-primary') !== '1' &&
-              post.slideExplicit && post.slide &&
-              mountEl.getAttribute('data-slide-url') === post.slide) {
-            mountEl.remove();
-            return;
-          }
-          if (error) {
-            mountEl.innerHTML = '<p class="search-status">PDF viewer could not load. Check your connection.</p><button type="button" class="btn-secondary">Retry</button>';
-            mountEl.querySelector('button').onclick = function() {
-              mountEl.innerHTML = '<p class="search-status">Loading PDF viewer…</p>';
-              self.ensureSlideViewer(mountSlides);
-            };
-            return;
-          }
-          var url = mountEl.getAttribute('data-slide-url');
-          if (!url) return;
-          window.BlogSlideViewer.mount(mountEl, {
-            url: url,
-            title: mountEl.getAttribute('data-slide-title') || post.title
-          });
-        });
-      };
-      slideMounts.forEach(function(el) { el.innerHTML = '<p class="search-status">Loading PDF viewer…</p>'; });
-      this.ensureSlideViewer(mountSlides);
-    }
+    var self = this;
+    window.BlogPdfPreviews.prepare(container, post, {
+      getRevision: function() { return self.routeRevision; },
+      ensureViewer: this.ensureSlideViewer.bind(this),
+      mountViewer: function(mount, options) { return window.BlogSlideViewer.mount(mount, options); }
+    });
+
   },
 
   // 5.3 专栏视图 (Series / Columns View)

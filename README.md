@@ -521,7 +521,7 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 | 静止 2.5 秒（放映中） | 控制岛、进度线与鼠标指针一起隐藏；移动鼠标恢复 |
 | 工具栏 `○−` `○＋` | 缩放（**移动端同样可见**：窄屏才是最需要缩放的场景） |
 
-> **性能**：PDF.js（约 1.3MB）与 `slide-viewer.js` 不会随首屏加载。只有真的渲染到带演示文稿的文章时，才由 `app.js#ensureSlideViewer()` 按需注入，首页与普通文章零额外开销。
+> **性能**：PDF.js（约 1.3MB）与 `slide-viewer.js` 不会随首屏加载。每份 PDF 默认只显示预览与下载入口；只有点击「预览 PDF」时，才由 `app.js#ensureSlideViewer()` 按需注入并加载所选文件。多 PDF 页面首屏不下载任何 PDF，也不初始化播放器。切换路由时取消已启动的播放器任务。
 
 ### 6. 附件、图片与下载
 
