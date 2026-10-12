@@ -487,7 +487,7 @@ def sync():
     # 集合中的文件（只匹配本脚本自己的命名规则，不碰任何其它文件）。
     keep_names = {os.path.basename(url) for url in bodies}
     stale_targets = [
-        (os.path.join(BASE_DIR, 'data', 'documents'), re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*\.[0-9a-f]{16}\.json$')),
+        (os.path.join(BASE_DIR, 'data', 'documents'), re.compile(r'^' + RESOURCE_SLUG_PATTERN + r'\.[0-9a-f]{16}\.json$')),
         (os.path.join(BASE_DIR, 'data'), re.compile(r'^search\.[0-9a-f]{16}\.json$')),
     ]
     removed = []
