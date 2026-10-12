@@ -3,7 +3,7 @@ title: "Hello World: Welcome to Aurora Notes"
 date: "2026-10-09"
 category: "general"
 tags: ["Engineering", "Getting Started", "Markdown"]
-pinned: true
+pinned: false
 ---
 
 Aurora Notes is a place for long-form technical writing: system architecture notes, computing

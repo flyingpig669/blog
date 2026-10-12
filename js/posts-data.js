@@ -472,11 +472,11 @@ window.BlogPostsData = {
       "order": 999,
       "readTime": "1 min read",
       "words": 362,
-      "pinned": true,
+      "pinned": false,
       "isTest": false,
       "excerpt": "Aurora Notes is a place for long-form technical writing: system architecture notes, computing fundamentals, and the occasional detour into p...",
       "tocLevels": null,
-      "bodyUrl": "data/documents/hello-world.2c8f820efcaccdfc.json"
+      "bodyUrl": "data/documents/hello-world.5b81ba546214d836.json"
     },
     "quantum-simulator": {
       "id": "post-quantum-simulator",
