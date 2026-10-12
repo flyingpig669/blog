@@ -28,6 +28,18 @@ test('missing file navigation renders not found', () => {
   assert.equal(missing, 'missing.md');
 });
 
+test('index metadata selects its layout without changing the document identifier', () => {
+  const { app, context } = createApp();
+  const post = { slug: '阅读索引', title: '阅读索引', category: 'index', content: '## 数学' };
+  context.window.BlogStore = { getPostById: () => post };
+  context.document.getElementById = () => ({ innerHTML: '' });
+  app.setDocumentTitle = () => {};
+  let rendered;
+  app.renderIndexView = value => { rendered = value; };
+  app.renderPostView('阅读索引');
+  assert.equal(rendered, post);
+});
+
 test('book indexes and chapter links use their owning collection module', () => {
   const { app, context } = createApp();
   const book = { id: 'git-from-the-bottom-up', name: 'Git from the Bottom Up', posts: [

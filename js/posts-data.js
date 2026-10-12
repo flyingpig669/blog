@@ -582,6 +582,31 @@ window.BlogPostsData = {
       ],
       "bodyUrl": "data/documents/quantum-mechanics-assignments.1ed7ae08a09ffa4b.json"
     },
+    "阅读索引": {
+      "id": "post-阅读索引",
+      "slug": "阅读索引",
+      "title": "阅读索引",
+      "type": "normal",
+      "sourcePath": "posts/阅读索引.md",
+      "relPath": "阅读索引.md",
+      "date": "2026-10-12",
+      "category": "index",
+      "tags": [
+        "阅读",
+        "索引"
+      ],
+      "column": "",
+      "columnName": "",
+      "columnDesc": "",
+      "order": 999,
+      "readTime": "1 min read",
+      "words": 114,
+      "pinned": false,
+      "isTest": false,
+      "excerpt": "从数学与物理到计算机系统，沿着主题找到笔记、作业与完整书籍。",
+      "tocLevels": null,
+      "bodyUrl": "data/documents/阅读索引.6d554d3fd82a6f8d.json"
+    },
     "about": {
       "slug": "about",
       "title": "About",
@@ -685,7 +710,11 @@ window.BlogPostsData = {
     "quantum-mechanics-assignments": "quantum-mechanics-assignments",
     "post-quantum-mechanics-assignments": "quantum-mechanics-assignments",
     "posts/量子力学作业.md": "quantum-mechanics-assignments",
-    "量子力学作业.md": "quantum-mechanics-assignments"
+    "量子力学作业.md": "quantum-mechanics-assignments",
+    "阅读索引": "阅读索引",
+    "post-阅读索引": "阅读索引",
+    "posts/阅读索引.md": "阅读索引",
+    "阅读索引.md": "阅读索引"
   },
   "posts": [
     "git-bottom-up-introduction",
@@ -710,7 +739,8 @@ window.BlogPostsData = {
     "quantum-simulator",
     "roadmap",
     "group-theory-intro",
-    "quantum-mechanics-assignments"
+    "quantum-mechanics-assignments",
+    "阅读索引"
   ],
   "columns": [
     {
@@ -754,5 +784,5 @@ window.BlogPostsData = {
     }
   ],
   "about": "about",
-  "searchUrl": "data/search.92e869a42a1ef01c.json"
+  "searchUrl": "data/search.9e55145d270092c4.json"
 };

@@ -14,7 +14,7 @@ window.BlogApp = {
   // ----------------------------------------------------------------------------
   init: function() {
     // 依赖健康检查：若核心数据/配置模块缺失（脚本加载失败），给出可读提示而非白屏
-    if (!window.BlogConfig || !window.BlogStore || !window.BlogPostsData || !window.BlogHtml || !window.BlogSearch || !window.BlogScrollState || !window.BlogRouter || !window.BlogNavbar || !window.BlogFooter || !window.BlogPublications || !window.BlogPostItem || !window.BlogPdfPreviews || !window.DOMPurify || typeof window.BlogStore.init !== 'function') {
+    if (!window.BlogConfig || !window.BlogStore || !window.BlogPostsData || !window.BlogHtml || !window.BlogSearch || !window.BlogScrollState || !window.BlogRouter || !window.BlogNavbar || !window.BlogFooter || !window.BlogPublications || !window.BlogPostItem || !window.BlogPdfPreviews || !window.BlogIndexPage || !window.DOMPurify || typeof window.BlogStore.init !== 'function') {
       this.renderFatalError('核心脚本 (blog.config.js / js/store.js) 未能加载，请刷新页面重试。');
       return;
     }
@@ -755,6 +755,10 @@ window.BlogApp = {
       this.renderPageView(post);
       return;
     }
+    if (post.category === 'index') {
+      this.renderIndexView(post);
+      return;
+    }
 
     var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
     var tocLevels = post.tocLevels !== null && post.tocLevels !== undefined ? post.tocLevels : features.tocLevels;
@@ -1026,13 +1030,25 @@ window.BlogApp = {
 
     container.innerHTML = html;
 
+    this.preparePdfPreviews(container, post);
+  },
+
+  renderIndexView: function(post) {
+    var container = document.getElementById('app-main');
+    var result = this.safeMarkdown(post.content, { tocLevels: [2, 3], sourcePath: post.sourcePath || 'posts/' + post.relPath });
+    this.currentRoute = { name: 'index', params: { id: post.slug } };
+    container.innerHTML = window.BlogIndexPage.render(post, result, { escapeHtml: this.escapeHtml.bind(this) });
+    window.BlogIndexPage.enhance(container);
+    this.preparePdfPreviews(container, post);
+  },
+
+  preparePdfPreviews: function(container, post) {
     var self = this;
     window.BlogPdfPreviews.prepare(container, post, {
       getRevision: function() { return self.routeRevision; },
       ensureViewer: this.ensureSlideViewer.bind(this),
       mountViewer: function(mount, options) { return window.BlogSlideViewer.mount(mount, options); }
     });
-
   },
 
   // 5.3 专栏视图 (Series / Columns View)
