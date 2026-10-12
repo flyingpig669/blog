@@ -90,3 +90,12 @@ test('store site fallback defaults align with brand metadata', () => {
   assert.equal(store.site.title, 'CCC de Notes');
   assert.equal(store.site.brand, 'CCC de Notes');
 });
+
+
+test('Chinese tags resolve through encoded route segments', () => {
+  const store = createStore();
+  store.posts[0].tags = ['量子力学', '中文 标签'];
+  assert.equal(store.tagSlug('量子力学'), '量子力学');
+  assert.equal(store.tagSlug('中文 标签'), '中文-标签');
+  assert.equal(store.resolveLink('#量子力学').route, '/tags/' + encodeURIComponent('量子力学'));
+});

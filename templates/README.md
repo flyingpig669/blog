@@ -49,7 +49,7 @@ cp templates/template-publications-page.md posts/publications.md
 # 基础必选字段
 title: "文章大标题"                    # 文章主标题 (必填)
 date: "2026-10-10"                   # 发布日期 YYYY-MM-DD (选填，默认为当前日期)
-slug: "my-article-slug"              # URL 标识 (选填，默认取文件名；文件名含中文时建议显式声明 ASCII slug)
+slug: "my-article-slug"              # URL 标识 (选填，默认取文件名；支持中文；可显式声明以保持地址稳定)
 category: "engineering"              # 默认主分类 (选填)
 tags: ["tech", "systems"]            # 标签数组，用于 Tags 页面多选组合检索 (选填)
 excerpt: "一句话文章摘要简介"           # 呈现在首页与列表中的简要导读 (选填)

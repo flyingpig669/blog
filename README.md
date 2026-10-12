@@ -283,7 +283,7 @@ social:
 ---
 title: "我的第一篇技术文章"
 date: "2026-10-09"
-slug: "my-first-post"        # URL 标识；文件名含中文时必须显式声明英文小写 slug
+slug: "my-first-post"        # URL 标识；支持中文，省略时从文件名生成
 category: "architecture"
 tags: ["分布式", "架构设计"]
 pinned: false
@@ -318,7 +318,7 @@ tags: ["algebra", "math"]
 - 专栏详情页路由使用 `columnSlug`（未声明时回退到 `column`）。
 - 专栏描述优先取任一章节的 `columnDesc`。
 
-> **路由规范**：路由参数禁止中文。文件名/专栏名含中文时，请显式声明 `slug` 与 `columnSlug`（见 `AGENTS.md` 第 6 节）。仓库内示例文章已全部声明 ASCII slug。
+> **路由规范**：模块地址保持英文小写；文章 slug 与标签支持中文，英文部分转小写、词间使用连字符。专栏标识仍使用英文 `columnSlug`。既有 slug 不会自动更改。
 
 ### 3. 文章之间互相引用 / 写收录页
 
@@ -600,7 +600,7 @@ npm run build
 
 Markdown 通过 DOMPurify 清理，再统一过滤链接/资源协议；前台标题与属性统一转义。搜索提供正文命中片段与安全高亮；章节标题旁的 `#` 可复制直达链接；About 提供区块跳转。普通文章按发布时间串联，专栏按章节顺序串联。
 
-标签展示名保持原文，URL 统一为小写连字符（例如 `Getting Started` → `/tags/getting-started`）；构建会拒绝重名 slug 或非英文标签路由。标签选择仍由 URL 驱动，刷新和后退可恢复筛选。
+标签展示名保持原文，URL 统一为小写连字符（例如 `Getting Started` → `/tags/getting-started`）；中文标签直接保留中文 URL 参数，由链接生成层统一编码；构建会拒绝重名或空 slug。标签选择仍由 URL 驱动，刷新和后退可恢复筛选。
 
 内置轻量服务器已针对浏览器并发做了加固（多线程 + 守护线程、TCP 监听队列 256、HTTP/1.1 keep-alive），避免静态资源偶发 `ERR_CONNECTION_RESET` 导致的白屏。
 
@@ -683,7 +683,7 @@ css/  js/  data/  vendor/  attachments/
 
 ### Q4: 为什么路由里出现过中文？还能用吗？
 
-路由参数必须使用英文小写、数字与连字符。中文文件名需要在 FrontMatter 中显式声明 `slug`，中文专栏名需要声明 `columnSlug`（示例均已补齐）。索引构建会拒绝不符合规则或重复的文章 slug，防止生成歧义链接。
+文章 slug 可以使用中文、英文小写、数字与连字符；省略时由文件名生成。标签支持中文。模块地址与专栏标识仍保持英文小写。索引构建会拒绝空或重复的文章 slug，防止生成歧义链接。
 
 修改 `slug` 会直接改变文章 URL；项目处于开发阶段，不维护旧 slug 兼容层。
 
@@ -742,6 +742,6 @@ UI、路由、样式与模块化的强制约束见 [`AGENTS.md`](AGENTS.md)。�
 
 ### Books
 
-Books 入口由 `js/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `category: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
+Books 入口由 `js/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `category: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
 
 已收录 John Wiegley 的 **Git from the Bottom Up**，18 个章节与小节、10 张插图；原文来源和 CC BY 4.0 许可保留在每篇正文。导入日期是本地收录日期。

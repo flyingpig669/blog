@@ -147,7 +147,7 @@ const entry = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const tagSlugs = new Set();
 for (const tag of store.getAllTags()) {
   const slug = store.tagSlug(tag.name);
-  if (!slug || /[^\x00-\x7f]/.test(tag.name) || tagSlugs.has(slug)) fail(`Tag ${tag.name}: needs a unique English route slug`);
+  if (!registry.validResourceSlug(slug) || tagSlugs.has(slug)) fail(`Tag ${tag.name}: needs a unique Chinese or lowercase English route slug`);
   tagSlugs.add(slug);
 }
 for (const match of entry.matchAll(/(?:src|href)="([^"#]+)"/g)) {

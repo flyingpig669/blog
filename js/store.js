@@ -385,7 +385,7 @@ window.BlogStore = {
 
   // 聚合全站标签（记忆化：resolveLink 解析每条互链都可能需要它）
   tagSlug: function(name) {
-    return String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return window.BlogRouteRegistry.resourceSlug(name);
   },
 
   getAllTags: function() {

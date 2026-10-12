@@ -9,6 +9,7 @@ Aurora Blog - 博文与关于页索引构建器 (Compiler & Indexer)
 
 import os
 import re
+import unicodedata
 import json
 import time
 import hashlib
@@ -34,8 +35,14 @@ def slugify(value):
     全站唯一的 slug 规则 —— 此前专栏用「仅 ASCII」而文章用「保留中文」两套规则，
     同一个词可能得到不同结果。
     """
-    s = re.sub(r"[^a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+", "-", (value or "").strip().lower())
+    s = re.sub(r"[^a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+", "-", unicodedata.normalize("NFC", (value or "").strip()).lower())
     return s.strip("-")
+
+
+RESOURCE_SLUG_PATTERN = r"[a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+(?:-[a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+)*"
+
+def valid_resource_slug(value):
+    return bool(re.fullmatch(RESOURCE_SLUG_PATTERN, value))
 
 
 def estimate_word_units(text):
@@ -188,8 +195,8 @@ def parse_md_file(filepath, words_per_minute=300):
         is_test = True
 
     slug = slugify(slug_override) or slugify(os.path.splitext(filename)[0]) or os.path.splitext(filename)[0]
-    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
-        raise ValueError(f"{rel_path}: 请声明英文小写 slug（使用连字符连接）")
+    if not valid_resource_slug(slug):
+        raise ValueError(f"{rel_path}: slug 需使用中文、英文小写或数字（使用连字符连接）")
     if column and not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", column):
         raise ValueError(f"{rel_path}: 请声明英文小写 columnSlug")
     if column:
@@ -443,8 +450,8 @@ def sync():
         aliases[key.lower()] = slug
     search = {}
     for slug, doc in documents.items():
-        if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', slug):
-            raise ValueError(f"{doc['sourcePath']}: 请声明英文小写 slug")
+        if not valid_resource_slug(slug):
+            raise ValueError(f"{doc['sourcePath']}: slug 需使用中文、英文小写或数字")
         for alias in [slug, doc.get('id'), doc['sourcePath'], doc.get('relPath')]:
             if alias:
                 alias = alias.lower()

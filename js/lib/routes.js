@@ -146,6 +146,16 @@
       return found;
     },
 
+    // Resource identifiers may contain Chinese; module paths stay lowercase English.
+    resourceSlug: function (value) {
+      return String(value || '').normalize('NFC').trim().toLowerCase()
+        .replace(/[^a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+/g, '-').replace(/^-|-$/g, '');
+    },
+
+    validResourceSlug: function (value) {
+      return /^[a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+(?:-[a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+)*$/.test(value);
+    },
+
     // A collection's category selects its owning module for all index links.
     collectionFor: function (column) {
       var posts = (column && column.posts) || [];

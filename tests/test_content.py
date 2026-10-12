@@ -50,12 +50,16 @@ class ContentTests(unittest.TestCase):
         self.assertEqual(data['publications'][0]['links']['doi'], '10.1234/test')
         self.assertEqual(body, 'Body')
 
-    def test_non_ascii_post_slug_requires_explicit_slug(self):
+    def test_chinese_post_slug_defaults_to_filename_and_supports_override(self):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "中文标题.md"
             file.write_text("# 中文标题\n", encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "英文小写 slug"):
-                sync_posts.parse_md_file(str(file))
+            self.assertEqual(sync_posts.parse_md_file(str(file))['slug'], "中文标题")
+            file.write_text('---\nslug: "量子力学-作业"\ntags: ["量子力学"]\n---\n正文\n', encoding="utf-8")
+            post = sync_posts.parse_md_file(str(file))
+            self.assertEqual(post['slug'], "量子力学-作业")
+            self.assertEqual(post['tags'], ["量子力学"])
+            self.assertFalse(sync_posts.valid_resource_slug("../作业"))
 
     def test_toc_levels_validate_and_deduplicate(self):
         self.assertEqual(sync_posts.normalize_toc_levels(['2', '3', '2']), [2, 3])
