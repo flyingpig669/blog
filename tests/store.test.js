@@ -99,3 +99,32 @@ test('Chinese tags resolve through encoded route segments', () => {
   assert.equal(store.tagSlug('中文 标签'), '中文-标签');
   assert.equal(store.resolveLink('#量子力学').route, '/tags/' + encodeURIComponent('量子力学'));
 });
+
+test('same-day post ordering is independent of file scanning and shared by directory lists', () => {
+  const store = createStore();
+  const posts = [
+    { slug: 'chapter-10', title: 'Chapter 10', column: 'book', order: 10, date: '2026-10-12', relPath: 'demo/10.md' },
+    { slug: 'z', title: 'Z', date: '2026-10-12', relPath: 'demo/z.md' },
+    { slug: 'chapter-2', title: 'Chapter 2', column: 'book', order: 2, date: '2026-10-12', relPath: 'demo/2.md' },
+    { slug: 'a', title: 'A', date: '2026-10-12', relPath: 'demo/a.md' },
+    { slug: 'old', title: 'Old', date: '2026-10-11', relPath: 'demo/old.md' },
+    { slug: 'undated', title: 'Undated', date: 'invalid', relPath: 'demo/undated.md' }
+  ];
+  const expected = ['a', 'z', 'chapter-2', 'chapter-10', 'old', 'undated'];
+  store.posts = posts;
+  assert.deepEqual(Array.from(store.getPosts({sort: 'date'}), p => p.slug), expected);
+  store.posts = posts.slice().reverse();
+  assert.deepEqual(Array.from(store.getPosts({sort: 'date'}), p => p.slug), expected);
+  assert.deepEqual(Array.from(store.getPostsByDir('demo'), p => p.slug), expected);
+});
+
+test('collection chapters always follow their order including zero', () => {
+  const store = createStore();
+  store.documents = {
+    later: { slug: 'later', order: 2, date: '2026-10-12' },
+    first: { slug: 'first', order: 0, date: '2026-10-01' },
+    middle: { slug: 'middle', order: 1, date: '2026-10-10' }
+  };
+  store.rawColumns = [{ id: 'book', postIds: ['later', 'first', 'middle'] }];
+  assert.deepEqual(Array.from(store.getColumns()[0].posts, p => p.slug), ['first', 'middle', 'later']);
+});

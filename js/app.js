@@ -779,9 +779,7 @@ window.BlogApp = {
 
     if (columnInfo && Array.isArray(columnInfo.posts) && columnInfo.posts.length > 0) {
       // 专栏内部定向导航 (严格按章节 order 升序排布)
-      colPosts = columnInfo.posts.slice().sort(function(a, b) {
-        return (a.order || 999) - (b.order || 999);
-      });
+      colPosts = columnInfo.posts.slice();
       colIndex = colPosts.findIndex(function(p) {
         return p.id === post.id || p.slug === post.slug;
       });

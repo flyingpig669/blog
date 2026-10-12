@@ -92,13 +92,37 @@ window.BlogStore = {
       }, this);
     }
 
-    list.sort(function(a, b) {
-      if (filter.sort !== 'date' && a.pinned && !b.pinned) return -1;
-      if (filter.sort !== 'date' && !a.pinned && b.pinned) return 1;
-      return new Date(b.date) - new Date(a.date);
-    });
+    list.sort(function(a, b) { return self.comparePosts(a, b, filter.sort); });
 
     return list;
+  },
+
+  // 同日先显示独立文章，再按专栏分组和章节序号排列，最终用标题与 slug 消除扫描顺序影响。
+  comparePosts: function(a, b, sort) {
+    if (sort !== 'date' && !!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+    var dateA = Date.parse(a.date), dateB = Date.parse(b.date);
+    var byDate = (Number.isFinite(dateB) ? dateB : 0) - (Number.isFinite(dateA) ? dateA : 0);
+    if (byDate) return byDate;
+    var byColumn = this.comparePostText(a.column, b.column);
+    if (byColumn) return byColumn;
+    if (a.column) {
+      var byOrder = this.chapterOrder(a) - this.chapterOrder(b);
+      if (byOrder) return byOrder;
+    }
+    return this.comparePostText(a.title, b.title) || this.comparePostText(a.slug, b.slug);
+  },
+
+  comparePostText: function(a, b) {
+    return String(a || '').localeCompare(String(b || ''), 'zh-CN', { numeric: true });
+  },
+
+  chapterOrder: function(post) {
+    var order = Number(post.order);
+    return post.order != null && Number.isFinite(order) ? order : 999;
+  },
+
+  compareChapters: function(a, b) {
+    return this.chapterOrder(a) - this.chapterOrder(b) || this.comparePosts(a, b, 'date');
   },
 
   // 目录查询：列出 posts/ 下指定目录（含其子目录）内的普通文章，按日期倒序
@@ -173,7 +197,7 @@ window.BlogStore = {
         return rel.indexOf(prefix) === 0;
       })
       .sort(function(a, b) {
-        return new Date(b.date) - new Date(a.date);
+        return self.comparePosts(a, b, 'date');
       });
   },
 
@@ -362,7 +386,7 @@ window.BlogStore = {
     this._columnsCache = (this.rawColumns || this.columns || []).map(function(col) {
       var filteredPosts = (col.postIds || []).map(function(id) { return self.documents[id]; }).filter(function(p) {
         return !self.isPostExcluded(p);
-      });
+      }).sort(function(a, b) { return self.compareChapters(a, b); });
       var copy = Object.assign({}, col);
       copy.posts = filteredPosts;
       copy.postsCount = filteredPosts.length;
