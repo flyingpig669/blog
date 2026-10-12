@@ -560,7 +560,7 @@ window.BlogPostsData = {
       "type": "normal",
       "sourcePath": "posts/量子力学作业.md",
       "relPath": "量子力学作业.md",
-      "date": "2026-10-11",
+      "date": "2026-10-12",
       "category": "",
       "tags": [
         "quantum-mechanics",
@@ -580,7 +580,7 @@ window.BlogPostsData = {
         2,
         3
       ],
-      "bodyUrl": "data/documents/quantum-mechanics-assignments.1ed7ae08a09ffa4b.json"
+      "bodyUrl": "data/documents/quantum-mechanics-assignments.6b183dbc08e6751c.json"
     },
     "about": {
       "slug": "about",
