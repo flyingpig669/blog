@@ -8,3 +8,10 @@ __pycache__/
 node_modules/
 .venv/
 output/playwright/
+# Built locally for checks and generated again by CI for publication.
+js/posts-data.js
+css/utilities.css
+vendor/purify.min.js
+data/
+sitemap.xml
+_site/
