@@ -183,11 +183,11 @@ window.BlogConfig = {
 | `"dir:posts/群论"` | 绑定一个目录，自动列出该目录（含子目录）下的普通文章 |
 | `"file:about.md"` | 绑定一个 Markdown 文件，按文档类型自动分流渲染 |
 
-- **`nav` 为单个对象** = 普通导航项；**同 `group` 的多项** = 下拉菜单（表内首项常显，其余折叠进下拉）。
+- **`nav` 为单个对象** = 普通导航项；**同 `group` 的多项** = 下拉菜单（默认展示表内首项；进入子模块后，当前模块成为顶部入口，其余项折叠进下拉）。
 - **`nav: null`** = 有意不放入导航（如 `posts` 仅是路径前缀），构建期会要求给出 `alias` 或理由。
 - 只想加一个站外入口（RSS、外链）时，才写进 `blog.config.js` 的 `nav` 尾部，且用 `href` 而不是 `target`。
 
-当前默认导航为 `Home / [Columns ▾ Books] / Archive / Tags / About`。Columns 与 Books 都在路由表的 `nav.group: 'collections'` 中声明，首项常显，Books 折叠到下拉；移动端沿用同一份配置，显示缩进子入口。About 保留独立导航位置。
+当前默认导航为 `Home / [Columns ▾ Books] / Archive / Tags / About`。Columns 与 Books 都在路由表的 `nav.group: 'collections'` 中声明；进入 Books 或书籍章节时顶部显示 Books，Columns 移到下拉，切回 Columns 时恢复。名称、链接与高亮随路由和浏览器前进后退同步更新；移动端沿用同一份配置，显示缩进子入口并只高亮当前模块。About 保留独立导航位置。
 
 桌面导航、移动端抽屉和路由匹配统一使用 `BlogRouteRegistry.navGroups()` 解析分组；链接 HTML 在 Navbar 中集中生成。Books 与 Columns 共用集合视图，归属和筛选统一由 `collectionFor()` / `collectionsFor()` 决定。
 

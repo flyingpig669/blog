@@ -2,14 +2,7 @@ window.BlogNavbar = {
   render: function(services) {
     var config = services.config || {};
     var site = config.site || {};
-    var nav = window.BlogRouteRegistry.navGroups(config.nav);
     var features = config.features || {};
-    var self = services;
-    var linkHtml = function(item, className, extraAttributes) {
-      var href = self.navItemHref(item);
-      var external = /^https?:/i.test(href) ? ' target="_blank" rel="noopener noreferrer"' : '';
-      return '<a href="' + services.escapeHtml(href) + '" data-nav-link="' + services.escapeHtml(item.id) + '" class="' + className + '"' + external + (extraAttributes || '') + '>' + services.escapeHtml(item.label) + '</a>';
-    };
 
     // 1. 设置网页标题（同时刷新 og:title / og:url / canonical）
     if (site.title) {
@@ -41,12 +34,27 @@ window.BlogNavbar = {
       searchActionEl.classList.add('hidden');
     }
 
+    this.renderNavigation(services, null);
+  },
+
+  renderNavigation: function(services, activeId) {
+    var nav = window.BlogRouteRegistry.navGroups((services.config || {}).nav);
+    var linkHtml = function(item, className, extraAttributes) {
+      var href = services.navItemHref(item);
+      var external = /^https?:/i.test(href) ? ' target="_blank" rel="noopener noreferrer"' : '';
+      var active = item.id === activeId;
+      return '<a href="' + services.escapeHtml(href) + '" data-nav-link="' + services.escapeHtml(item.id) + '" class="' + className + (active ? ' active' : '') + '"' + external +
+        (active ? ' aria-current="page"' : '') + (extraAttributes || '') + '>' + services.escapeHtml(item.label) + '</a>';
+    };
     // 3. 桌面端导航菜单 (支持单项与数组语法: 数组展示首项，其余折叠为下拉菜单)
     var desktopNavEl = document.querySelector('header nav');
     if (desktopNavEl && nav.length > 0) {
       var navHtml = '';
       nav.forEach(function(group) {
-        var headLink = linkHtml(group.head, 'nav-link');
+        var selected = group.folded.find(function(item) { return item.id === activeId; });
+        var head = selected || group.head;
+        var folded = selected ? [group.head].concat(group.folded.filter(function(item) { return item.id !== activeId; })) : group.folded;
+        var headLink = linkHtml(head, 'nav-link');
         if (group.folded.length === 0) {
           navHtml += headLink;
           return;
@@ -54,12 +62,12 @@ window.BlogNavbar = {
 
         navHtml += '<div class="nav-dropdown" data-nav-group="' + services.escapeHtml(group.head.id) + '">';
         navHtml += headLink;
-        navHtml += '  <button type="button" class="nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false" aria-label="展开 ' + services.escapeHtml(group.head.label) + ' 更多链接">';
+        navHtml += '  <button type="button" class="nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false" aria-label="展开 ' + services.escapeHtml(head.label) + ' 更多链接">';
         navHtml += '    <svg class="nav-dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
         navHtml += '  </button>';
         navHtml += '  <div class="nav-dropdown-panel">';
-        navHtml += '    <div class="nav-dropdown-menu" role="menu" aria-label="' + services.escapeHtml(group.head.label) + ' 子菜单">';
-        group.folded.forEach(function(sub) {
+        navHtml += '    <div class="nav-dropdown-menu" role="menu" aria-label="' + services.escapeHtml(head.label) + ' 子菜单">';
+        folded.forEach(function(sub) {
           navHtml += linkHtml(sub, 'nav-dropdown-item', ' role="menuitem"');
         });
         navHtml += '    </div>';

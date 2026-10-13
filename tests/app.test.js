@@ -40,6 +40,21 @@ test('index metadata selects its layout without changing the document identifier
   assert.equal(rendered, post);
 });
 
+test('chapter navigation updates its module before the body finishes loading', () => {
+  const {app,context} = createApp();
+  const post = {slug: 'chapter', column: 'book', type: 'books', bodyUrl: 'body.json'};
+  context.document.getElementById = () => ({});
+  context.window.BlogStore = {
+    getPostById: () => post,
+    getColumnById: () => ({posts: [post]})
+  };
+  const actions = [];
+  app.setActiveNav = id => actions.push(id);
+  app.loadDocumentView = () => actions.push('loading');
+  app.renderPostView('chapter');
+  assert.deepEqual(actions, ['books', 'loading']);
+});
+
 test('book indexes and chapter links use their owning collection module', () => {
   const { app, context } = createApp();
   const book = { id: 'git-from-the-bottom-up', name: 'Git from the Bottom Up', posts: [

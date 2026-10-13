@@ -122,10 +122,7 @@ window.BlogRouter = {
     var postsRoute = routes.posts || '/posts';
     var tagsRoute = routes.tags || '/tags';
 
-    document.querySelectorAll('[data-nav-link]').forEach(function(link) {
-      link.classList.remove('active');
-      link.removeAttribute('aria-current');
-    });
+    this.setActiveNav(null);
 
     if (path === postsRoute) {
       // #/posts 与 #/archive 此前渲染的是同一个视图，等于同一内容有两个 URL。

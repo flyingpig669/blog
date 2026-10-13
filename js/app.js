@@ -524,16 +524,11 @@ window.BlogApp = {
   },
 
   setActiveNav: function(id) {
-    document.querySelectorAll('[data-nav-link="' + id + '"]').forEach(function(link) {
-      link.classList.add('active');
-      link.setAttribute('aria-current', 'page');
-    });
-    var item = this.getFlattenedNav().find(function(item) { return item.id === id; });
-    if (item && item._isFolded) {
-      document.querySelectorAll('[data-nav-link="' + item._parentGroup + '"]').forEach(function(link) {
-        link.classList.add('active');
-      });
-    }
+    window.BlogNavbar.renderNavigation({
+      config: (window.BlogStore && window.BlogStore.config) || window.BlogConfig,
+      escapeHtml: this.escapeHtml.bind(this),
+      navItemHref: this.navItemHref.bind(this)
+    }, id);
   },
 
   renderNotFoundView: function(path) {
@@ -753,6 +748,11 @@ window.BlogApp = {
       return;
     }
 
+    if (post.column) {
+      var owningColumn = window.BlogStore.getColumnById(post.column);
+      if (owningColumn) this.setActiveNav(window.BlogRouteRegistry.collectionFor(owningColumn).name);
+    }
+
     if (post.bodyUrl && !post._loaded) {
       var app = this;
       return this.loadDocumentView(post, function() { app.renderPostView(postId); });
@@ -781,7 +781,6 @@ window.BlogApp = {
       getColumnById: window.BlogStore.getColumnById.bind(window.BlogStore),
       getPosts: window.BlogStore.getPosts.bind(window.BlogStore)
     });
-    if (navigation.columnInfo) this.setActiveNav(window.BlogRouteRegistry.collectionFor(navigation.columnInfo).name);
     var model = Object.assign({ post: post, features: features, renderedHtml: renderedHtml, toc: toc }, navigation);
     var services = {
       escapeHtml: this.escapeHtml.bind(this), formatWordCount: this.formatWordCount.bind(this),
