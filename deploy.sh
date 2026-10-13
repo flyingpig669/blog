@@ -51,7 +51,7 @@ echo ""
 echo "[3/4] 提交最新代码与博文资源..."
 git add .
 
-COMMIT_MSG="${1:-Update blog posts and static assets - $(date '+%Y-%m-%d %H:%M:%S')}"
+COMMIT_MSG="${1:-发布博客内容与源码 - $(date '+%Y-%m-%d %H:%M:%S')}"
 if git diff-index --quiet HEAD -- 2>/dev/null; then
   echo "ℹ️ 本地文件无新增改动，准备推送最新状态..."
 else
