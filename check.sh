@@ -13,7 +13,7 @@ echo "[1/6] Rebuilding the content index..."
 AURORA_PYTHON="$PYTHON" npm run build
 
 echo "[2/6] Checking JavaScript syntax..."
-for file in blog.config.js tailwind.config.js scripts/*.js js/*.js js/components/*.js js/lib/*.js; do
+for file in blog.config.js tailwind.config.js scripts/*.js js/*.js js/components/*.js js/lib/*.js js/layouts/*.js; do
   node --check "$file"
 done
 

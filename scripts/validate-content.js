@@ -27,12 +27,14 @@ const RENDERERS = {
   tags: 'renderTagsView', post: 'renderPostView', page: 'renderPageView', dynamic: 'renderDynamicNavView'
 };
 const appSource = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
+const postLayoutSource = fs.readFileSync(path.join(root, 'js/layouts/post-layout.js'), 'utf8');
 for (const def of context.window.BlogRouteTable) {
   const renderer = RENDERERS[def.view];
   if (!renderer) { fail(`Route ${def.name}: view "${def.view}" 没有登记的渲染函数`); continue; }
-  const start = appSource.indexOf(renderer + ': function');
+  const source = def.view === 'post' ? postLayoutSource : appSource;
+  const start = source.indexOf((def.view === 'post' ? 'render' : renderer) + ': function');
   if (start === -1) { fail(`Route ${def.name}: js/app.js 中找不到渲染函数 ${renderer}`); continue; }
-  const rest = appSource.slice(start + 1);
+  const rest = source.slice(start + 1);
   const next = rest.search(/\n  [A-Za-z_][A-Za-z0-9_]*: function/);
   const body = next === -1 ? rest : rest.slice(0, next);
   const found = body.match(/class="(shell(?:-detail)?) mx-auto/);

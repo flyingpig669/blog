@@ -307,6 +307,7 @@ window.BlogApp = {
       var tagToggle = e.target.closest('[data-tag-toggle]');
       if (tagToggle) self.toggleSortedTag(tagToggle.getAttribute('data-tag-toggle'));
       if (e.target.closest('[data-mobile-nav]')) self.closeMobileDrawer();
+      if (e.target.closest('[data-outline-toggle]')) self.toggleMobileOutline();
       var sectionLink = e.target.closest('[data-copy-heading]');
       if (sectionLink) {
         var url = new URL(window.location.href);
@@ -442,12 +443,14 @@ window.BlogApp = {
   toggleMobileOutline: function() {
     var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
     if (drawer) {
+      var toggle = document.querySelector('[data-outline-toggle][aria-controls]');
+      if (toggle) toggle.setAttribute('aria-expanded', drawer.classList.contains('hidden') ? 'true' : 'false');
       if (drawer.classList.contains('hidden')) {
         drawer.classList.remove('hidden');
         setTimeout(function() { drawer.classList.remove('translate-x-full'); }, 10);
       } else {
         drawer.classList.add('translate-x-full');
-        setTimeout(function() { drawer.classList.add('hidden'); }, 200);
+        setTimeout(function() { drawer.classList.add('hidden'); }, 180);
       }
     }
   },
@@ -479,8 +482,10 @@ window.BlogApp = {
   closeMobileOutline: function() {
     var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
     if (drawer && !drawer.classList.contains('hidden')) {
+      var toggle = document.querySelector('[data-outline-toggle][aria-controls]');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
       drawer.classList.add('translate-x-full');
-      setTimeout(function() { drawer.classList.add('hidden'); }, 200);
+      setTimeout(function() { drawer.classList.add('hidden'); }, 180);
     }
   },
 
@@ -766,265 +771,18 @@ window.BlogApp = {
     var renderedHtml = mdResult.html;
     var toc = mdResult.toc || [];
 
-    // 专栏内部上下一篇与章节解析
-    var columnInfo = post.column ? window.BlogStore.getColumnById(post.column) : null;
-    var collectionDefinition = columnInfo && window.BlogRouteRegistry.collectionFor(columnInfo);
-    if (collectionDefinition) this.setActiveNav(collectionDefinition.name);
-    var colPosts = [];
-    var prevPost = null;
-    var nextPost = null;
-    var prevLabel = '← PREVIOUS ARTICLE';
-    var nextLabel = 'NEXT ARTICLE →';
-    var colIndex = -1;
-
-    if (columnInfo && Array.isArray(columnInfo.posts) && columnInfo.posts.length > 0) {
-      // 专栏内部定向导航 (严格按章节 order 升序排布)
-      colPosts = columnInfo.posts.slice();
-      colIndex = colPosts.findIndex(function(p) {
-        return p.id === post.id || p.slug === post.slug;
-      });
-      if (colIndex !== -1) {
-        prevPost = colIndex > 0 ? colPosts[colIndex - 1] : null;
-        nextPost = colIndex < colPosts.length - 1 ? colPosts[colIndex + 1] : null;
-        if (prevPost) {
-          var pOrder = prevPost.order ? (prevPost.order < 10 ? '0' + prevPost.order : prevPost.order) : (colIndex);
-          prevLabel = '← PART ' + pOrder;
-        }
-        if (nextPost) {
-          var nOrder = nextPost.order ? (nextPost.order < 10 ? '0' + nextPost.order : nextPost.order) : (colIndex + 2);
-          nextLabel = 'PART ' + nOrder + ' →';
-        }
-      }
-    } else {
-      // 普通独立博文：按全局发布列表获取前后相邻文章
-      var allPosts = window.BlogStore.getPosts({ sort: 'date' }).reverse();
-      var currentIndex = allPosts.findIndex(function(p) { return p.id === post.id; });
-      prevPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
-      nextPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
-    }
-
-    var partNumber = post.order ? (post.order < 10 ? '0' + post.order : post.order) : '01';
-    var totalParts = colPosts.length || (columnInfo ? columnInfo.postsCount : 1);
-
-    // 双栏布局容器: 紧凑高信息密度版心 (pt-8 md:pt-10 pb-16)
-    var html = '<div class="shell-detail mx-auto px-4 sm:px-6 pt-8 md:pt-10 pb-16 flex justify-between items-start gap-6 lg:gap-10 relative">';
-
-    // 左侧正文列: 自适应 680px 宽度
-    html += '<div class="flex-1 max-w-[680px] min-w-0">';
-
-    // 紧凑一体式面包屑导航
-    html += '<nav aria-label="Breadcrumb" class="mb-4 flex items-center gap-1.5 text-[12px] font-mono text-muted overflow-x-auto no-scrollbar">';
-    html += '  <a href="' + this.routeHref('home') + '" class="text-secondary hover:text-accent transition-colors shrink-0">Writing</a>';
-    if (columnInfo) {
-      html += '  <span>/</span>';
-      html += '  <a href="' + this.columnHref(columnInfo) + '" class="text-secondary hover:text-accent transition-colors truncate max-w-[220px]" title="' + this.escapeHtml(columnInfo.name) + '">' + window.BlogApp.escapeHtml(columnInfo.name) + '</a>';
-      html += '  <span>/</span>';
-      html += '  <span class="text-accent shrink-0 font-semibold">Part ' + partNumber + '</span>';
-    } else {
-      html += '  <span>/</span>';
-      html += '  <span class="text-secondary shrink-0">Article</span>';
-    }
-    html += '</nav>';
-
-    // 专栏系列横幅 (高信息密度紧凑型导引条)
-    if (columnInfo) {
-      html += '<div class="mb-5 py-2 px-3 rounded-[6px] bg-codebg border border-subtle flex items-center justify-between text-[12px] font-mono text-secondary">';
-      html += '  <div class="flex items-center gap-2 min-w-0">';
-      html += '    <span class="px-1.5 py-0.2 rounded bg-accent/15 text-accent text-[10.5px] font-semibold shrink-0">PART ' + partNumber + ' / ' + (totalParts < 10 ? '0' + totalParts : totalParts) + '</span>';
-      html += '    <span class="text-primary font-sans truncate">' + window.BlogApp.escapeHtml(columnInfo.name) + '</span>';
-      html += '  </div>';
-      html += '  <a href="' + this.columnHref(columnInfo) + '" class="text-secondary hover:text-accent transition-colors shrink-0 ml-3 text-[11px]">Series Index →</a>';
-      html += '</div>';
-    }
-
-    // 文章头部
-    html += '<header class="mb-6 pb-4 border-b border-divider">';
-    html += '  <h1 class="text-[26px] sm:text-[30px] md:text-[32px] font-bold text-primary tracking-[-0.02em] leading-[1.25] mb-2.5 font-sans">' + window.BlogApp.escapeHtml(post.title) + '</h1>';
-    // 文章元信息行: 日期 · 阅读时长 · 字数 · 标签
-    html += '  <div class="flex flex-wrap items-center gap-2 text-[12px] font-mono text-muted">';
-    html += '    <span>' + window.BlogApp.escapeHtml(post.date) + '</span>';
-    html += '    <span>·</span>';
-    html += '    <span>' + window.BlogApp.escapeHtml(post.readTime || '3 min read') + '</span>';
-    if (post.words) {
-      html += '    <span>·</span>';
-      html += '    <span>' + this.formatWordCount(post.words) + '</span>';
-    }
-    if ((post.tags || []).length > 0) {
-      html += '    <span>·</span>';
-      html += '    <div class="inline-flex flex-wrap gap-1.5">';
-      post.tags.forEach(function(t) {
-        html += '      <a href="' + window.BlogApp.tagHref(t) + '" class="text-secondary hover:text-accent transition-colors">#' + window.BlogApp.escapeHtml(t) + '</a>';
-      });
-      html += '    </div>';
-    }
-    html += '  </div>';
-    html += '</header>';
-
-    // FrontMatter 声明的幻灯片（方式 B）：课件固定挂在页头之下、正文之上。
-    // 规则（2026-10-11 调整）：FrontMatter 显式声明的 slide 永远在顶部挂载；正文若也
-    // 内嵌了同一份 ::: slide，那个挂载点会在实例化阶段被剔除，同一份 PDF 不出现两个播放器。
-    // 此前这里是「正文有 ::: slide 就整段跳过」—— 作者两处都写时 FrontMatter 被静默忽略，
-    // 看起来像没生效。注意：FrontMatter 未写时 sync_posts.py 会从正文第一条 ::: slide 反向
-    // 提取 slide 字段（slideExplicit=false），那种情况仍以正文书写位置为准，不挂顶。
-    if (post.slide && (post.slideExplicit || renderedHtml.indexOf('article-slide-player-mount') === -1)) {
-      html += '<div class="article-slide-player-mount my-8" data-slide-primary="1" data-slide-url="' + this.escapeHtml(post.slide) + '" data-slide-title="' + this.escapeHtml(post.title || '') + '"></div>';
-    }
-
-    // Markdown 正文 (正文内部可能包含一处或多处 ::: slide 演示文稿)
-    html += '<article class="markdown-body mb-12">';
-    html += renderedHtml;
-    html += '</article>';
-
-    // FrontMatter 声明的下载类附件 (attachments: ["attachments/xxx.zip"])
-    if (Array.isArray(post.attachments) && post.attachments.length > 0) {
-      html += '<section class="mb-12 py-4 px-4 rounded-[6px] bg-surface border border-subtle">';
-      html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-muted mb-3">Attachments (' + post.attachments.length + ')</div>';
-      html += '  <div class="space-y-2">';
-      post.attachments.forEach(function(file) {
-        var fileName = String(file).split('/').pop();
-        html += '    <a href="' + window.BlogApp.escapeHtml(file) + '" download class="flex items-center gap-2 text-[13.5px] text-secondary hover:text-accent transition-colors">';
-        html += '      <span class="text-accent font-mono text-[11px] shrink-0">&darr;</span>';
-        html += '      <span class="truncate">' + window.BlogApp.escapeHtml(fileName) + '</span>';
-        html += '    </a>';
-      });
-      html += '  </div>';
-      html += '</section>';
-    }
-
-    // 上一篇 / 下一篇导航（专栏内为章节导航，普通文章为相邻文章）
-    html += '<div class="pt-6 border-t border-divider space-y-3">';
-    if (columnInfo && colPosts.length > 0) {
-      var currentDisplayPart = colIndex !== -1 ? (colIndex + 1) : (post.order || 1);
-      html += '<div class="flex items-center justify-between text-[11px] font-mono text-muted">';
-      html += '  <span class="text-accent font-medium">SERIES · Chapter ' + currentDisplayPart + ' of ' + colPosts.length + ' in ' + window.BlogApp.escapeHtml(columnInfo.name) + '</span>';
-      html += '  <a href="' + this.columnHref(columnInfo) + '" class="hover:text-accent transition-colors">All ' + colPosts.length + ' Chapters →</a>';
-      html += '</div>';
-    }
-    html += '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">';
-    if (prevPost) {
-      html += '<a href="' + this.postHref(prevPost) + '" class="linear-card p-3.5 text-left group block">';
-      html += '  <div class="text-[10px] font-mono text-muted mb-1 flex items-center gap-1.5">';
-      html += '    <span>' + prevLabel + '</span>';
-      if (columnInfo) html += '<span class="text-accent">IN SERIES</span>';
-      html += '  </div>';
-      html += '  <div class="text-[13.5px] font-medium text-primary group-hover:text-accent transition-colors line-clamp-1">' + window.BlogApp.escapeHtml(prevPost.title) + '</div>';
-      html += '</a>';
-    } else {
-      html += '<div class="linear-card p-3.5 text-left opacity-35 border-dashed border-white/[0.04]">';
-      html += '  <div class="text-[10px] font-mono text-muted mb-1">' + (columnInfo ? 'SERIES START' : 'FIRST ARTICLE') + '</div>';
-      html += '  <div class="text-[12px] text-muted">No earlier chapters.</div>';
-      html += '</div>';
-    }
-
-    if (nextPost) {
-      html += '<a href="' + this.postHref(nextPost) + '" class="linear-card p-3.5 text-right group block">';
-      html += '  <div class="text-[10px] font-mono text-muted mb-1 flex items-center justify-end gap-1.5">';
-      if (columnInfo) html += '<span class="text-accent">IN SERIES</span>';
-      html += '    <span>' + nextLabel + '</span>';
-      html += '  </div>';
-      html += '  <div class="text-[13.5px] font-medium text-primary group-hover:text-accent transition-colors line-clamp-1">' + window.BlogApp.escapeHtml(nextPost.title) + '</div>';
-      html += '</a>';
-    } else {
-      html += '<div class="linear-card p-3.5 text-right opacity-35 border-dashed border-white/[0.04]">';
-      html += '  <div class="text-[10px] font-mono text-muted mb-1">' + (columnInfo ? 'SERIES COMPLETED' : 'LATEST ARTICLE') + '</div>';
-      html += '  <div class="text-[12px] text-muted">Reached the final chapter.</div>';
-      html += '</div>';
-    }
-    html += '</div>';
-    html += '</div>';
-
-    html += '</div>'; // 结束左侧列
-
-    // 右侧列: 常驻悬浮 Outline 侧边栏 (屏幕宽度 >= 600px 自动展开)
-    // 包含系列专栏全景章节 (如有) 与当前文章大纲，大幅提升信息密度
-    var hasSidebar = features.outlineSidebar !== false && ((columnInfo && colPosts.length > 1) || toc.length > 0);
-    if (hasSidebar) {
-      html += '<aside class="outline-floating-sidebar toc-floating-sidebar w-[200px] lg:w-[230px] shrink-0 sticky top-20 font-mono text-[12px]">';
-      
-      // 如果属于专栏：呈现本专栏的完整章节速览
-      if (columnInfo && colPosts.length > 1) {
-        html += '<div class="mb-5 pb-4 border-b border-divider">';
-        html += '  <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-accent font-semibold mb-2">';
-        html += '    <span>Series Chapters</span>';
-        html += '    <a href="' + this.columnHref(columnInfo) + '" class="text-muted hover:text-accent transition-colors">Index →</a>';
-        html += '  </div>';
-        html += '  <div class="space-y-1 max-h-[190px] overflow-y-auto no-scrollbar pr-1">';
-        colPosts.forEach(function(cp, cidx) {
-          var isCurrent = cp.id === post.id || cp.slug === post.slug;
-          var cOrder = cp.order ? (cp.order < 10 ? '0' + cp.order : cp.order) : ('0' + (cidx + 1));
-          var linkClass = isCurrent 
-            ? 'bg-accent/10 text-accent font-medium border-l-2 border-accent pl-2 py-1'
-            : 'text-secondary hover:text-primary pl-2.5 py-1 border-l border-divider hover:border-white/[0.2]';
-          html += '  <a href="' + window.BlogApp.postHref(cp) + '" class="flex items-baseline gap-2 text-[11.5px] transition-all block truncate ' + linkClass + '" title="' + window.BlogApp.escapeHtml(cp.title) + '">';
-          html += '    <span class="text-[10px] shrink-0 font-mono opacity-80">' + cOrder + '</span>';
-          html += '    <span class="truncate">' + window.BlogApp.escapeHtml(cp.title) + '</span>';
-          html += '  </a>';
-        });
-        html += '  </div>';
-        html += '</div>';
-      }
-
-      // 本文内部大纲 (On this page)
-      if (toc.length > 0) {
-        html += '  <div class="text-[11px] font-mono uppercase tracking-wider text-muted mb-2">On this page</div>';
-        html += '  <nav id="desktop-outline-nav" aria-label="On this page" class="space-y-0.5 border-l border-subtle pl-2.5 max-h-[calc(100vh-280px)] overflow-y-auto">';
-        toc.forEach(function(item) {
-          var indentClass = item.level === 3 ? 'pl-2 text-[11px] text-muted' : 'text-[12px] text-secondary';
-          var escapedTitle = window.BlogApp.escapeHtml(item.text);
-          html += '  <div class="toc-item">';
-          html += '    <button type="button" data-outline-target="' + item.id + '" data-target="' + item.id + '" data-level="' + item.level + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indentClass + ' hover:text-accent transition-colors truncate leading-relaxed cursor-pointer bg-transparent border-none p-0 py-0.5" title="' + escapedTitle + '">';
-          html += window.BlogApp.escapeHtml(item.text);
-          html += '    </button>';
-          html += '  </div>';
-        });
-        html += '  </nav>';
-      }
-      html += '</aside>';
-    }
-
-    html += '</div>'; // 结束外层双栏
-
-    // 小屏浮动胶囊 (# Outline) 与侧滑抽屉 (< 600px)
-    if (hasSidebar) {
-      html += '<div class="outline-floating-fab toc-floating-fab">';
-      html += '  <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="fixed right-5 bottom-20 z-40 px-3 py-2 rounded-full bg-surface/90 backdrop-blur-md border border-white/[0.12] text-[12px] font-mono text-primary shadow-xl hover:border-accent flex items-center gap-1.5 cursor-pointer" title="Outline & Chapters">';
-      html += '    <span class="text-accent">#</span>';
-      html += '    <span>Outline</span>';
-      html += '  </button>';
-      html += '  <div id="mobile-outline-drawer" class="fixed inset-y-0 right-0 w-[280px] max-w-[85vw] bg-page/95 backdrop-blur-xl border-l border-subtle z-50 p-5 transform translate-x-full transition-transform duration-200 overflow-y-auto hidden">';
-      html += '    <div class="flex items-center justify-between pb-3 border-b border-divider mb-3">';
-      html += '      <span class="text-[12px] font-mono uppercase tracking-wider text-muted">Outline & Chapters</span>';
-      html += '      <button type="button" onclick="window.BlogApp.toggleMobileOutline()" class="text-secondary hover:text-primary text-[16px] cursor-pointer">✕</button>';
-      html += '    </div>';
-
-      if (columnInfo && colPosts.length > 1) {
-        html += '<div class="mb-4 pb-3 border-b border-divider">';
-        html += '  <div class="text-[11px] font-mono text-accent mb-2 uppercase tracking-wider font-semibold">Series Chapters</div>';
-        html += '  <div class="space-y-1 font-mono text-[12px]">';
-        colPosts.forEach(function(cp, cidx) {
-          var isCur = cp.id === post.id || cp.slug === post.slug;
-          var ord = cp.order ? (cp.order < 10 ? '0' + cp.order : cp.order) : ('0' + (cidx + 1));
-          html += '<a href="' + window.BlogApp.postHref(cp) + '" onclick="window.BlogApp.toggleMobileOutline()" class="block py-1 truncate ' + (isCur ? 'text-accent font-semibold' : 'text-secondary') + '">';
-          html += '  <span class="opacity-60 mr-1.5">' + ord + '</span>' + window.BlogApp.escapeHtml(cp.title);
-          html += '</a>';
-        });
-        html += '  </div>';
-        html += '</div>';
-      }
-
-      if (toc.length > 0) {
-        html += '    <div class="text-[11px] font-mono text-muted mb-2 uppercase tracking-wider">Page Outline</div>';
-        html += '    <nav aria-label="Page outline" class="space-y-1.5 font-mono text-[13px]">';
-        toc.forEach(function(item) {
-          var indent = item.level === 3 ? 'pl-2 text-[12px] text-muted' : 'text-[12.5px] text-secondary';
-          var escapedTitle = window.BlogApp.escapeHtml(item.text);
-          html += '      <button type="button" data-outline-target="' + item.id + '" onclick="window.BlogApp.scrollToHeading(&apos;' + item.id + '&apos;)" class="outline-nav-btn text-left w-full block ' + indent + ' hover:text-accent transition-colors truncate cursor-pointer bg-transparent border-none p-0 py-0.5 leading-relaxed" title="' + escapedTitle + '">' + window.BlogApp.escapeHtml(item.text) + '</button>';
-        });
-        html += '    </nav>';
-      }
-      html += '  </div>';
-      html += '</div>';
-    }
+    var navigation = window.BlogPostNavigation.resolve(post, {
+      getColumnById: window.BlogStore.getColumnById.bind(window.BlogStore),
+      getPosts: window.BlogStore.getPosts.bind(window.BlogStore)
+    });
+    if (navigation.columnInfo) this.setActiveNav(window.BlogRouteRegistry.collectionFor(navigation.columnInfo).name);
+    var model = Object.assign({ post: post, features: features, renderedHtml: renderedHtml, toc: toc }, navigation);
+    var services = {
+      escapeHtml: this.escapeHtml.bind(this), formatWordCount: this.formatWordCount.bind(this),
+      routeHref: this.routeHref.bind(this), columnHref: this.columnHref.bind(this),
+      postHref: this.postHref.bind(this), tagHref: this.tagHref.bind(this)
+    };
+    var html = window.BlogPostLayout.render(model, services);
 
     container.innerHTML = html;
 
