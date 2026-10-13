@@ -549,6 +549,22 @@ attachments: ["attachments/slides/quantum-computing-slides.pdf", "attachments/�
 ---
 ```
 
+### Word 与 PPT 预览
+
+将 `.doc`、`.docx`、`.ppt`、`.pptx` 放在 `attachments/`，然后声明附件，或在正文中写普通 Markdown 链接：
+
+```yaml
+attachments: ["attachments/讲义.docx", "attachments/课件.pptx"]
+```
+
+```markdown
+[课程讲义](attachments/讲义.docx)
+```
+
+文章末尾会出现「预览 Word」或「预览 PPT」，并保留原文件下载。构建时由 LibreOffice 转为 PDF，阅读时复用 PDF 播放器，点击后才下载预览文件。PPT 动画、音视频和切换效果不保留；复杂版式可能与 Office 有差异。仅自动转换本地附件，外部链接保持普通链接。
+
+首次转换需要安装 LibreOffice（macOS 支持 `/Applications/LibreOffice.app`，其它环境使用 PATH 中的 `soffice`；也可设置 `AURORA_SOFFICE`）。CI 已配置转换器和中文字体。相同内容只转换一次；附件修改后自动重新转换。生成的 PDF 位于 `data/office/`，无需提交，发布构建会生成。
+
 ### 7. Callout 提示块
 
 四种类型各自有独立的强调色与浅色底（tip 青 / note 蓝 / warning 琥珀 / danger 红），便于一眼分辨语义：

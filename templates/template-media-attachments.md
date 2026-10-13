@@ -156,7 +156,19 @@ Markdown 没有音视频语法，直接写 HTML（过滤器会保留 `controls`�
   **10 MB 以内**并压制到 720p；音频建议 32–64 kbps。
 - 与图片一样：必须放在 `attachments/` 下，线上才有这个文件。
 
-## 五、与其它嵌入能力的边界
+## 五、Word 与 PPT 预览
+
+把原文件放在 `attachments/`，使用 FrontMatter 附件列表：
+
+```yaml
+attachments: ["attachments/讲义.docx", "attachments/课件.pptx"]
+```
+
+或直接在正文写 `[讲义](attachments/讲义.docx)`。支持 `.doc`、`.docx`、`.ppt`、`.pptx`；文章末尾自动提供预览按钮与原文件下载。
+
+本地构建需要 LibreOffice（`soffice`，或 macOS 的 `/Applications/LibreOffice.app`）。首次构建转为 PDF 并缓存；点击预览才加载 PDF。PPT 展示静态页面，不保留动画或音视频。外部 Office 链接仅提供下载，不自动转换。
+
+## 六、与其它嵌入能力的边界
 
 这些能力各有专门模板，此处只给一句话索引，不重复展开：
 
@@ -167,11 +179,11 @@ Markdown 没有音视频语法，直接写 HTML（过滤器会保留 `controls`�
 | 站内互链 | `[[slug]]` 双链或相对 `.md` 链接 | `templates/template-collection.md` |
 | 论著列表（含 pdf 徽章） | 结构化页 `publications` 区块 | `templates/template-publications-page.md` |
 
-## 六、改动后如何验证
+## 七、改动后如何验证
 
 ```bash
 ./check.sh    # 校验所有引用的图片/文件真实存在且在发布白名单内
 ```
 
-注意：本地 `python3 server.py` 的**实时重建只做同步、不做校验**——坏路径在浏览器里
-是静默 404，只有 `./check.sh` 会报。发布前（`./deploy.sh`）会自动跑一遍校验。
+`./run.sh` 的实时重建会按改动选择构建步骤并校验引用；Office 附件修改会更新预览。
+发布前（`./deploy.sh`）会自动执行完整检查。
