@@ -14,6 +14,8 @@ import json
 import time
 import hashlib
 import subprocess
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from xml.sax.saxutils import escape as escape_xml
 from lib.frontmatter import parse_frontmatter, normalize_doc_type
 
@@ -33,6 +35,28 @@ def write_if_changed(path, content):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as file:
         file.write(content)
+
+def ensure_publication_date(filepath):
+    """缺省发布日期只写入一次；已有 Git 历史取首次提交，新文件取创建日期。"""
+    with open(filepath, encoding='utf-8') as file:
+        raw = file.read()
+    metadata, _ = parse_frontmatter(raw, filepath)
+    if any(key.lower() == 'date' and value for key, value in metadata.items()):
+        return
+    result = subprocess.run(['git', 'log', '--follow', '--format=%aI', '--', os.path.relpath(filepath, BASE_DIR)], cwd=BASE_DIR, capture_output=True, text=True)
+    history = result.stdout.strip().splitlines() if result.returncode == 0 else []
+    stat = os.stat(filepath)
+    date = history[-1][:10] if history else datetime.fromtimestamp(getattr(stat, 'st_birthtime', stat.st_mtime), ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d')
+    text = raw.replace('\r\n', '\n').lstrip('\ufeff')
+    if text.startswith('---\n'):
+        # 空 date 不再另插入一个同名字段。
+        if any(key.lower() == 'date' for key in metadata):
+            text = re.sub(r'(?mi)^date:[^\r\n]*$', 'date: "' + date + '"', text, count=1)
+        else:
+            text = text.replace('---\n', '---\ndate: "' + date + '"\n', 1)
+    else:
+        text = '---\ndate: "' + date + '"\n---\n\n' + text
+    write_if_changed(filepath, text)
 
 IGNORE_DIRS = {".git", ".github", ".vscode", "node_modules", "assets", "attachments", "images", "img", "slides", "vendor", "templates", "drafts"}
 
@@ -105,6 +129,7 @@ def parse_md_file(filepath, words_per_minute=300):
     filename = os.path.basename(filepath)
     title = ""
     date = time.strftime("%Y-%m-%d")
+    updated = None
     column = ""
     column_name = ""
     column_slug = ""
@@ -139,6 +164,8 @@ def parse_md_file(filepath, words_per_minute=300):
                 title = val
             elif key == "date":
                 date = val
+            elif key == "updated":
+                updated = val
             elif key in ["column", "series"]:
                 column = val
             elif key in ["columnname", "column_name", "columntitle", "column_title"]:
@@ -228,6 +255,7 @@ def parse_md_file(filepath, words_per_minute=300):
         "order": order,
         "relPath": rel_path,
         "date": date,
+        **({"updated": updated} if updated else {}),
         "readTime": read_time,
         "words": word_units,
         "pinned": pinned,
@@ -302,7 +330,7 @@ def parse_structured_page_file(filepath):
 def parse_about_file(filepath):
     return parse_structured_page_file(filepath)
 
-def write_sitemap(site_url):
+def write_sitemap(site_url, last_modified=''):
     """站点配置了 site.url 时生成 sitemap.xml。
 
     注意：本站使用 Hash 路由（#/posts/xxx）。搜索引擎不会把 Hash 片段视为独立 URL，
@@ -310,10 +338,12 @@ def write_sitemap(site_url):
     """
     if not site_url:
         return False
-    today = time.strftime("%Y-%m-%d")
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    xml += f'  <url>\n    <loc>{escape_xml(site_url)}/</loc>\n    <lastmod>{today}</lastmod>\n    <changefreq>daily</changefreq>\n  </url>\n'
+    xml += f'  <url>\n    <loc>{escape_xml(site_url)}/</loc>\n'
+    if last_modified:
+        xml += f'    <lastmod>{last_modified}</lastmod>\n'
+    xml += '    <changefreq>daily</changefreq>\n  </url>\n'
     xml += '</urlset>\n'
     write_if_changed(os.path.join(output_dir(), "sitemap.xml"), xml)
     return True
@@ -343,6 +373,7 @@ def sync():
     slug_sources = {}
 
     for filepath in sorted(md_files):
+        ensure_publication_date(filepath)
         p = parse_md_file(filepath, words_per_minute)
         if not show_test and p.get("isTest"):
             print(f" ⊘ 跳过测试文档 (showTest=false): {p['relPath']}")
@@ -467,7 +498,7 @@ def sync():
         digest = hashlib.sha256(body.encode('utf-8')).hexdigest()[:16]
         body_url = f'data/documents/{slug}.{digest}.json'
         bodies[body_url] = body
-        keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'tags',
+        keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'updated', 'tags',
                 'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'home', 'isTest', 'excerpt', 'tocLevels']
         documents[slug] = {key: doc[key] for key in keep if key in doc}
         documents[slug]['bodyUrl'] = body_url
@@ -525,7 +556,8 @@ def sync():
 
     print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏。")
     print(f" -> 索引文件已更新: js/posts-data.js")
-    if write_sitemap(cfg.get("siteUrl", "")):
+    last_modified = max((max(p.get('date', ''), p.get('updated', '')) for p in synced_posts), default='')
+    if write_sitemap(cfg.get("siteUrl", ""), last_modified):
         print(f" -> sitemap.xml 已生成: {cfg['siteUrl']}/")
     else:
         print(" ℹ️ 未设置 site.url，已跳过 sitemap.xml（在 blog.config.js 的 site.url 填入站点地址即可启用）")

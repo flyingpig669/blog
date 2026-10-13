@@ -3,6 +3,7 @@ import io
 import json
 import os
 import tempfile
+import subprocess
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +12,42 @@ import sync_posts
 
 
 class ContentTests(unittest.TestCase):
+    def test_automatic_publication_date_uses_first_commit_and_remains_fixed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args):
+                return subprocess.run(['git', *args], cwd=root, check=True, capture_output=True)
+            git('init')
+            article = root / 'article.md'
+            article.write_text('---\ntitle: Article\n---\nOriginal body\n')
+            git('add', 'article.md')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', 'commit', '--date=2026-01-02T12:00:00+08:00', '-m', 'first')
+            article.write_text('---\ntitle: Article\n---\nUpdated body\n')
+            git('add', 'article.md')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', 'commit', '--date=2026-02-03T12:00:00+08:00', '-m', 'second')
+            with patch.object(sync_posts, 'BASE_DIR', directory):
+                sync_posts.ensure_publication_date(str(article))
+                self.assertIn('date: "2026-01-02"', article.read_text())
+                first = article.read_text()
+                os.utime(article, (2000000000, 2000000000))
+                sync_posts.ensure_publication_date(str(article))
+                self.assertEqual(article.read_text(), first)
+
+    def test_new_article_date_is_materialized_once_and_updated_is_independent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            article = Path(directory) / 'article.md'
+            article.write_text('# Article\n')
+            with patch.object(sync_posts, 'BASE_DIR', directory):
+                sync_posts.ensure_publication_date(str(article))
+                date = sync_posts.parse_md_file(str(article))['date']
+                article.write_text(article.read_text() + '\nEdited body\n')
+                sync_posts.ensure_publication_date(str(article))
+                self.assertEqual(sync_posts.parse_md_file(str(article))['date'], date)
+            article.write_text('---\ndate: "2026-01-02"\nupdated: "2026-02-03"\n---\nBody\n')
+            post = sync_posts.parse_md_file(str(article))
+            self.assertEqual(post['date'], '2026-01-02')
+            self.assertEqual(post['updated'], '2026-02-03')
+
     def test_compiled_types_keep_books_and_indexes_searchable_and_pages_separate(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'source'

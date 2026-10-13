@@ -51,19 +51,21 @@ def validate_metadata(data):
     fields = {key.lower(): value for key, value in data.items()}
     if 'category' in fields or 'categroy' in fields:
         raise ValueError('category 已合并到 type，请改为 type: books 或 type: index；主题请使用 tags')
-    scalar_keys = ['title', 'slug', 'date', 'column', 'columnslug', 'columnname',
+    scalar_keys = ['title', 'slug', 'date', 'updated', 'column', 'columnslug', 'columnname',
                    'columndesc', 'type', 'layout', 'excerpt', 'slide', 'pdf', 'focus']
     for key in scalar_keys:
         if key in fields and not isinstance(fields[key], str):
             raise ValueError(f'{key} 必须是文本')
-    if fields.get('date'):
-        value = fields['date']
+    for key in ['date', 'updated']:
+        if not fields.get(key):
+            continue
+        value = fields[key]
         if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
-            raise ValueError('date 必须使用 YYYY-MM-DD')
+            raise ValueError(f'{key} 必须使用 YYYY-MM-DD')
         try:
             datetime.date.fromisoformat(value)
         except ValueError as error:
-            raise ValueError('date 不是有效日期') from error
+            raise ValueError(f'{key} 不是有效日期') from error
     for key in ['pinned', 'test', 'home']:
         if key in fields and (not isinstance(fields[key], str) or fields[key].lower() not in ['true', 'false']):
             raise ValueError(f'{key} 必须是 true 或 false')
