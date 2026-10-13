@@ -33,6 +33,8 @@ window.BlogPostContent = {
       html += '</section>';
     }
 
+    if (post.attachmentPreviews) html += window.BlogPdfPreviews.officeMarkup(post);
+
     return html;
   }
 };

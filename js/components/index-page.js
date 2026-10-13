@@ -10,7 +10,9 @@ window.BlogIndexPage = {
     html += '<div class="index-summary"><span><span data-index-section-count>0</span> SECTIONS</span><span><span data-index-link-count>0</span> LINKS</span></div>';
     html += '</header>';
     html += '<nav class="index-section-nav tag-cloud mb-8" aria-label="索引分组" data-index-sections></nav>';
-    html += '<article class="markdown-body index-content">' + result.html + '</article></div>';
+    html += '<article class="markdown-body index-content">' + result.html + '</article>';
+    if (post.attachmentPreviews) html += window.BlogPdfPreviews.officeMarkup(post);
+    html += '</div>';
     return html;
   },
 

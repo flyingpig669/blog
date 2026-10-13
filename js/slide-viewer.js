@@ -48,6 +48,7 @@ function SlidePlayer(container, options, id) {
   this.options = options || {};
   this.url = window.BlogHtml.safeUrl(this.options.url, true);
   this.title = this.options.title || 'Presentation';
+  this.isDocument = this.options.document === true;
   this.id = id;
 
   this.pdfDoc = null;
@@ -81,12 +82,12 @@ SlidePlayer.prototype.buildDOM = function() {
 
   // 1. 顶部专业工具栏 (Header Toolbar)
   var header = document.createElement('div');
-  header.className = 'slide-player-header flex items-center justify-between px-3 sm:px-4 py-2.5 bg-surface border-b border-divider text-[13px]';
+  header.className = 'slide-player-header flex flex-wrap gap-y-2 items-center justify-between px-3 sm:px-4 py-2.5 bg-surface border-b border-divider text-[13px]';
 
   // 左侧：徽章 + 演示标题
   var leftGroup = document.createElement('div');
-  leftGroup.className = 'flex items-center gap-2.5 min-w-0 pr-2';
-  leftGroup.innerHTML = '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-accent/15 text-accent shrink-0 uppercase tracking-wider">SLIDE DECK</span>' +
+  leftGroup.className = 'flex items-center gap-2.5 min-w-0 pr-2 w-full sm:w-auto';
+  leftGroup.innerHTML = '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-accent/15 text-accent shrink-0 uppercase tracking-wider">' + (this.isDocument ? 'WORD' : 'SLIDE DECK') + '</span>' +
     '<span class="text-primary font-sans font-medium text-[13px] truncate">' + self.escapeHtml(self.title) + '</span>';
 
   // 中间：分页指示器与前后导航
@@ -96,7 +97,7 @@ SlidePlayer.prototype.buildDOM = function() {
   var prevBtn = document.createElement('button');
   prevBtn.type = 'button';
   prevBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1 rounded transition-colors cursor-pointer';
-  prevBtn.title = 'Previous Slide (← / Space)';
+  prevBtn.title = 'Previous ' + (this.isDocument ? 'Page' : 'Slide') + ' (← / Space)';
   prevBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
   prevBtn.onclick = function(e) { e.stopPropagation(); self.onPrevPage(); };
 
@@ -107,7 +108,7 @@ SlidePlayer.prototype.buildDOM = function() {
   var nextBtn = document.createElement('button');
   nextBtn.type = 'button';
   nextBtn.className = 'slide-tool-btn text-secondary hover:text-primary p-1 rounded transition-colors cursor-pointer';
-  nextBtn.title = 'Next Slide (→ / Enter)';
+  nextBtn.title = 'Next ' + (this.isDocument ? 'Page' : 'Slide') + ' (→ / Enter)';
   nextBtn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
   nextBtn.onclick = function(e) { e.stopPropagation(); self.onNextPage(); };
 

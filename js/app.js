@@ -1226,8 +1226,10 @@ window.BlogApp = {
       html += '</section>';
     }
 
+    if (pageData.attachmentPreviews) html += window.BlogPdfPreviews.officeMarkup(pageData);
     html += '</div>';
     container.innerHTML = html;
+    this.preparePdfPreviews(container, pageData);
 
   },
 

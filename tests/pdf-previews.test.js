@@ -68,3 +68,22 @@ test('stale PDF dependency responses cannot mount after navigation', () => {
   f.callbacks[0]();
   assert.equal(f.mounted.length, 0);
 });
+
+test('Office previews share the lazy PDF viewer and preserve original downloads', () => {
+  const f = fixture();
+  f.first.setAttribute('data-source-url', 'attachments/notes one.docx');
+  f.first.setAttribute('data-source-format', 'Word');
+  f.previews.prepare(f.container, {}, f.services);
+  assert.equal(f.requests(), 0);
+  assert.match(f.first.innerHTML, /预览 Word/);
+  assert.match(f.first.innerHTML, /attachments\/notes%20one.docx/);
+  assert.match(f.first.innerHTML, /下载原文件/);
+  const markup = f.previews.officeMarkup({attachmentPreviews: {'attachments/a<unsafe>.pptx': 'data/office/preview.pdf'}});
+  assert.match(markup, /data-source-format="PPT"/);
+  assert.match(markup, /a&lt;unsafe&gt;.pptx/);
+  assert.doesNotMatch(markup, /<iframe|<script/);
+  f.previews.open(f.first, f.services);
+  f.callbacks[0]();
+  assert.equal(f.mounted[0].options.url, 'one.pdf');
+  assert.equal(f.mounted[0].options.document, true);
+});
