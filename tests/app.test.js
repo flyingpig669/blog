@@ -140,3 +140,41 @@ test('home navigation forwards its page query to the home renderer', () => {
   assert.equal(page, '3');
   assert.equal(app.currentRoute.name, 'home');
 });
+
+test('mobile outline cancels pending animations on rapid toggles', () => {
+  const {app,context} = createApp();
+  const classes = new Set(['hidden', 'translate-x-full']);
+  const drawer = {classList: {
+    contains: value => classes.has(value),
+    add: value => classes.add(value),
+    remove: value => classes.delete(value)
+  }};
+  let expanded = 'false';
+  const toggle = {
+    getAttribute: () => expanded,
+    setAttribute: (_key, value) => { expanded = value; }
+  };
+  const timers = new Map();
+  let nextId = 0;
+  context.setTimeout = callback => { timers.set(++nextId, callback); return nextId; };
+  context.clearTimeout = id => timers.delete(id);
+  context.document.getElementById = () => drawer;
+  context.document.querySelector = () => toggle;
+  const flush = () => { for (const callback of timers.values()) callback(); timers.clear(); };
+
+  app.toggleMobileOutline();
+  app.toggleMobileOutline();
+  flush();
+  assert.equal(expanded, 'false');
+  assert.ok(classes.has('hidden'));
+  assert.ok(classes.has('translate-x-full'));
+
+  app.toggleMobileOutline();
+  flush();
+  app.closeMobileOutline();
+  app.toggleMobileOutline();
+  flush();
+  assert.equal(expanded, 'true');
+  assert.ok(!classes.has('hidden'));
+  assert.ok(!classes.has('translate-x-full'));
+});

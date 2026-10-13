@@ -441,16 +441,22 @@ window.BlogApp = {
   },
 
   toggleMobileOutline: function() {
+    var toggle = document.querySelector('[data-outline-toggle][aria-controls]');
+    this.setMobileOutlineExpanded(!toggle || toggle.getAttribute('aria-expanded') !== 'true');
+  },
+
+  setMobileOutlineExpanded: function(expanded) {
     var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
     if (drawer) {
       var toggle = document.querySelector('[data-outline-toggle][aria-controls]');
-      if (toggle) toggle.setAttribute('aria-expanded', drawer.classList.contains('hidden') ? 'true' : 'false');
-      if (drawer.classList.contains('hidden')) {
+      if (toggle) toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      clearTimeout(drawer.outlineTimer);
+      if (expanded) {
         drawer.classList.remove('hidden');
-        setTimeout(function() { drawer.classList.remove('translate-x-full'); }, 10);
+        drawer.outlineTimer = setTimeout(function() { drawer.classList.remove('translate-x-full'); }, 10);
       } else {
         drawer.classList.add('translate-x-full');
-        setTimeout(function() { drawer.classList.add('hidden'); }, 180);
+        drawer.outlineTimer = setTimeout(function() { drawer.classList.add('hidden'); }, 180);
       }
     }
   },
@@ -480,13 +486,7 @@ window.BlogApp = {
   },
 
   closeMobileOutline: function() {
-    var drawer = document.getElementById('mobile-outline-drawer') || document.getElementById('mobile-toc-drawer');
-    if (drawer && !drawer.classList.contains('hidden')) {
-      var toggle = document.querySelector('[data-outline-toggle][aria-controls]');
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
-      drawer.classList.add('translate-x-full');
-      setTimeout(function() { drawer.classList.add('hidden'); }, 180);
-    }
+    this.setMobileOutlineExpanded(false);
   },
 
   toggleMobileToc: function() { this.toggleMobileOutline(); },
