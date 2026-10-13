@@ -62,6 +62,7 @@ order: 1                             # 章节序号，专栏内以此顺序排�
 # 页面排版模式
 type: "normal"                       # normal（默认）、books（书籍章节）、index（知识索引）、post（结构化独立页）
 pinned: false                        # 是否在首页置顶展示 (true / false)
+home: true                           # 是否在首页显示；false 仍收录 Archive、标签、搜索与专栏
 
 # 附件与演示文稿
 slide: "attachments/slides/xxx.pdf"  # 挂载的演示文稿文件路径

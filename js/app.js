@@ -698,7 +698,7 @@ window.BlogApp = {
   renderHomeView: function() {
     var container = document.getElementById('app-main');
     var site = (window.BlogStore.config && window.BlogStore.config.site) || {};
-    var posts = window.BlogStore.getPosts();
+    var posts = window.BlogStore.getPosts({ home: true });
 
     this.setDocumentTitle(site.title);
     var html = '<div class="shell mx-auto px-4 sm:px-6">';

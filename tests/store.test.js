@@ -141,3 +141,18 @@ test('content type filtering includes books and indexes in the post stream', () 
   assert.deepEqual(Array.from(store.getPosts({type: 'books'}), p => p.slug), ['chapter']);
   assert.deepEqual(Array.from(store.getPosts({type: 'index'}), p => p.slug), ['index']);
 });
+
+test('home visibility hides even pinned articles only from the home query', () => {
+  const store = createStore();
+  store.posts = [
+    {slug: 'default', title: 'Default article', date: '2026-10-12', tags: ['topic']},
+    {slug: 'visible', title: 'Visible article', home: true, date: '2026-10-12'},
+    {slug: 'hidden', title: 'Hidden article', home: false, pinned: true, date: '2026-10-12', tags: ['topic'], relPath: 'demo/hidden.md'}
+  ];
+  assert.deepEqual(Array.from(store.getPosts({home: true}), p => p.slug), ['default', 'visible']);
+  assert.equal(store.getPosts({sort: 'date'}).length, 3);
+  assert.ok(store.getPosts({tag: 'topic'}).some(p => p.slug === 'hidden'));
+  assert.equal(store.searchPosts('hidden')[0].slug, 'hidden');
+  assert.equal(store.getPostsByDir('demo')[0].slug, 'hidden');
+  assert.equal(store.getPostById('hidden').slug, 'hidden');
+});

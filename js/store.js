@@ -67,6 +67,7 @@ window.BlogStore = {
     filter = filter || {};
     var list = this.posts.filter(function(p) {
       if (p.type === 'post' || p.type === 'page') return false;
+      if (filter.home && p.home === false) return false;
       return !self.isPostExcluded(p);
     });
 

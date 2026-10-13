@@ -64,7 +64,7 @@ def validate_metadata(data):
             datetime.date.fromisoformat(value)
         except ValueError as error:
             raise ValueError('date 不是有效日期') from error
-    for key in ['pinned', 'test']:
+    for key in ['pinned', 'test', 'home']:
         if key in fields and (not isinstance(fields[key], str) or fields[key].lower() not in ['true', 'false']):
             raise ValueError(f'{key} 必须是 true 或 false')
     for key in ['type', 'layout']:

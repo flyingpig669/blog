@@ -113,6 +113,7 @@ def parse_md_file(filepath, words_per_minute=300):
     order = 999
     tags = []
     pinned = False
+    home = None
     excerpt = ""
     slide = ""
     slide_explicit = False
@@ -165,6 +166,8 @@ def parse_md_file(filepath, words_per_minute=300):
                 toc_levels = normalize_toc_levels(value)
             elif key == "pinned":
                 pinned = (val.lower() == "true")
+            elif key == "home":
+                home = (val.lower() == "true")
             elif key == "excerpt":
                 excerpt = val
             elif key == "tags":
@@ -228,6 +231,7 @@ def parse_md_file(filepath, words_per_minute=300):
         "readTime": read_time,
         "words": word_units,
         "pinned": pinned,
+        **({"home": home} if home is not None else {}),
         "type": doc_type,
         "isTest": is_test,
         "slide": slide,
@@ -448,6 +452,8 @@ def sync():
     search = {}
     for slug, doc in documents.items():
         doc['type'] = normalize_doc_type(doc.get('type', 'normal'))
+        if 'home' in doc:
+            doc['home'] = str(doc['home']).lower() == 'true'
         if not valid_resource_slug(slug):
             raise ValueError(f"{doc['sourcePath']}: slug 需使用中文、英文小写或数字")
         for alias in [slug, doc.get('id'), doc['sourcePath'], doc.get('relPath')]:
@@ -462,7 +468,7 @@ def sync():
         body_url = f'data/documents/{slug}.{digest}.json'
         bodies[body_url] = body
         keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'tags',
-                'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'isTest', 'excerpt', 'tocLevels']
+                'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'home', 'isTest', 'excerpt', 'tocLevels']
         documents[slug] = {key: doc[key] for key in keep if key in doc}
         documents[slug]['bodyUrl'] = body_url
         if doc.get('type', 'normal') != 'post':

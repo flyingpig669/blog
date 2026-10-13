@@ -17,7 +17,7 @@ class ContentTests(unittest.TestCase):
             posts = source / 'posts'
             posts.mkdir(parents=True)
             for kind in ['normal', 'books', 'index', 'page']:
-                (posts / (kind + '.md')).write_text(f'---\ntype: {kind}\ndate: "2026-10-12"\n---\nSearchable {kind} body\n', encoding='utf-8')
+                (posts / (kind + '.md')).write_text(f'---\ntype: {kind}\nhome: false\ndate: "2026-10-12"\n---\nSearchable {kind} body\n', encoding='utf-8')
             output = Path(directory) / 'output'
             with patch.object(sync_posts, 'BASE_DIR', str(source)), patch.object(sync_posts, 'POSTS_DIR', str(posts)), patch.dict(os.environ, AURORA_OUTPUT_DIR=str(output)), contextlib.redirect_stdout(io.StringIO()):
                 sync_posts.sync()
@@ -32,6 +32,20 @@ class ContentTests(unittest.TestCase):
                 body = json.loads((output / doc['bodyUrl']).read_text())
                 self.assertNotIn('category', body)
                 self.assertEqual(body['type'], doc['type'])
+                self.assertIs(doc['home'], False)
+                self.assertIs(body['home'], False)
+
+    def test_home_flag_defaults_to_visible_and_rejects_invalid_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / 'article.md'
+            file.write_text('# Article\n', encoding='utf-8')
+            self.assertNotIn('home', sync_posts.parse_md_file(str(file)))
+            for value in ['true', 'false']:
+                file.write_text(f'---\nhome: {value}\n---\nBody\n', encoding='utf-8')
+                self.assertIs(sync_posts.parse_md_file(str(file))['home'], value == 'true')
+            file.write_text('---\nhome: no\n---\nBody\n', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'home 必须是 true 或 false'):
+                sync_posts.parse_md_file(str(file))
 
     def test_preview_outputs_and_cleanup_leave_production_files_untouched(self):
         with tempfile.TemporaryDirectory() as directory:
