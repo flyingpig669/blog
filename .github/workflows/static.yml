@@ -47,6 +47,13 @@ jobs:
       - name: Install build dependencies
         run: npm ci && python3 -m pip install -r requirements.txt
 
+      - name: Install Office preview converter
+        run: |
+          if find attachments -type f \( -iname '*.doc' -o -iname '*.docx' -o -iname '*.ppt' -o -iname '*.pptx' \) -print -quit | grep -q .; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends libreoffice-writer libreoffice-impress fonts-noto-cjk
+          fi
+
       - name: Validate, build and test
         run: ./check.sh
 

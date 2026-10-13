@@ -173,8 +173,8 @@ class FileWatcher(threading.Thread):
     # sync_posts.py 的输出：它们是同步动作的结果，不应再单独触发一次刷新
     GENERATED = {"js/posts-data.js", "sitemap.xml", "vendor/purify.min.js"}
     # 改动这些扩展名/文件后，需要先重建索引再刷新
-    SYNC_TRIGGERS = (".md", ".markdown", ".js", ".html", ".css")
-    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "sync_posts.py", "lib/frontmatter.py"}
+    SYNC_TRIGGERS = (".md", ".markdown", ".js", ".html", ".css", ".doc", ".docx", ".ppt", ".pptx")
+    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "sync_posts.py", "lib/frontmatter.py", "lib/office_preview.py"}
 
     def __init__(self, root, auto_sync=True, log=None):
         super().__init__(name="aurora-file-watcher")
@@ -246,7 +246,7 @@ class FileWatcher(threading.Thread):
 
         sources = [path for path in changed if path not in self.GENERATED]
         needs_sync = self.auto_sync and any(
-            path.endswith(self.SYNC_TRIGGERS) or path in self.SYNC_FILES
+            path.lower().endswith(self.SYNC_TRIGGERS) or path in self.SYNC_FILES
             for path in sources
         )
         if needs_sync:
@@ -278,10 +278,10 @@ class FileWatcher(threading.Thread):
                 cwd=self.root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=60,
+                timeout=180,
             )
         except subprocess.TimeoutExpired:
-            self.log("⚠️  构建执行超时（>60s）")
+            self.log("⚠️  构建执行超时（>180s）")
             return
         except Exception as exc:
             self.log(f"⚠️  构建无法执行: {exc}")

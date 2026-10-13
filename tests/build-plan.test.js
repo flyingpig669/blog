@@ -8,4 +8,7 @@ test('preview rebuilds only the required stages', () => {
   assert.deepEqual(buildPlan(['attachments/demo.pdf']), {content: false, css: false, vendor: false, validate: false});
   assert.deepEqual(buildPlan(['blog.config.js']), buildPlan());
   assert.deepEqual(buildPlan(['lib/frontmatter.py']), buildPlan());
+  assert.deepEqual(buildPlan(['attachments/课件.PPTX']), {content: true, css: false, vendor: false, validate: true});
+  assert.deepEqual(buildPlan(['attachments/讲义.doc']), {content: true, css: false, vendor: false, validate: true});
+  assert.deepEqual(buildPlan(['lib/office_preview.py']), buildPlan());
 });

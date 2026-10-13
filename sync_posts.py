@@ -18,6 +18,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from xml.sax.saxutils import escape as escape_xml
 from lib.frontmatter import parse_frontmatter, normalize_doc_type
+from lib.office_preview import build_previews
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 POSTS_DIR = os.path.join(BASE_DIR, "posts")
@@ -481,6 +482,7 @@ def sync():
             raise ValueError(f'重复文档路径 {key}')
         aliases[key.lower()] = slug
     search = {}
+    office_keep = set()
     for slug, doc in documents.items():
         doc['type'] = normalize_doc_type(doc.get('type', 'normal'))
         if 'home' in doc:
@@ -494,6 +496,10 @@ def sync():
                     raise ValueError(f'重复文档路径 {alias}')
                 aliases[alias] = slug
         clean_doc = {key: value for key, value in doc.items() if key not in ['raw', 'notes']}
+        office_previews = build_previews(clean_doc, BASE_DIR, output_dir())
+        office_keep.update(office_previews.values())
+        if office_previews:
+            clean_doc['attachmentPreviews'] = office_previews
         body = json.dumps(clean_doc, ensure_ascii=False, separators=(',', ':'))
         digest = hashlib.sha256(body.encode('utf-8')).hexdigest()[:16]
         body_url = f'data/documents/{slug}.{digest}.json'
@@ -524,6 +530,13 @@ def sync():
         (os.path.join(output_dir(), 'data'), re.compile(r'^search\.[0-9a-f]{16}\.json$')),
     ]
     removed = []
+    office_directory = os.path.join(output_dir(), 'data', 'office')
+    if os.path.isdir(office_directory):
+        for name in sorted(os.listdir(office_directory)):
+            url = 'data/office/' + name
+            if re.fullmatch(r'[0-9a-f]{64}\.pdf', name) and url not in office_keep:
+                os.remove(os.path.join(office_directory, name))
+                removed.append(url)
     for directory, pattern in stale_targets:
         if not os.path.isdir(directory):
             continue

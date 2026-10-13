@@ -138,6 +138,10 @@ for (const doc of Object.values(store.documents)) {
   if (body.slug !== doc.slug || typeof body.content !== 'string') fail(`${doc.sourcePath}: invalid document body`);
   walk(marked.lexer(body.content), doc.sourcePath);
   for (const value of [...(body.attachments || []), body.slide, body.pdf].filter(Boolean)) checkAsset(value, doc.sourcePath);
+  for (const [source, preview] of Object.entries(body.attachmentPreviews || {})) {
+    checkAsset(source, doc.sourcePath);
+    checkAsset(preview, doc.sourcePath);
+  }
   for (const item of [...(body.contacts || []), ...(body.social || [])]) checkLink(item.url || item.href || '', doc.sourcePath);
   for (const pub of body.publications || []) {
     for (const [kind, value] of Object.entries(pub.links || {})) {
