@@ -250,7 +250,7 @@ class FileWatcher(threading.Thread):
             for path in sources
         )
         if needs_sync:
-            self._run_sync()
+            self._run_sync(sources)
             # sync 会重写 js/posts-data.js，一并吞进新基线，避免紧接着再刷一次
             # 只吞掉生成文件；编译期间的新源文件改动留给下一轮检测。
             after_sync = scan_tree(self.root)
@@ -268,13 +268,13 @@ class FileWatcher(threading.Thread):
         self.log(f"🔄 检测到改动：{preview or '生成产物'} → 通知浏览器刷新")
         self._broadcast()
 
-    def _run_sync(self):
+    def _run_sync(self, changed=None):
         script = os.path.join(self.root, "scripts", "build.js")
         if not os.path.exists(script):
             return
         try:
             result = subprocess.run(
-                ["node", script],
+                ["node", script] + (["--changed", json.dumps(changed)] if changed is not None else []),
                 cwd=self.root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -291,7 +291,8 @@ class FileWatcher(threading.Thread):
             tail = result.stdout.decode("utf-8", "replace").strip().splitlines()[-3:]
             self.log("⚠️  构建失败: " + " / ".join(tail))
         else:
-            self.log("📦 已重建内容索引与静态样式")
+            steps = [line for line in result.stdout.decode('utf-8', 'replace').splitlines() if line.startswith('Build steps:')]
+            self.log("📦 " + (steps[0] if steps else "构建完成"))
 
     def _broadcast(self):
         payload = {"v": self.version_ms()}
