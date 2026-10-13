@@ -156,3 +156,26 @@ test('home visibility hides even pinned articles only from the home query', () =
   assert.equal(store.getPostsByDir('demo')[0].slug, 'hidden');
   assert.equal(store.getPostById('hidden').slug, 'hidden');
 });
+
+test('home aggregates visible book chapters and paginates without changing archive', () => {
+  const store = createStore();
+  const chapters = [
+    {slug: 'first', type: 'books', column: 'book', order: 1, date: '2026-10-01', tags: ['Git']},
+    {slug: 'second', type: 'books', column: 'book', order: 2, date: '2026-10-12', pinned: true, tags: ['阅读']},
+    {slug: 'hidden', type: 'books', column: 'hidden-book', home: false, date: '2026-10-12'}
+  ];
+  store.posts = chapters.concat([{slug: 'article', title: 'Article', date: '2026-10-12'}, {slug: 'older', date: '2026-01-01'}]);
+  store.documents = Object.fromEntries(chapters.map(p => [p.slug, p]));
+  store.rawColumns = [{id: 'book', name: 'Git book', desc: 'Guide', postIds: ['first', 'second']}, {id: 'hidden-book', postIds: ['hidden']}];
+  const page = store.getHomePage(1, 2);
+  assert.equal(page.total, 3);
+  assert.equal(page.pageCount, 2);
+  assert.equal(page.items[0].kind, 'book');
+  assert.equal(page.items[0].date, '2026-10-12');
+  assert.equal(page.items[0].chapterCount, 2);
+  assert.deepEqual(Array.from(page.items[0].tags), ['阅读', 'Git']);
+  assert.equal(store.getHomePage(99, 2).page, 2);
+  assert.equal(store.getHomePage('invalid', 2).page, 1);
+  assert.equal(store.getHomePage(2, 2).items[0].slug, 'older');
+  assert.equal(store.getPosts({sort: 'date'}).length, 5);
+});

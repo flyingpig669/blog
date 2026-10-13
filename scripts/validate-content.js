@@ -14,6 +14,8 @@ const { BlogStore: store, BlogRouter: router, BlogHtml: html, BlogConfig: config
 store.init();
 const errors = [];
 const fail = message => errors.push(message);
+const pageSize = config.features && config.features.homePageSize;
+if (pageSize != null && (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100)) fail('features.homePageSize 必须是 1 到 100 的整数');
 
 // 0) 路由声明表自洽：命名格式、路径唯一、模块形态、路由层级、导航声明、alias 指向。
 //    第 6 节的全部硬约束都在这里变成构建期报错，不依赖人读 checklist。

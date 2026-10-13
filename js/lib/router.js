@@ -230,7 +230,7 @@ window.BlogRouter = {
 
     if (matchedNavItem) {
       this.setActiveNav(matchedNavItem.id);
-      this.dispatchNavItem(matchedNavItem, path);
+      this.dispatchNavItem(matchedNavItem, path, query);
       return;
     }
 
@@ -239,7 +239,7 @@ window.BlogRouter = {
   },
 
   // 依据导航项 target 模式分派渲染：route(默认路由) / dir(目录) / file(文件)
-  dispatchNavItem: function(item, path) {
+  dispatchNavItem: function(item, path, query) {
     var parsed = this.parseTarget(item);
     var navId = item.id;
 
@@ -267,7 +267,7 @@ window.BlogRouter = {
 
     if (view === 'home') {
       this.currentRoute = { name: 'home', params: {} };
-      this.renderHomeView();
+      this.renderHomeView(new URLSearchParams(query || '').get('page') || 1);
     } else if (view === 'columns') {
       this.currentRoute = { name: 'columns', params: {} };
       this.renderColumnsView(null, navId);

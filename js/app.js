@@ -700,10 +700,15 @@ window.BlogApp = {
     return window.BlogPostItem.render(post, { escapeHtml: this.escapeHtml.bind(this), postHref: this.postHref.bind(this), tagHref: this.tagHref.bind(this), columnHref: this.columnHref.bind(this), routeHref: this.routeHref.bind(this), selected: selected, showPinned: this.currentRoute.name === "home" });
   },
 
-  renderHomeView: function() {
+  renderHomeView: function(requestedPage) {
     var container = document.getElementById('app-main');
     var site = (window.BlogStore.config && window.BlogStore.config.site) || {};
-    var posts = window.BlogStore.getPosts({ home: true });
+    var features = (window.BlogStore.config && window.BlogStore.config.features) || {};
+    var page = window.BlogStore.getHomePage(requestedPage || 1, features.homePageSize);
+    var posts = page.items;
+    this.currentRoute.params.page = page.page;
+    var pageUrl = this.routeHref('home') + (page.page > 1 ? '?page=' + page.page : '');
+    if (window.location.hash !== pageUrl) window.history.replaceState(window.history.state, '', pageUrl);
 
     this.setDocumentTitle(site.title);
     var html = '<div class="shell mx-auto px-4 sm:px-6">';
@@ -730,6 +735,7 @@ window.BlogApp = {
       posts.forEach(function(post) { html += window.BlogApp.renderPostItem(post, null); });
     }
     html += '</section>';
+    html += window.BlogPagination.render(page, { escapeHtml: this.escapeHtml.bind(this), routeHref: this.routeHref.bind(this) });
     html += '</div>';
 
     container.innerHTML = html;

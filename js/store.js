@@ -117,6 +117,36 @@ window.BlogStore = {
     return String(a || '').localeCompare(String(b || ''), 'zh-CN', { numeric: true });
   },
 
+  getHomeEntries: function() {
+    var self = this, books = new Map(), entries = [];
+    this.getPosts({ home: true }).forEach(function(post) {
+      if (post.type !== 'books' || !post.column) { entries.push(post); return; }
+      if (!books.has(post.column)) books.set(post.column, []);
+      books.get(post.column).push(post);
+    });
+    books.forEach(function(posts, id) {
+      var collection = self.getColumnById(id);
+      if (!collection) { entries.push.apply(entries, posts); return; }
+      var latest = posts.slice().sort(function(a, b) { return self.comparePosts(a, b, 'date'); })[0];
+      entries.push({ kind: 'book', slug: 'book:' + id, collection: collection,
+        title: collection.name, excerpt: collection.desc, date: latest.date,
+        chapterCount: collection.postsCount, pinned: posts.some(function(post) { return post.pinned; }),
+        tags: Array.from(new Set(posts.flatMap(function(post) { return post.tags || []; }))) });
+    });
+    return entries.sort(function(a, b) { return self.comparePosts(a, b); });
+  },
+
+  getHomePage: function(requestedPage, requestedSize) {
+    var entries = this.getHomeEntries();
+    var size = Number(requestedSize);
+    if (!Number.isInteger(size) || size < 1 || size > 100) size = 10;
+    var pages = Math.max(1, Math.ceil(entries.length / size));
+    var page = Number(requestedPage);
+    if (!Number.isInteger(page) || page < 1) page = 1;
+    page = Math.min(page, pages);
+    return { items: entries.slice((page - 1) * size, page * size), page: page, pageCount: pages, total: entries.length };
+  },
+
   chapterOrder: function(post) {
     var order = Number(post.order);
     return post.order != null && Number.isFinite(order) ? order : 999;

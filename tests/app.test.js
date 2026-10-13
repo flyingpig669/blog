@@ -129,3 +129,14 @@ test('legacy hash paths with /blog prefix normalize via replaceState', () => {
   app.handleRoute();
   assert.equal(replaced, '/#/archive');
 });
+
+test('home navigation forwards its page query to the home renderer', () => {
+  const {app,context} = createApp();
+  context.URLSearchParams = URLSearchParams;
+  app.parseTarget = () => ({mode: 'route'});
+  let page;
+  app.renderHomeView = value => {page = value;};
+  app.dispatchNavItem({id: 'home'}, '/', '?page=3');
+  assert.equal(page, '3');
+  assert.equal(app.currentRoute.name, 'home');
+});

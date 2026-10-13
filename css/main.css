@@ -1343,3 +1343,4 @@ html, body {
 .index-entry-content { min-width: 0; font-size: 14px; color: var(--text-secondary); }
 .index-content .index-entry-content a { font-weight: 600; color: var(--text-primary); border-bottom: none; }
 .index-content .index-entry-content a:hover { color: var(--accent-primary); }
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 32px; }

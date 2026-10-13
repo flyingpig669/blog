@@ -71,6 +71,8 @@ window.BlogConfig = {
 
   // 5. 功能开关 (Feature Toggles)
   features: {
+    // 首页每页条目数；每本书聚合为一个入口。
+    homePageSize: 10,
     // 启用顶部平滑阅读进度条
     readingProgress: true,
     // 文章详情页常驻右侧悬浮 Outline (目录导航与自动 Scrollspy 高亮)
