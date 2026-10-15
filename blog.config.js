@@ -30,6 +30,7 @@ window.BlogConfig = {
     description: "A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.",
     // 页脚版权说明 (由 js/components/footer.js 写入全局页脚)
     footerText: "© 2026 CCC · All rights reserved.",
+    footerEmail: "ccc0000006@gmail.com",
     // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。
     // 填好后 sync_posts.py 会产出 sitemap.xml，app.js#absoluteSiteUrl 也会用它作 canonical。
     url: "https://notes.theccyy.com",
