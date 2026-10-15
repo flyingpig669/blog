@@ -430,3 +430,15 @@ $$
 - 文章 slug 与标签支持中文；模块路径与专栏标识继续使用英文小写。
 - `category` 仅保留 `books`（书籍）与 `index`（目录／索引页）作为结构标识；普通文章省略，物理、数学、工程等主题统一由 `tags` 表达。
 - 正文 PDF 默认显示预览与下载入口，点击预览才加载 PDF.js 和对应文件。禁止打开文章时同时初始化全部 PDF 播放器。
+
+## Vue 迁移后的实现约定
+
+本次全站 Vue 重写后，以本节替代上文指向旧 `js/app.js`、`js/components/` 的实现位置要求，设计与路由规范继续有效。
+
+- 全部页面 UI 使用 `src/**/*.vue`；根组件为 `src/App.vue`，组件/页面/组合函数/服务分别位于 `components/`、`views/`、`composables/`、`lib/`。禁止重新引入全局 `BlogApp`、页面 `innerHTML` 或行内 `onclick`。
+- 路由仍声明在 `js/lib/routes.js`，`src/lib/router.js` 将其转换为 Vue Router Hash 路由；旧地址用 `replace` 重定向，标签选中集合从 URL 派生。
+- 折叠共用 `ExpandableEntry.vue` 与 `useExpandable.js`；状态由 Vue 维护 `hidden`、`aria-expanded` 与 `is-expanded`。保留链接优先、文本选择保护和空箭头禁止规则。
+- PDF/Office 预览统一使用 `PdfPreview.vue`。PDF.js 只由 `src/lib/viewer.js` 在点击后加载；播放器任务及 ResizeObserver 在卸载时释放。
+- 配置/FrontMatter 通过 Vue 文本插值和属性绑定渲染；仅 DOMPurify 清洗后的 Markdown 可使用 `v-html`，不要将其他不可信文本拼接进 HTML。
+- 页脚使用 `Footer.vue`，当前用户要求为无分割线、居中版权和 EMAIL 超链接；无 JavaScript 兜底在 `index.html` 的 `noscript` 中保持相同文案。
+- `.vue` 保存由现有 `./run.sh` 增量编译 Vue 与样式；`js/vue/` 为忽略的产物目录，禁止纳入文件监听与 Git。修改模块后仍执行 `./check.sh`。

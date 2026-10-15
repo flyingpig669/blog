@@ -1,6 +1,6 @@
 # Aurora Notes (极光随笔)
 
-> 冷静、克制、严谨的深色科技风个人博客系统。整体美学参考 Linear、Vercel 与 Raycast 的深色设计语言：依靠充裕留白与 1px 极细边框建立视觉秩序，内容优先，原生 JavaScript 前端与静态构建。
+> 冷静、克制、严谨的深色科技风个人博客系统。整体美学参考 Linear、Vercel 与 Raycast 的深色设计语言：依靠充裕留白与 1px 极细边框建立视觉秩序，内容优先，Vue 3 组件化前端与静态构建。
 
 ---
 
@@ -21,51 +21,38 @@
 
 ## 一、核心架构与目录结构
 
-本系统是**零构建的纯静态单页应用 (SPA)**：没有 Node.js 打包、没有 Webpack/Vite，浏览器直接执行原生 ES5 语法脚本，秒级加载、无依赖维护成本。
+本系统是 **Vue 3 + Vue Router + Vite 的静态单页应用 (SPA)**。前端使用单文件组件（`src/**/*.vue`），由 Vite 编译为 `js/vue/` 下的入口与内容哈希应用包，继续使用 Hash 路由，可直接部署到 GitHub Pages。Node.js 只用于构建，线上不需要后端服务。
 
 内容层由 `sync_posts.py` 扫描 Markdown，生成轻量元数据索引 `js/posts-data.js` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
 
 ```text
-~/Documents/blog/
-├── blog.config.js          # ⭐ 全局配置中心：站点信息、作者、功能开关（routes / nav 由路由表派生）
-├── about.md                # ⭐ 关于页数据源：状态/座右铭/时间线/关注领域/社交
-├── index.html              # 主入口：SPA 挂载容器、页脚、资源载入
-├── 404.html                # 非 Hash 物理路径的 404 页（样式内联，站点根由 CI 注入）
-├── og-image.png            # ⚙ 自动生成：社交分享卡片图（1200×630，npm run build:og）
-├── css/
-│   └── main.css            # 设计系统：Tokens、组件样式、导航下拉、时间线、幻灯片播放器
+blog/
+├── src/
+│   ├── App.vue             # Vue 根组件：导航、RouterView、页脚、搜索与阅读进度
+│   ├── components/         # 可复用 UI：条目、折叠、搜索、目录、PDF/Office 播放器
+│   ├── views/              # 首页、Archive、Tags、集合、文档与动态模块
+│   ├── composables/        # 文档加载生命周期、折叠状态
+│   └── lib/                # Vue Router、内容服务、预览依赖与论著元数据
 ├── js/
-│   ├── app.js              # 核心控制器：各视图渲染、事件监听、链接生成
-│   ├── store.js            # 数据中心：读取配置与编译数据，文档/专栏/标签检索与站内互链解析
-│   ├── markdown.js         # Markdown 渲染：KaTeX 公式、Prism 高亮、Callout、Slide 容器、TOC、双链
-│   ├── slide-viewer.js     # PDF.js 幻灯片/演示文稿播放器（按需懒加载，约 20KB）
-│   ├── icons.js            # 极简内联 SVG 图标库 (Lucide，仅保留 Callout 用到的 3 个)
-│   ├── posts-data.js       # ⚙ 自动生成：由 sync_posts.py 编译产出的内容索引，请勿手改
-│   └── lib/
-│       ├── routes.js       # ⭐ 路由声明表：全站路由与导航的唯一来源，加模块只改这一处
-│       └── router.js       # Hash 路由解析、视图分派、旧地址兼容
-├── posts/                  # ⭐ 文章与独立页存放目录（纯 Markdown）
-│   ├── hello-world.md
-│   ├── quantum-simulator.md
-│   ├── roadmap.md          # 结构化独立页示例 (type: post)
-│   ├── 02-群论测试.md       # 专栏章节示例
-│   └── 群论/01-简介.md      # 专栏章节（子目录形式）
-├── attachments/            # 附件（幻灯片 PDF、图片、压缩包等），同步脚本自动跳过
-│   └── slides/
-├── templates/              # 写作模板库（不参与发布）
-├── scripts/                # 构建期脚本（不参与发布）
-│   ├── build.js            # 构建入口：调用 sync_posts.py 与 Tailwind CLI
-│   ├── validate-content.js # 内容与路由一致性校验（双链、附件、版心、导航互查）
-│   └── generate-og-image.js # 生成 og-image.png（无头 Chrome 渲染，文案取自配置）
-├── sync_posts.py           # 内容编译脚本：扫描 posts/ 与 about.md → 生成 js/posts-data.js（+ sitemap.xml）
-├── check.sh                # 一键自检：重建索引 → JS/Python/Shell 语法校验
-├── server.py               # 本地预览服务器（多线程加固，默认端口 18888）
-├── run.sh                  # 隔离预览构建并启动实时刷新服务器
-├── deploy.sh               # 一键发布：自检 → 同步 → Commit → Push
-├── robots.txt              # 爬虫规则（配合 blog.config.js 的 site.url 使用）
-├── sitemap.xml             # ⚙ 自动生成：仅当 site.url 非空时产出
-├── AGENTS.md               # UI 设计系统与开发协作约束手册
-└── README.md               # 本文档
+│   ├── store.js            # 内容查询、排序、全文索引、请求去重与双链解析
+│   ├── markdown.js         # 安全 Markdown、公式、高亮、Callout 与 TOC
+│   ├── lib/routes.js       # 路由及导航声明的唯一来源
+│   ├── posts-data.js       # 生成的内容索引，不提交
+│   └── vue/                # 生成的入口与 Vue 应用包，不提交
+├── css/main.css            # 全站设计令牌与共享样式
+├── blog.config.js          # 站点、作者、导航、功能配置
+├── index.html              # Vue 挂载入口与静态 SEO 元信息
+├── posts/                  # Markdown 文章、书籍与独立页
+├── about.md                # 结构化 About 数据
+├── attachments/            # 原始附件（PDF、Office、图片等）
+├── templates/              # Markdown 写作模板
+├── data/                   # 生成的正文、搜索索引与 Office PDF 预览，不提交
+├── scripts/                # 构建与发布校验；build-app.mjs 调用 Vite 编译 Vue
+├── lib/                    # Python FrontMatter 和 Office 转换
+├── sync_posts.py           # Markdown 编译及预览缓存
+├── server.py               # 支持 .vue 改动增量构建的本地服务器
+├── check.sh                # 完整构建、语法、内容校验和组件/内容测试
+└── .github/workflows/      # 检查后组装静态白名单发布到 Pages
 ```
 
 > **关键约定**：新增文章后运行 `npm run build`（或 `./check.sh`），同时生成索引、正文、搜索数据与静态 CSS；这些产物不进入 Git，由 CI 在发布前重新生成。浏览器不再运行 Tailwind。预览必须通过 HTTP 服务器访问，不能直接打开本地 HTML。
@@ -104,7 +91,7 @@
 
 ```text
 Route[0] home: 只有文章详情（view: 'post'）可以用 shell-detail；其余页面必须用 shell
-Route home: 表里声明 shell-detail，但 renderHomeView 实际用的是 shell
+Route home: 表里声明 shell-detail，但 HomeView.vue 实际用的是 shell
 ```
 
 ### 2. 全局配置
@@ -529,7 +516,7 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 | 静止 2.5 秒（放映中） | 控制岛、进度线与鼠标指针一起隐藏；移动鼠标恢复 |
 | 工具栏 `○−` `○＋` | 缩放（**移动端同样可见**：窄屏才是最需要缩放的场景） |
 
-> **性能**：PDF.js（约 1.3MB）与 `slide-viewer.js` 不会随首屏加载。每份 PDF 默认只显示预览与下载入口；只有点击「预览 PDF」时，才由 `app.js#ensureSlideViewer()` 按需注入并加载所选文件。多 PDF 页面首屏不下载任何 PDF，也不初始化播放器。切换路由时取消已启动的播放器任务。
+> **性能**：PDF.js（约 1.3MB）不会随首屏加载。每份 PDF 默认只显示预览与下载入口；只有点击「预览 PDF」时，才由 `src/lib/viewer.js#ensureViewer()` 按需注入并加载所选文件。多 PDF 页面首屏不下载任何 PDF，也不初始化播放器。切换路由时取消已启动的播放器任务。
 
 ### 6. 附件、图片与下载
 
@@ -616,13 +603,14 @@ npm ci
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 npm run build
+npm run dev    # 等价于 ./run.sh
 ```
 
-构建入口是 `scripts/build.js`；`run.sh` / `check.sh` 自动优先使用项目 `.venv`。使用其它 Python 环境可设置 `AURORA_PYTHON`。开发监听按改动选择构建步骤：文章修改更新内容与 CSS，前端 JS／HTML／CSS 修改只更新样式并校验，配置和构建脚本修改执行完整构建。第三方依赖不再每次复制。生成数据、CSS、日志、依赖与缓存不进入监听，避免刷新循环。
+构建入口是 `scripts/build.js`；`run.sh` / `check.sh` 自动优先使用项目 `.venv`。使用其它 Python 环境可设置 `AURORA_PYTHON`。开发监听按改动选择构建步骤：文章修改更新内容与 CSS，Vue 组件与 src/ JS 修改更新应用包、CSS 并校验，静态 JS／HTML／CSS 修改更新样式并校验，配置和构建脚本修改执行完整构建。第三方依赖不再每次复制。生成数据、CSS、日志、依赖与缓存不进入监听，避免刷新循环。
 
 **本地试改请用 `./run.sh`**：启动和保存时的生成数据、CSS、第三方依赖都写入已被 Git 忽略的 `.cache/preview/`，服务器将这些资源映射到原有 URL，浏览器仍能看到最新内容。源文件即时读取，不需要复制；预览不会改动或删除仓库中的发布产物。单独生成预览产物可用 `npm run build:preview`。正式 `npm run build`、`./check.sh` 和部署会生成发布产物，但它们已被 Git 忽略；提交源码、Markdown 与附件即可，CI 会从干净仓库生成并校验完整站点。
 
-公共模块分别位于 `js/components/`（导航、文章条目、论著、搜索）与 `js/lib/`（路由、滚动状态、HTML/URL 安全）。组件通过注入服务使用数据和路由，不反向依赖页面控制器。文章详情由 `js/layouts/post-layout.js` 组装 `post-header`、`post-content`、`post-adjacent` 与 `post-outline`，上下篇模型由 `js/lib/post-navigation.js` 提供；目录按钮统一走事件委托。设计颜色与字体只在 `css/main.css` 令牌中定义，Tailwind 配置引用变量。
+公共组件位于 `src/components/`，页面组装位于 `src/views/`，生命周期逻辑位于 `src/composables/`，数据与路由服务位于 `src/lib/`。导航、页脚、文章、搜索、折叠、目录及 PDF/Office 播放器均使用 Vue 模板与响应式状态，不再通过页面级 `innerHTML` 或全局 `BlogApp` 渲染。只有经过 DOMPurify 清洗的 Markdown 正文使用 `v-html`，其代码复制和嵌入预览在组件生命周期内绑定、销毁。`ExpandableEntry.vue` / `useExpandable.js` 是共用折叠机制，避免每个页面单独维护开关。设计颜色与字体仍集中在 `css/main.css`。
 
 Markdown 通过 DOMPurify 清理，再统一过滤链接/资源协议；前台标题与属性统一转义。搜索提供正文命中片段与安全高亮；章节标题旁的 `#` 可复制直达链接；About 提供区块跳转。普通文章按发布时间串联，专栏按章节顺序串联。
 
