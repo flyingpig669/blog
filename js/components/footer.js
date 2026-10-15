@@ -7,7 +7,6 @@ window.BlogFooter = {
     var email = String(site.footerEmail || '').trim();
     if (contact) contact.hidden = !email;
     if (emailLink) {
-      emailLink.textContent = email;
       emailLink.href = 'mailto:' + email;
     }
   }
