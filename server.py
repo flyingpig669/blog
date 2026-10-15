@@ -150,6 +150,7 @@ def scan_tree(root):
         dirnames[:] = [
             d for d in dirnames
             if d not in WATCH_IGNORED_DIRS and not d.startswith(".")
+            and not (d == "vue" and os.path.relpath(dirpath, root) == "js")
         ]
         for name in filenames:
             if name.startswith(".") or name in WATCH_IGNORED_FILES:
@@ -173,7 +174,7 @@ class FileWatcher(threading.Thread):
     # sync_posts.py 的输出：它们是同步动作的结果，不应再单独触发一次刷新
     GENERATED = {"js/posts-data.js", "sitemap.xml", "vendor/purify.min.js"}
     # 改动这些扩展名/文件后，需要先重建索引再刷新
-    SYNC_TRIGGERS = (".md", ".markdown", ".js", ".html", ".css", ".doc", ".docx", ".ppt", ".pptx")
+    SYNC_TRIGGERS = (".md", ".markdown", ".js", ".mjs", ".vue", ".html", ".css", ".doc", ".docx", ".ppt", ".pptx")
     SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "sync_posts.py", "lib/frontmatter.py", "lib/office_preview.py"}
 
     def __init__(self, root, auto_sync=True, log=None):
@@ -318,7 +319,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         source = super().translate_path(path)
         preview = os.environ.get("AURORA_OUTPUT_DIR")
         relative = os.path.relpath(source, self.directory).replace(os.sep, "/")
-        generated = relative in {"js/posts-data.js", "css/utilities.css", "vendor/purify.min.js", "sitemap.xml"} or relative.startswith("data/")
+        generated = relative in {"js/posts-data.js", "css/utilities.css", "vendor/purify.min.js", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
         if preview and generated:
             # Missing preview data must 404 rather than expose stale production bodies.
             return os.path.join(os.path.abspath(preview), relative)

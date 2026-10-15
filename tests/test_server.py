@@ -12,11 +12,11 @@ import server
 class WatcherTests(unittest.TestCase):
     def test_generated_files_and_dependencies_are_not_watched(self):
         with tempfile.TemporaryDirectory() as root:
-            for name in ['server.log', 'css/utilities.css', 'data/documents/demo.json', 'node_modules/test.js', 'js/app.js']:
+            for name in ['server.log', 'css/utilities.css', 'data/documents/demo.json', 'node_modules/test.js', 'js/vue/app.js', 'src/App.vue']:
                 file = Path(root) / name
                 file.parent.mkdir(parents=True, exist_ok=True)
                 file.write_text('test', encoding='utf-8')
-            self.assertEqual(set(server.scan_tree(root)), {'js/app.js'})
+            self.assertEqual(set(server.scan_tree(root)), {'src/App.vue'})
 
     def make_watcher(self):
         with patch.object(server, "scan_tree", return_value={"latest.css": 200, "old.css": 100}):
@@ -49,6 +49,14 @@ class WatcherTests(unittest.TestCase):
             watcher._tick()
         sync.assert_called_once()
 
+    def test_vue_component_change_triggers_one_rebuild(self):
+        watcher = self.make_watcher()
+        watcher.auto_sync = True
+        changed = {'latest.css': 200, 'old.css': 100, 'src/App.vue': 202}
+        with patch.object(server, 'scan_tree', side_effect=[changed, changed, changed]), patch.object(watcher, '_run_sync') as sync:
+            watcher._tick()
+        sync.assert_called_once_with(['src/App.vue'])
+
 
 
 class RedirectTests(unittest.TestCase):
@@ -59,7 +67,9 @@ class RedirectTests(unittest.TestCase):
             for base, name, content in [
                 (source, 'js/posts-data.js', 'production'),
                 (preview, 'js/posts-data.js', 'preview'),
-                (source, 'js/app.js', 'live source'),
+                (source, 'src/App.vue', 'live source'),
+                (source, 'js/vue/app.js', 'production app'),
+                (preview, 'js/vue/app.js', 'preview app'),
                 (source, 'data/stale.json', 'stale production'),
                 (preview, 'data/documents/中文.json', 'new body'),
             ]:
@@ -70,7 +80,8 @@ class RedirectTests(unittest.TestCase):
             handler.directory = str(source)
             with patch.dict(os.environ, AURORA_OUTPUT_DIR=str(preview)):
                 self.assertEqual(Path(handler.translate_path('/js/posts-data.js?v=1')).read_text(), 'preview')
-                self.assertEqual(Path(handler.translate_path('/js/app.js')).read_text(), 'live source')
+                self.assertEqual(Path(handler.translate_path('/src/App.vue')).read_text(), 'live source')
+                self.assertEqual(Path(handler.translate_path('/js/vue/app.js')).read_text(), 'preview app')
                 self.assertEqual(Path(handler.translate_path('/data/documents/%E4%B8%AD%E6%96%87.json')).read_text(), 'new body')
                 self.assertFalse(Path(handler.translate_path('/data/stale.json')).exists())
 

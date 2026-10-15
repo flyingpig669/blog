@@ -28,7 +28,7 @@ window.BlogConfig = {
     tagline: "Personal technical blog focused on Physics, Math, and Computer Science.",
     // SEO 与元描述
     description: "A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.",
-    // 页脚版权说明 (由 js/components/footer.js 写入全局页脚)
+    // 页脚版权说明 (由 src/components/Footer.vue 渲染)
     footerText: "© 2026 CCC · All rights reserved.",
     footerEmail: "ccc0000006@gmail.com",
     // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。

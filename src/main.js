@@ -1,0 +1,18 @@
+function failed(error) {
+  const root = document.getElementById("app");
+  root.textContent = "Unable to start CCC de Notes. Please rebuild the site.";
+  root.setAttribute("role", "alert");
+  console.error(error);
+}
+const required = [
+  "BlogConfig",
+  "BlogStore",
+  "BlogPostsData",
+  "BlogHtml",
+  "BlogRouteRegistry",
+  "BlogMarkdown",
+  "DOMPurify",
+];
+if (required.some((name) => !window[name]))
+  failed(new Error("Core content scripts could not load."));
+else import("./bootstrap").then((module) => module.bootstrap()).catch(failed);

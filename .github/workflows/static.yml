@@ -91,7 +91,7 @@ jobs:
             echo "::warning::缺少 404.html，非 Hash 路径会落到 Pages 默认 404"
           fi
           # 兜底断言：发布产物里绝不能出现源码、测试、模板或原始 Markdown
-          leaked="$(find _site \( -name '*.md' -o -name '*.py' -o -name '*.sh' \
+          leaked="$(find _site \( -name '*.md' -o -name '*.vue' -o -name '*.py' -o -name '*.sh' \
             -o -name 'package*.json' -o -name '*.test.js' -o -name '*.yml' \) -print)"
           if [ -n "$leaked" ]; then
             echo "::error::发布产物中混入源码或文档文件"

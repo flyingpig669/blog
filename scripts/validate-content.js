@@ -25,23 +25,15 @@ for (const issue of registry.validate()) fail(issue);
 //     全站版心只有 720px / 1000px 两档，且只有文章详情页可以用宽的那档 ——
 //     此前这条规则只能靠人看截图发现，现在改坏会直接构建失败。
 const RENDERERS = {
-  home: 'renderHomeView', columns: 'renderColumnsView', archive: 'renderArchivesView',
-  tags: 'renderTagsView', post: 'renderPostView', page: 'renderPageView', dynamic: 'renderDynamicNavView'
+  home: 'HomeView', columns: 'CollectionView', archive: 'ArchiveView',
+  tags: 'TagsView', post: 'DocumentView', page: 'StructuredPage', dynamic: 'DynamicView'
 };
-const appSource = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
-const postLayoutSource = fs.readFileSync(path.join(root, 'js/layouts/post-layout.js'), 'utf8');
 for (const def of context.window.BlogRouteTable) {
-  const renderer = RENDERERS[def.view];
-  if (!renderer) { fail(`Route ${def.name}: view "${def.view}" 没有登记的渲染函数`); continue; }
-  const source = def.view === 'post' ? postLayoutSource : appSource;
-  const start = source.indexOf((def.view === 'post' ? 'render' : renderer) + ': function');
-  if (start === -1) { fail(`Route ${def.name}: js/app.js 中找不到渲染函数 ${renderer}`); continue; }
-  const rest = source.slice(start + 1);
-  const next = rest.search(/\n  [A-Za-z_][A-Za-z0-9_]*: function/);
-  const body = next === -1 ? rest : rest.slice(0, next);
-  const found = body.match(/class="(shell(?:-detail)?) mx-auto/);
-  if (!found) fail(`Route ${def.name}: ${renderer} 中找不到 'shell mx-auto' 版心容器`);
-  else if (found[1] !== def.shell) fail(`Route ${def.name}: 表里声明 ${def.shell}，但 ${renderer} 实际用的是 ${found[1]}`);
+  const component = RENDERERS[def.view];
+  if (!component) { fail(`Route ${def.name}: unregistered Vue view ${def.view}`); continue; }
+  const directory = def.view === 'page' ? 'components' : 'views';
+  const source = fs.readFileSync(path.join(root, 'src', directory, component + '.vue'), 'utf8');
+  if (!source.includes('class="' + def.shell + ' mx-auto')) fail(`Route ${def.name}: ${component}.vue must use ${def.shell}`);
 }
 
 const registryPaths = Object.values(config.routes);
@@ -162,7 +154,7 @@ for (const tag of store.getAllTags()) {
 for (const match of entry.matchAll(/(?:src|href)="([^"#]+)"/g)) {
   if (!/^(https?:|mailto:|tel:|data:image\/svg\+xml,)/i.test(match[1])) checkAsset(match[1], 'index.html');
 }
-for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js', 'js/slide-viewer.js']) checkAsset(name, 'PDF viewer');
+for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js', 'js/vue/app.js']) checkAsset(name, 'PDF viewer');
 
 // 代码围栏语言 × Prism 注册表互查。
 // markdown.js 对未注册语言**静默退回无高亮**（只用真正注册过的语法，这是修过的

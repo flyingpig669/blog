@@ -10,6 +10,7 @@ node_modules/
 output/playwright/
 # Built locally for checks and generated again by CI for publication.
 js/posts-data.js
+js/vue/
 css/utilities.css
 vendor/purify.min.js
 data/
