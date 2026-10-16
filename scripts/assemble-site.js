@@ -15,7 +15,7 @@ for (const directory of ['vendor','attachments']) {
 }
 fs.mkdirSync(path.join(output,'css'),{recursive:true});
 fs.copyFileSync(resourcePath('css/main.css'),path.join(output,'css/main.css'));
-for (const name of ['js/posts-data.js','css/utilities.css','js/vue','data']) {
+for (const name of ['css/utilities.css','js/vue','data']) {
   const target = path.join(output,name); fs.mkdirSync(path.dirname(target),{recursive:true});
   fs.cpSync(resourcePath(name),target,{recursive:true});
 }

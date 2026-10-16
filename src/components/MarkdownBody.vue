@@ -1,4 +1,6 @@
 <script setup>
+import { mathLoader } from "../lib/katex-loader.js";
+import { markdown } from "../lib/markdown.js";
 import { ref, watch, nextTick, onBeforeUnmount, h, render } from "vue";
 import { features } from "../lib/content";
 import PdfPreview from "./PdfPreview.vue";
@@ -20,10 +22,10 @@ function cleanup() {
 async function update() {
   const current = ++revision;
   cleanup();
-  if (features.mathKaTeX !== false && window.BlogKatex)
-    await window.BlogKatex.ensure(props.content || "");
+  if (features.mathKaTeX !== false && mathLoader)
+    await mathLoader.ensure(props.content || "");
   if (current !== revision) return;
-  const result = window.BlogMarkdown.render(props.content || "", {
+  const result = markdown.render(props.content || "", {
     sourcePath: props.sourcePath,
     tocLevels: props.tocLevels ?? features.tocLevels,
   });

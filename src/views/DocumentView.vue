@@ -1,4 +1,5 @@
 <script setup>
+import { postNavigation } from "../lib/post-navigation.js";
 import { computed, ref, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { store, features } from "../lib/content";
@@ -17,7 +18,7 @@ const { document, loading, error, retry } = useDocument();
 const toc = ref([]);
 const navigation = computed(() =>
   document.value
-    ? window.BlogPostNavigation.resolve(document.value, {
+    ? postNavigation.resolve(document.value, {
         getColumnById: store.getColumnById.bind(store),
         getPosts: store.getPosts.bind(store),
       })

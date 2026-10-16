@@ -1,7 +1,7 @@
 // Lucide SVG Icons — 仅保留当前被实际使用的图标。
 // 使用方：src/lib/markdown.js 的 Callout 提示框（tip / note / warning / danger）。
 // 需要新图标时，按同样的 key/路径格式补充即可（图标路径取自 Lucide）。
-window.BlogIcons = {
+export const icons = {
   get(name, className = 'w-5 h-5', options = {}) {
     const strokeWidth = options.strokeWidth || 2;
     const paths = {

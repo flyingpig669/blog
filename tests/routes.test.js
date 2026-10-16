@@ -1,27 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const path = require('node:path');
-
-const ROUTES_SOURCE = fs.readFileSync(path.join(__dirname, '../src/config/routes.js'), 'utf8');
-const CONFIG_SOURCE = fs.readFileSync(path.join(__dirname, '../src/config/blog.config.js'), 'utf8');
-
+let services;
+test.before(async () => { services = await require('./services').loadServices(); });
 function load() {
-  const context = { window: {} };
-  vm.createContext(context);
-  vm.runInContext(ROUTES_SOURCE, context);
-  vm.runInContext(CONFIG_SOURCE, context);
-  return context.window;
+  return {BlogRoutes: services.routes, BlogConfig: services.config, BlogRouteRegistry: services.registry, BlogRouteTable: services.routeTable};
 }
-
-// registry 是通过 window.BlogRouteTable 按引用读表的，所以校验前替换整张表即可。
 function validateWith(mutate) {
-  const ctx = load();
-  const table = JSON.parse(JSON.stringify(ctx.BlogRouteTable));
+  const table = structuredClone(services.routeTable);
   mutate(table);
-  ctx.BlogRouteTable = table;
-  return ctx.BlogRouteRegistry.validate().join('\n');
+  return services.createRouteRegistry(table).validate().join('\n');
 }
 
 test('routing table is the single source for both routes and navigation', () => {

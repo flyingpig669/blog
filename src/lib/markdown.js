@@ -1,14 +1,19 @@
+import DOMPurify from 'dompurify';
+import { store } from './store.js';
+import { config } from '../config/blog.config.js';
+import { html } from './html.js';
+import { icons } from './callout-icons.js';
 // Markdown Parser with KaTeX, Prism Highlighting, Callouts, and Robust TOC
-window.BlogMarkdown = {
+export const markdown = {
   render: function(markdownText, options) {
     options = options || {};
     if (!markdownText) return { html: '', toc: [] };
 
     // 功能开关统一取自 src/config/blog.config.js 的 features，确保 mathKaTeX / codeHighlight 真正生效
-    var features = (window.BlogStore && window.BlogStore.config && window.BlogStore.config.features)
-      || (window.BlogConfig && window.BlogConfig.features) || {};
+    var features = (store && store.config && store.config.features)
+      || (config && config.features) || {};
 
-    var escapeHtml = window.BlogHtml.escapeHtml;
+    var escapeHtml = html.escapeHtml;
 
     var mathBlocks = [];
     var mathInlines = [];
@@ -76,7 +81,7 @@ window.BlogMarkdown = {
       var displayTitle = (title || '').trim() || titles[type] || '提示';
       var icons = { tip: 'check-circle-2', warning: 'alert-triangle', note: 'info', danger: 'alert-triangle' };
       var iconName = icons[type] || 'info';
-      var iconSvg = window.BlogIcons ? window.BlogIcons.get(iconName, 'callout-icon text-current') : '';
+      var iconSvg = icons ? icons.get(iconName, 'callout-icon text-current') : '';
       return '<div class="callout callout-' + type + '">' +
         iconSvg +
         '<div class="callout-body">' +
@@ -95,7 +100,7 @@ window.BlogMarkdown = {
       var inlineTitle = (title || '').trim();
       var bodyText = (desc || '').trim();
       var slideTitle = inlineTitle || bodyText || 'Presentation Deck (PPT / PDF)';
-      var cleanUrl = window.BlogHtml.safeUrl(url, true);
+      var cleanUrl = html.safeUrl(url, true);
       if (!cleanUrl) return '<p class="view-status">Invalid presentation URL.</p>';
       // 两个属性值都来自正文，必须转义后再拼接（escapeHtml 会先处理 & ，避免实体被二次解析）
       return '<div class="article-slide-player-mount my-8" data-slide-url="' + escapeHtml(cleanUrl) + '" data-slide-title="' + escapeHtml(slideTitle) + '"></div>';
@@ -105,7 +110,7 @@ window.BlogMarkdown = {
     codeLiterals.forEach(function(item) {
       text = text.split(item.token).join(item.raw);
     });
-    var markedParser = (typeof marked !== 'undefined') ? marked : (window.marked || null);
+    var markedParser = options.marked || globalThis.marked || null;
     if (markedParser && markedParser.setOptions) {
       // 注：headerIds / mangle 已在 marked v5+ 移除，标题 id 由下方 TOC 流程统一生成
       markedParser.setOptions({ gfm: true, breaks: true });
@@ -115,7 +120,7 @@ window.BlogMarkdown = {
     // 4. Restore and Render KaTeX Math using safe split/join
     var katexRenderer = features.mathKaTeX === false
       ? null
-      : ((typeof katex !== 'undefined') ? katex : (window.katex || null));
+      : (globalThis.katex || null);
     if (katexRenderer) {
       mathBlocks.forEach(function(formula, i) {
         try {
@@ -146,12 +151,12 @@ window.BlogMarkdown = {
     // 5. Post-process HTML for Stable Section IDs, Clean TOC, and Code Blocks
     if (typeof document !== 'undefined') {
       var tempDiv = document.createElement('div');
-      if (!window.DOMPurify) throw new Error('HTML sanitizer could not load');
-      tempDiv.innerHTML = window.DOMPurify.sanitize(rawHtml);
+      if (!DOMPurify) throw new Error('HTML sanitizer could not load');
+      tempDiv.innerHTML = DOMPurify.sanitize(rawHtml);
       tempDiv.querySelectorAll('[href], [src]').forEach(function(node) {
         ['href', 'src'].forEach(function(attr) {
           if (!node.hasAttribute(attr)) return;
-          var url = window.BlogHtml.safeUrl(node.getAttribute(attr), attr === 'src');
+          var url = html.safeUrl(node.getAttribute(attr), attr === 'src');
           if (url) node.setAttribute(attr, url);
           else node.removeAttribute(attr);
         });
@@ -160,15 +165,15 @@ window.BlogMarkdown = {
       // 5.0 站内互链处理 (Cross-Article Links)
       //   (a) 双链语法: [[slug]] / [[slug|显示文本]]  → 自动补全标题并生成站内路由
       //   (b) 相对 .md 链接: [文本](xxx.md) / [文本](posts/xxx.md) → 自动解析为站内路由
-      //   解析统一由 window.BlogStore.resolveLink() 提供；未命中降级为「缺失」提示。
-      var linkStore = window.BlogStore;
+      //   解析统一由 store.resolveLink() 提供；未命中降级为「缺失」提示。
+      var linkStore = store;
       if (linkStore && typeof linkStore.resolveLink === 'function') {
         var toHref = function(route) {
           if (!route) return '#';
           return route.charAt(0) === '#' ? route : '#' + route;
         };
         var applyAnchor = function(anchor, hit, fallbackLabel) {
-          anchor.setAttribute('href', window.BlogHtml.safeUrl(hit.href || toHref(hit.route)) || '#');
+          anchor.setAttribute('href', html.safeUrl(hit.href || toHref(hit.route)) || '#');
           anchor.setAttribute('title', hit.title || fallbackLabel || '');
           anchor.classList.add('wiki-link');
           if (hit.kind) anchor.classList.add('wiki-link-' + hit.kind);
@@ -264,7 +269,7 @@ window.BlogMarkdown = {
       // 统一标题层级追踪配置 (优先级: 单篇 FrontMatter tocLevels > 全局 BlogConfig.tocLevels > 默认 [2, 3, 4])
       var targetLevels = (options && options.tocLevels !== undefined && options.tocLevels !== null) 
         ? options.tocLevels 
-        : ((window.BlogConfig && window.BlogConfig.features && window.BlogConfig.features.tocLevels) || [2, 3, 4]);
+        : ((config && config.features && config.features.tocLevels) || [2, 3, 4]);
 
       if (typeof targetLevels === 'string') {
         targetLevels = targetLevels.replace(/[\[\]]/g, '').split(',').map(function(s) { return parseInt(s.trim(), 10); }).filter(Boolean);
@@ -303,7 +308,7 @@ window.BlogMarkdown = {
       // 高亮器在遍历前解析一次即可（原先在 forEach 内重复求值）
       var prismHighlighter = features.codeHighlight === false
         ? null
-        : ((typeof Prism !== 'undefined') ? Prism : (window.Prism || null));
+        : (globalThis.Prism || null);
       pres.forEach(function(pre) {
         var code = pre.querySelector('code');
         var rawCodeText = code ? code.textContent : pre.textContent;

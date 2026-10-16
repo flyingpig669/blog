@@ -16,7 +16,6 @@
  */
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'og-image.png');
@@ -25,16 +24,9 @@ const OUT = path.join(ROOT, 'og-image.png');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const puppeteer = require('/Users/ccc/.workbuddy/binaries/node/workspace/node_modules/puppeteer-core');
 
-// 复用 scripts/python/sync_posts.py 读取配置的方式：路由声明表必须先于 src/config/blog.config.js 进入同一个
-// vm 上下文，否则 window.BlogRoutes 不存在，配置会直接抛错。
-function loadSite() {
-  const context = { window: {} };
-  vm.createContext(context);
-  for (const file of ['src/config/routes.js', 'src/config/blog.config.js']) {
-    const full = path.join(ROOT, file);
-    vm.runInContext(fs.readFileSync(full, 'utf8'), context, { filename: full, timeout: 1000 });
-  }
-  return context.window.BlogConfig.site;
+// 和 Vue 前端、内容编译器直接导入同一个站点配置模块。
+async function loadSite() {
+  return (await import('../src/config/blog.config.js')).config.site;
 }
 
 function escapeHtml(text) {
@@ -134,7 +126,7 @@ function cardHtml(site) {
 }
 
 (async () => {
-  const site = loadSite();
+  const site = await loadSite();
   const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox'] });
   try {
     const page = await browser.newPage();

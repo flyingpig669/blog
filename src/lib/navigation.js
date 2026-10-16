@@ -1,10 +1,14 @@
+import { store } from './store.js';
+import { config } from '../config/blog.config.js';
+import { routes, registry } from '../config/routes.js';
+import { html } from './html.js';
 // Methods consume a controller interface via this; no page or app imports.
-window.BlogRouter = {
+export const navigation = {
   getFlattenedNav: function() {
-    var raw = (window.BlogStore.config && window.BlogStore.config.nav) || (window.BlogConfig && window.BlogConfig.nav) || [];
+    var raw = (store.config && store.config.nav) || (config && config.nav) || [];
     var list = [];
     var self = this;
-    window.BlogRouteRegistry.navGroups(raw).forEach(function(group) {
+    registry.navGroups(raw).forEach(function(group) {
       [group.head].concat(group.folded).forEach(function(item, index) {
         var copy = Object.assign({}, item);
         if (group.folded.length) copy._parentGroup = group.head.id;
@@ -16,11 +20,11 @@ window.BlogRouter = {
     return list;
   },
 
-  // 路由字典：直接来自 src/config/routes.js 由声明表派生的 window.BlogRoutes。
+  // 路由字典：直接来自 src/config/routes.js 由声明表派生的 routes。
   // config.routes 只是同一个对象的引用，优先读它以便测试注入。
   getRoutes: function() {
-    var config = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};
-    return config.routes || window.BlogRoutes || {};
+    var routeConfig = (store && store.config) || config || {};
+    return routeConfig.routes || routes || {};
   },
 
   // ---------------------------------------------------------------------------
@@ -71,7 +75,7 @@ window.BlogRouter = {
   navItemHref: function(item) {
     item = item || {};
     var raw = item.href ? String(item.href) : '';
-    if (raw) return window.BlogHtml.safeUrl(raw) || '#';
+    if (raw) return html.safeUrl(raw) || '#';
     return '#' + this.navItemRoute(item);
   },
 

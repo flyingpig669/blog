@@ -9,7 +9,7 @@ test('generated files stay in build cache while source paths stay in src', () =>
   const previous = process.env.AURORA_OUTPUT_DIR;
   delete process.env.AURORA_OUTPUT_DIR;
   try {
-    for (const name of ['js/posts-data.js','js/vue/app.js','data','data/documents/article.json','css/utilities.css','sitemap.xml']) {
+    for (const name of ['data/index.json','js/vue/app.js','data','data/documents/article.json','css/utilities.css','sitemap.xml']) {
       assert.equal(resourcePath(name),path.join(root,'.cache/build',name));
     }
     assert.equal(resourcePath('src/config/routes.js'),path.join(root,'src/config/routes.js'));
@@ -20,7 +20,10 @@ test('generated files stay in build cache while source paths stay in src', () =>
 test('assembled site includes runtime bundles and excludes front-end source and obsolete copies', () => {
   const site = path.join(root,'_site');
   assert.ok(fs.existsSync(path.join(site,'js/vue/app.js')));
-  assert.ok(fs.existsSync(path.join(site,'js/posts-data.js')));
+  assert.ok(fs.existsSync(path.join(site,'data/index.json')));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(site,'data/index.json'),'utf8')).schemaVersion,2);
+  assert.equal(fs.existsSync(path.join(site,'js/posts-data.js')),false);
+  assert.doesNotMatch(fs.readFileSync(path.join(site,'index.html'),'utf8'),/posts-data\.js/);
   for (const name of ['src','js/lib','js/store.js','src/config/blog.config.js','vendor/purify.min.js']) assert.equal(fs.existsSync(path.join(site,name)),false,name);
   assert.equal(fs.existsSync(path.join(root,'js')),false);
   assert.equal(fs.existsSync(path.join(root,'data')),false);

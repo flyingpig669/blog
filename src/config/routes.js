@@ -4,9 +4,9 @@
  * ==============================================================================
  * 新增一个模块，只在下面的表里追加一行。其余四处会自动跟上：
  *
- *   1. window.BlogRoutes    由表派生 (name -> path)，全站链接与 URL 匹配都读它
- *   2. BlogConfig.nav       由表派生 (label / group / target)，导航栏与移动端抽屉读它
- *   3. 视图分派             router.js#dispatchNavItem 按 view 字段选择渲染器
+ *   1. routes    由表派生 (name -> path)，全站链接与 URL 匹配都读它
+ *   2. config.nav       由表派生 (label / group / target)，导航栏与移动端抽屉读它
+ *   3. 视图分派             src/lib/router.js 按 view 字段注册 Vue 组件
  *   4. 一致性校验           scripts/validate-content.js 在构建期跑 validate()
  *
  * 在此之前，同一个模块的事实被拆在四个地方：配置里的路由字典、配置里的 nav 数组、
@@ -17,7 +17,7 @@
  * ------------------------------------------------------------------------------
  * 字段说明
  * ------------------------------------------------------------------------------
- *   name    必填  模块标识。同时是 BlogRoutes 的键、导航项的 DOM id、校验引用名。
+ *   name    必填  模块标识。同时是 routes 的键、导航项的 DOM id、校验引用名。
  *   path    必填  模块规范地址。全小写、kebab-case、不含动词；集合型用复数。
  *   view    必填  用哪个渲染器，见下方 VIEW_VALUES 白名单。
  *   shell   必填  版心：'shell'(720px) 或 'shell-detail'(1000px)。全站只有两档，
@@ -44,21 +44,20 @@
  *
  * 一行即可：URL、导航项、渲染器分派、构建期校验全部就位。视图用 'dynamic' 表示
  * 交给通用动态栏目渲染器（按 type/tag 过滤、卡片集合、或渲染一份 Markdown）。
- * 若需要全新版式，才去 app.js 写渲染器并把 view 指向它，同时同步 VIEW_VALUES。
+ * 若需要全新版式，才新增 Vue 页面组件并把 view 指向它，同时同步 VIEW_VALUES。
  * ==============================================================================
  */
 
-(function () {
-  'use strict';
 
-  // 视图白名单：每一项都对应 app.js 里的一个渲染器。
+
+  // 视图白名单：每一项都对应 Vue 页面组件。
   //   home / columns / archive / tags  列表与首页类渲染器
   //   post                             文章详情（宽版心，唯一例外）
   //   page                             结构化独立页（type: post 的 Markdown）
   //   dynamic                          通用动态栏目渲染器（零代码新增模块走这里）
-  window.BlogRouteViewValues = ['home', 'columns', 'archive', 'tags', 'post', 'page', 'dynamic'];
+  export const viewValues = ['home', 'columns', 'archive', 'tags', 'post', 'page', 'dynamic'];
 
-  window.BlogRouteTable = [
+  export const routeTable = [
     {
       name: 'home', path: '/', view: 'home', shell: 'shell', kind: 'page',
       title: 'Home',
@@ -124,10 +123,10 @@
     // }
   ];
 
-  window.BlogRouteRegistry = {
-    // 以函数取值而非缓存常量，方便测试替换 window.BlogRouteTable 后立即生效。
+  export function createRouteRegistry(table = routeTable) { return {
+    // 以函数取值而非缓存常量，方便测试替换 routeTable 后立即生效。
     table: function () {
-      return window.BlogRouteTable || [];
+      return table;
     },
 
     get: function (name) {
@@ -236,7 +235,7 @@
       var issues = [];
       var self = this;
       var table = this.table();
-      var views = window.BlogRouteViewValues || [];
+      var views = viewValues;
       var validName = /^[a-z][a-z0-9]*$/;
       var validPath = /^\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/;
       // 动作语义必须由页面功能或交互承担，不能占路由段（AGENTS.md 6.2 第 3 条）。
@@ -304,9 +303,9 @@
 
       return issues;
     }
-  };
+  }; }
 
-  // 派生并冻结路由字典。之后全站读 window.BlogRoutes 拿到的就是表里的 path。
+  // 派生并冻结路由字典。之后全站读 routes 拿到的就是表里的 path。
   // 冻结是为了让「改路由」只能通过改表完成，杜绝运行时偷偷塞一个键。
-  window.BlogRoutes = Object.freeze(window.BlogRouteRegistry.paths());
-}());
+export const registry = createRouteRegistry();
+export const routes = Object.freeze(registry.paths());

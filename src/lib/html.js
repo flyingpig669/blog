@@ -1,4 +1,4 @@
-window.BlogHtml = {
+export const html = {
   escapeHtml: function(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];

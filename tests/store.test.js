@@ -1,16 +1,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const path = require('node:path');
-
+let services;
+test.before(async () => { services = await require('./services').loadServices(); });
+test('Vue content state is reactive, isolated and validates its JSON index', async () => {
+  const {isReactive} = await import('vue');
+  const first = services.createStore(), second = services.createStore();
+  assert.ok(isReactive(first));
+  first.posts = [{slug:'local'}];
+  assert.equal(second.posts,undefined);
+  assert.throws(() => second.init({schemaVersion:0}),/版本不匹配/);
+});
 function createStore() {
-  const context = { window: {} };
-  vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/config/routes.js'), 'utf8'), context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/config/blog.config.js'), 'utf8'), context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/store.js'), 'utf8'), context);
-  const store = context.window.BlogStore;
+  const store = services.createStore();
   store.posts = [
     { id: 'post-demo', slug: 'other-roadmap', relPath: 'demo/roadmap.md', type: 'normal', title: 'Other roadmap', tags: ['algebra'] },
     { id: 'post-roadmap', slug: 'roadmap', relPath: 'roadmap.md', type: 'post', title: 'Roadmap' }
@@ -21,12 +22,12 @@ function createStore() {
   return store;
 }
 
-test('lazy bodies share a request and failed validation permits retry', async () => {
-  const context = { window: {}, AbortController, setTimeout, clearTimeout, fetch: async () => { calls++; return {ok: true, json: async () => body}; } };
+test('lazy bodies share a request and failed validation permits retry', async (t) => {
   let calls = 0, body = {slug: 'wrong', content: 'body'};
-  vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/store.js'), 'utf8'), context);
-  const store = context.window.BlogStore;
+  const originalFetch = global.fetch;
+  t.after(() => { global.fetch = originalFetch; });
+  global.fetch = async () => { calls++; return {ok: true, json: async () => body}; };
+  const store = services.createStore();
   store._requests = new Map();
   const doc = {slug: 'sample', bodyUrl: 'sample.json'};
   const pending = [store.loadDocument(doc), store.loadDocument(doc)];
@@ -79,14 +80,8 @@ test('archive ignores pinning and search ranks title above body', () => {
 });
 
 test('store site fallback defaults align with brand metadata', () => {
-  const context = {
-    window: { BlogPostsData: { schemaVersion: 2, documents: {}, posts: [], columns: [], aliases: {}, searchUrl: '' } },
-    document: { documentElement: { classList: { toggle() {}, add() {}, remove() {} }, setAttribute() {} } }
-  };
-  vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/store.js'), 'utf8'), context);
-  const store = context.window.BlogStore;
-  store.init();
+  const store = services.createStore();
+  store.init({schemaVersion:2,documents:{},posts:[],columns:[],aliases:{},searchUrl:''}, {});
   assert.equal(store.site.title, 'CCC de Notes');
   assert.equal(store.site.brand, 'CCC de Notes');
 });

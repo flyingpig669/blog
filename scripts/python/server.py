@@ -172,7 +172,7 @@ class FileWatcher(threading.Thread):
 
     # 改动这些扩展名/文件后，需要先重建索引再刷新
     SYNC_TRIGGERS = (".md", ".markdown", ".js", ".mjs", ".vue", ".html", ".css", ".doc", ".docx", ".ppt", ".pptx")
-    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "scripts/python/sync_posts.py", "scripts/python/lib/frontmatter.py", "scripts/python/lib/office_preview.py"}
+    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "src/package.json", "scripts/python/sync_posts.py", "scripts/python/lib/frontmatter.py", "scripts/python/lib/office_preview.py"}
 
     def __init__(self, root, auto_sync=True, log=None):
         super().__init__(name="aurora-file-watcher")
@@ -311,7 +311,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         relative = os.path.relpath(source, self.directory).replace(os.sep, "/")
         if relative == 'css/main.css':
             return os.path.join(self.directory, 'src', 'styles', 'main.css')
-        generated = relative in {"js/posts-data.js", "css/utilities.css", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
+        generated = relative in {"data/index.json", "css/utilities.css", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
         if preview and generated:
             # Missing preview data must 404 rather than expose stale production bodies.
             return os.path.join(os.path.abspath(preview), relative)
@@ -459,7 +459,7 @@ def parse_args():
     )
     parser.add_argument(
         "--no-sync", dest="sync", action="store_false", default=True,
-        help="do not rebuild js/posts-data.js when Markdown changes",
+        help="do not rebuild data/index.json when Markdown changes",
     )
     return parser.parse_args()
 
@@ -491,7 +491,7 @@ if __name__ == "__main__":
             if args.watch:
                 print("🔁 已开启实时刷新：保存 css/ src/ posts/ 下任意文件，浏览器会自动刷新")
                 if args.sync:
-                    print("   改动 Markdown 或 src/config/blog.config.js 时会先重建 js/posts-data.js")
+                    print("   改动 Markdown 或 src/config/blog.config.js 时会先重建 data/index.json")
                 print("   （脚本只注入到本地响应，磁盘上的 index.html 不会被改动）")
             else:
                 print("⏸  未开启实时刷新（--no-watch）")

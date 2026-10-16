@@ -65,8 +65,8 @@ class RedirectTests(unittest.TestCase):
             source = Path(directory) / 'source'
             preview = Path(directory) / 'preview'
             for base, name, content in [
-                (source, 'js/posts-data.js', 'production'),
-                (preview, 'js/posts-data.js', 'preview'),
+                (source, 'data/index.json', 'production'),
+                (preview, 'data/index.json', 'preview'),
                 (source, 'src/App.vue', 'live source'),
                 (source, 'src/styles/main.css', 'shared styles'),
                 (source, 'js/vue/app.js', 'production app'),
@@ -80,7 +80,7 @@ class RedirectTests(unittest.TestCase):
             handler = object.__new__(server.CustomHandler)
             handler.directory = str(source)
             with patch.dict(os.environ, AURORA_OUTPUT_DIR=str(preview)):
-                self.assertEqual(Path(handler.translate_path('/js/posts-data.js?v=1')).read_text(), 'preview')
+                self.assertEqual(Path(handler.translate_path('/data/index.json?v=1')).read_text(), 'preview')
                 self.assertEqual(Path(handler.translate_path('/src/App.vue')).read_text(), 'live source')
                 self.assertEqual(Path(handler.translate_path('/css/main.css?v=1')).read_text(), 'shared styles')
                 self.assertEqual(Path(handler.translate_path('/js/vue/app.js')).read_text(), 'preview app')

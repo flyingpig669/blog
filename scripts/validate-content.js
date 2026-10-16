@@ -1,17 +1,12 @@
 // Validate the same registry and link resolver used by the browser.
-const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const marked = require('../vendor/marked.min.js');
 const root = path.resolve(__dirname, '..');
 const { resourcePath } = require('./generated-path');
-const context = { window: {}, console, localStorage: { removeItem() {}, getItem() {}, setItem() {} }, document: { documentElement: { classList: { add() {} } } } };
-vm.createContext(context);
-for (const name of ['src/config/routes.js', 'src/config/blog.config.js', 'js/posts-data.js', 'src/lib/html.js', 'src/lib/store.js', 'src/lib/navigation.js']) {
-  vm.runInContext(fs.readFileSync(resourcePath(name), 'utf8'), context, { filename: name });
-}
-const { BlogStore: store, BlogRouter: router, BlogHtml: html, BlogConfig: config, BlogRouteRegistry: registry } = context.window;
-store.init();
+module.exports = function validateContent(services, fs = require('node:fs')) {
+const { store, navigation: router, html, config, registry, routeTable } = services;
+store.init(JSON.parse(fs.readFileSync(resourcePath('data/index.json'), 'utf8')));
 const errors = [];
 const fail = message => errors.push(message);
 const pageSize = config.features && config.features.homePageSize;
@@ -28,7 +23,7 @@ const RENDERERS = {
   home: 'HomeView', columns: 'CollectionView', archive: 'ArchiveView',
   tags: 'TagsView', post: 'DocumentView', page: 'StructuredPage', dynamic: 'DynamicView'
 };
-for (const def of context.window.BlogRouteTable) {
+for (const def of routeTable) {
   const component = RENDERERS[def.view];
   if (!component) { fail(`Route ${def.name}: unregistered Vue view ${def.view}`); continue; }
   const directory = def.view === 'page' ? 'components' : 'views';
@@ -70,7 +65,7 @@ for (const item of navigation) {
 }
 // 反向互查：表里声明了导航入口的模块，必须都真的出现在导航里（第 7.6 节）。
 // 只加表行、忘了派生导航的写法会在这里被拦下。
-for (const def of context.window.BlogRouteTable) {
+for (const def of routeTable) {
   if (!def.nav) continue;
   if (!navigation.some(item => item.id === def.name)) fail(`Route ${def.name}: 声明了导航入口，但导航数组里没有它`);
 }
@@ -269,4 +264,6 @@ for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
 
 function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
-else console.log(`Content checks passed: ${Object.keys(store.documents).length} documents, ${context.window.BlogRouteTable.length} routes, ${navigation.length} navigation entries.`);
+else console.log(`Content checks passed: ${Object.keys(store.documents).length} documents, ${routeTable.length} routes, ${navigation.length} navigation entries.`);
+
+};

@@ -58,8 +58,8 @@ class ContentTests(unittest.TestCase):
             output = Path(directory) / 'output'
             with patch.object(sync_posts, 'BASE_DIR', str(source)), patch.object(sync_posts, 'POSTS_DIR', str(posts)), patch.dict(os.environ, AURORA_OUTPUT_DIR=str(output)), contextlib.redirect_stdout(io.StringIO()):
                 sync_posts.sync()
-            text = (output / 'js/posts-data.js').read_text()
-            index = json.loads(text.split(' = ', 1)[1].rstrip(';\n'))
+            text = (output / 'data/index.json').read_text()
+            index = json.loads(text)
             search = json.loads((output / index['searchUrl']).read_text())
             self.assertEqual(set(search), {'normal', 'books', 'index'})
             self.assertEqual(index['documents']['page']['type'], 'post')
@@ -92,11 +92,11 @@ class ContentTests(unittest.TestCase):
             posts.mkdir(parents=True)
             article = posts / 'sample.md'
             article.write_text('---\ndate: "2026-10-12"\n---\nFirst body\n', encoding='utf-8')
-            production = source / 'js/posts-data.js'
+            production = source / 'data/index.json'
             production.parent.mkdir()
             production.write_text('production sentinel', encoding='utf-8')
             stale = source / 'data/documents/sample.0000000000000000.json'
-            stale.parent.mkdir(parents=True)
+            stale.parent.mkdir(parents=True, exist_ok=True)
             stale.write_text('production body', encoding='utf-8')
             with patch.object(sync_posts, 'BASE_DIR', str(source)), patch.object(sync_posts, 'POSTS_DIR', str(posts)), patch.dict(os.environ, AURORA_OUTPUT_DIR=str(preview)), contextlib.redirect_stdout(io.StringIO()):
                 sync_posts.sync()
@@ -110,7 +110,7 @@ class ContentTests(unittest.TestCase):
             self.assertEqual(stale.read_text(), 'production body')
             self.assertFalse(old_bodies[0].exists())
             self.assertEqual(len(list((preview / 'data/documents').glob('*.json'))), 1)
-            self.assertIn('sample', (preview / 'js/posts-data.js').read_text())
+            self.assertIn('sample', (preview / 'data/index.json').read_text())
 
     def test_shared_frontmatter_strings_and_lists(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -195,7 +195,7 @@ class ContentTests(unittest.TestCase):
             posts.mkdir()
             for name in ("one", "two"):
                 (posts / (name + ".md")).write_text('---\nslug: "same-slug"\n---\nBody\n', encoding="utf-8")
-            index = os.path.join(directory, "js", "posts-data.js")
+            index = os.path.join(directory, "data", "index.json")
             with patch.object(sync_posts, "BASE_DIR", directory), patch.object(sync_posts, "POSTS_DIR", str(posts)), patch.dict(os.environ, AURORA_OUTPUT_DIR=directory), contextlib.redirect_stdout(io.StringIO()):
                 with self.assertRaisesRegex(ValueError, "重复 slug"):
                     sync_posts.sync()

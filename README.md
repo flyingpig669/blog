@@ -23,7 +23,11 @@
 
 本系统是 **Vue 3 + Vue Router + Vite 的静态单页应用 (SPA)**。前端使用单文件组件（`src/**/*.vue`），由 Vite 编译到 `.cache/build/js/vue/`，最终组装到 `_site/`，继续使用 Hash 路由，可直接部署到 GitHub Pages。Node.js 只用于构建，线上不需要后端服务。
 
-内容层由 `scripts/python/sync_posts.py` 扫描 Markdown，在构建缓存中生成轻量元数据索引 `js/posts-data.js` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
+内容层由 `scripts/python/sync_posts.py` 扫描 Markdown，在构建缓存中生成轻量元数据索引 `data/index.json` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
+
+所有页面与交互由 Vue 组件管理。公共逻辑通过 ES 模块的 `import` / `export` 连接，项目不再向 `window` 写入 `BlogConfig`、`BlogStore` 等全局对象，也不再加载可执行的文章数据脚本。启动时获取 JSON 索引，初始化 Vue `shallowReactive` 内容状态，然后挂载应用；配置、校验工具与前端直接复用同一份模块。
+
+`.vue` 文件承载页面与组件，`.js` 文件承载路由、配置、数据查询和解析工具，`composables/` 封装 Vue 生命周期逻辑。它们共同组成 Vue 应用；Vite 将这些源码编译为浏览器运行的 JavaScript。PDF.js、KaTeX 等第三方渲染引擎仍按需加载。
 
 ```text
 blog/
@@ -76,10 +80,10 @@ blog/
 
 | 自动派生 | 消费者 |
 | :--- | :--- |
-| `window.BlogRoutes`（name → path） | 路由匹配、站内链接、`[[双链]]` 解析 |
-| `BlogConfig.nav`（label / 分组 / 目标） | 顶部导航栏与移动端抽屉 |
-| 视图分派 | `router.js#dispatchNavItem` 按 `view` 选择渲染器 |
-| 构建期校验 | `scripts/validate-content.js` 检查命名、层级、版心与导航自洽 |
+| `routes`（name → path） | 路由匹配、站内链接、`[[双链]]` 解析 |
+| `config.nav`（label / 分组 / 目标） | 顶部导航栏与移动端抽屉 |
+| 视图分派 | `src/lib/router.js` 按 `view` 注册 Vue 页面组件 |
+| 构建期校验 | `scripts/validate-content.mjs` 导入模块，复用校验函数检查命名、层级、版心与导航自洽 |
 
 写错会在 `./check.sh` 或 `npm run build` 阶段直接报错。例如把首页版心误写成 `shell-detail`：
 
@@ -93,9 +97,11 @@ Route home: 表里声明 shell-detail，但 HomeView.vue 实际用的是 shell
 站点其余属性收敛在 [`src/config/blog.config.js`](src/config/blog.config.js) 中：
 
 ```javascript
-window.BlogConfig = {
-  routes: window.BlogRoutes,              // 由路由表派生，不要手写
-  defaultRoute: window.BlogRoutes.home,   // 访问空 Hash / 根地址时的落地路由
+import { routes, registry } from './routes.js';
+
+export const config = {
+  routes: routes,              // 由路由表派生，不要手写
+  defaultRoute: routes.home,   // 访问空 Hash / 根地址时的落地路由
 
   site: {
     title: "Aurora Notes",     // 浏览器标签页与首页大标题
@@ -110,7 +116,7 @@ window.BlogConfig = {
   author: { name, title, bio, avatar, location, email, github },
 
   // 导航主体由路由表派生；这里只补「不对应任何站内路由」的即席项（如外部链接）
-  nav: window.BlogRouteRegistry.buildNav().concat([
+  nav: registry.buildNav().concat([
     // { id: "rss", label: "RSS", href: "https://example.com/feed.xml" },
   ]),
 
@@ -608,6 +614,8 @@ npm run dev    # 等价于 ./run.sh
 
 公共组件位于 `src/components/`，页面组装位于 `src/views/`，生命周期逻辑位于 `src/composables/`，数据与路由服务位于 `src/lib/`。导航、页脚、文章、搜索、折叠、目录及 PDF/Office 播放器均使用 Vue 模板与响应式状态，不再通过页面级 `innerHTML` 或全局 `BlogApp` 渲染。只有经过 DOMPurify 清洗的 Markdown 正文使用 `v-html`，其代码复制和嵌入预览在组件生命周期内绑定、销毁。`ExpandableEntry.vue` / `useExpandable.js` 是共用折叠机制，避免每个页面单独维护开关。设计颜色与字体仍集中在 `src/styles/main.css`。
 
+`src/package.json` 声明前端源码为 ES 模块；构建脚本保留 Node.js 工具入口。`store.js` 提供可独立创建的响应式状态，`bootstrap.js` 负责加载 `data/index.json` 和挂载应用。测试直接导入这些模块，Vue 组件测试使用 Vite 与 Vue 服务端渲染器，不再模拟旧式全局脚本加载顺序。
+
 Markdown 通过 DOMPurify 清理，再统一过滤链接/资源协议；前台标题与属性统一转义。搜索提供正文命中片段与安全高亮；章节标题旁的 `#` 可复制直达链接；About 提供区块跳转。普通文章按发布时间串联，专栏按章节顺序串联。
 
 标签展示名保持原文，URL 统一为小写连字符（例如 `Getting Started` → `/tags/getting-started`）；中文标签直接保留中文 URL 参数，由链接生成层统一编码；构建会拒绝重名或空 slug。标签选择仍由 URL 驱动，刷新和后退可恢复筛选。
@@ -731,7 +739,7 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 2. **年份写成非数字**：`year: "2026 年"` 可以（只取前四位），但 `year: "待定"` 会进入 `UNYEARED` 组而不是报错 —— 这是刻意设计，避免整页渲染失败。
 3. **`abstract` / `links` 被吞掉**：解析器按「相对本行缩进更深」判定嵌套映射。若把 `abstract:` 写得比 `links:` 的**子键**还深，它会被当成 `links` 的一部分。请保持同一层级的字段左对齐。
 
-改完执行 `python3 scripts/python/sync_posts.py`（或保存文件后由实时刷新自动重建 `js/posts-data.js`）。
+改完执行 `python3 scripts/python/sync_posts.py`（或保存文件后由实时刷新自动重建 `data/index.json`）。
 
 ### Q11: 时间线条目后面没有展开箭头？
 

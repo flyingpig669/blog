@@ -1,4 +1,4 @@
-window.BlogPostNavigation = {
+export const postNavigation = {
   resolve: function(post, services) {
     // 专栏内部上下一篇与章节解析
     var columnInfo = post.column ? services.getColumnById(post.column) : null;

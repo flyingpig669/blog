@@ -1,17 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const path = require('node:path');
-
-const context = {
-  window: {},
-  marked: require('../vendor/marked.min.js')
-};
-vm.createContext(context);
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/html.js'), 'utf8'), context);
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/markdown.js'), 'utf8'), context);
-const render = source => context.window.BlogMarkdown.render(source).html;
+let markdown;
+test.before(async () => { ({markdown} = await import('../src/lib/markdown.js')); });
+const render = source => markdown.render(source, {marked: require('../vendor/marked.min.js')}).html;
 
 test('formulas and custom directives in code stay literal', () => {
   for (const source of [

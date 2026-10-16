@@ -7,7 +7,7 @@ cd "$PROJECT_DIR"
 PYTHON="${AURORA_PYTHON:-python3}"
 if [ -x "$PROJECT_DIR/.venv/bin/python" ]; then PYTHON="$PROJECT_DIR/.venv/bin/python"; fi
 
-# 先重建索引：js/posts-data.js 由 scripts/python/sync_posts.py 生成，
+# 先重建索引：data/index.json 由 scripts/python/sync_posts.py 生成，
 # 放在语法检查之前才能把「生成结果」也纳入校验（顺序颠倒会漏掉坏索引）。
 echo "[1/6] Rebuilding the content index..."
 AURORA_PYTHON="$PYTHON" npm run build

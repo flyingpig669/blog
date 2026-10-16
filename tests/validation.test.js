@@ -2,10 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const {createRequire} = require('node:module');
 const script = path.resolve(__dirname, '../scripts/validate-content.js');
 const scopedRequire = createRequire(script);
+let services;
+test.before(async () => { services = await require('./services').loadServices(); });
 function validate(extra) {
   const messages = [];
   const fakeFs = Object.assign({}, fs, {readFileSync(name, encoding) {
@@ -18,7 +19,12 @@ function validate(extra) {
     return source;
   }});
   const processStub = {exitCode: 0};
-  vm.runInNewContext(fs.readFileSync(script, 'utf8'), {require: name => name === 'node:fs' ? fakeFs : scopedRequire(name), __dirname: path.dirname(script), process: processStub, console: {log() {}, error: text => messages.push(text)}});
+  const originalConsole = console.error, originalLog = console.log, originalExit = process.exitCode;
+  process.exitCode = 0;
+  console.error = text => messages.push(text);
+  console.log = () => {};
+  try { scopedRequire(script)(services, fakeFs); processStub.exitCode = process.exitCode; }
+  finally { console.error = originalConsole; console.log = originalLog; process.exitCode = originalExit; }
   return {code: processStub.exitCode, messages: messages.join('\n')};
 }
 test('validation rejects missing wiki references, documents, assets and unsafe links', () => {

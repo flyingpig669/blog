@@ -1,25 +1,28 @@
+import { shallowReactive } from 'vue';
+import { config as siteConfig } from '../config/blog.config.js';
+import { routes as defaultRoutes, registry } from '../config/routes.js';
+import { html } from './html.js';
 /**
  * ==============================================================================
  * Aurora Blog - 数据中心与持久化存储模块 (Blog Reactive Store)
  * ==============================================================================
  * 1. 自动同步 src/config/blog.config.js 全局配置 (站点元信息)。
- * 2. 自动载入 js/posts-data.js 编译后的真实 Markdown 博文索引 (源自 posts/)。
+ * 2. 自动载入 data/index.json 编译后的真实 Markdown 博文索引 (源自 posts/)。
  * 3. 提供文档 / 专栏 / 标签 / 站内互链的统一查询与解析入口。
  * 4. 彻底杜绝本地缓存残留已删除的示例文档。
  */
 
-window.BlogStore = {
+export function createStore() { return shallowReactive({
   STATE_KEY_THEME: 'aurora_blog_theme_v3',
 
-  init: function() {
+  init: function(postsData, config = siteConfig) {
     // 1. 清理旧版本遗留的硬编码样本缓存
     try {
       localStorage.removeItem('aurora_blog_posts_v2');
       localStorage.removeItem('aurora_blog_comments_v2');
     } catch (e) {}
 
-    // 2. 加载配置 (优先读取全局 BlogConfig)
-    var config = window.BlogConfig || {};
+    // 2. 加载通过模块导入或测试注入的站点配置
     this.config = config;
     this.site = config.site || {
       title: "CCC de Notes",
@@ -31,7 +34,6 @@ window.BlogStore = {
 
     // 3. 载入编译生成的博文索引 (来自 posts/ 目录)
     // 数据在初始化后即为静态，直接引用而不做深拷贝（深拷贝会重复持有全部正文文本）。
-    var postsData = window.BlogPostsData;
     if (!postsData || postsData.schemaVersion !== 2) throw new Error('内容索引缺失或版本不匹配，请重新构建。');
     this.documents = postsData.documents;
     this.posts = postsData.posts.map(function(id) { return postsData.documents[id]; });
@@ -296,7 +298,7 @@ window.BlogStore = {
   // 支持按 文章 slug / id / relPath / 标题 / 专栏 / 标签 引用；未命中返回 null。
   // 返回：{ kind, title, route, href?, slug, excerpt }
   routePath: function(name, value) {
-    var routes = (this.config && this.config.routes) || window.BlogRoutes;
+    var routes = (this.config && this.config.routes) || defaultRoutes;
     var base = routes[name];
     return value ? base + '/' + encodeURIComponent(value) : base;
   },
@@ -308,7 +310,7 @@ window.BlogStore = {
 
     // 1) 外链 / 已带 # 的 Hash 路由：原样透传
     if (/^https?:\/\//i.test(raw) || /^(mailto|tel):/i.test(raw) || raw.indexOf('#/') === 0) {
-      if (window.BlogHtml && !window.BlogHtml.safeUrl(raw)) return null;
+      if (html && !html.safeUrl(raw)) return null;
       return { kind: 'url', title: raw.replace(/^#/, ''), href: raw };
     }
 
@@ -388,7 +390,7 @@ window.BlogStore = {
 
   isPostExcluded: function(p) {
     if (!p) return true;
-    var exclude = (window.BlogConfig && window.BlogConfig.exclude) || (this.config && this.config.exclude) || {};
+    var exclude = siteConfig.exclude || (this.config && this.config.exclude) || {};
     if (exclude.showTest === false) {
       if (p.isTest) return true;
       if (p.tags && p.tags.some(function(t) { return (t || '').toLowerCase() === 'test'; })) return true;
@@ -440,7 +442,7 @@ window.BlogStore = {
 
   // 聚合全站标签（记忆化：resolveLink 解析每条互链都可能需要它）
   tagSlug: function(name) {
-    return window.BlogRouteRegistry.resourceSlug(name);
+    return registry.resourceSlug(name);
   },
 
   getAllTags: function() {
@@ -465,6 +467,7 @@ window.BlogStore = {
     try {
       localStorage.setItem(this.STATE_KEY_THEME, this.theme);
     } catch (e) {}
-    document.documentElement.classList.add('dark');
+    if (typeof document !== 'undefined') document.documentElement.classList.add('dark');
   }
-};
+}); }
+export const store = createStore();

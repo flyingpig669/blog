@@ -1,31 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const vm = require("node:vm");
 const { createSSRApp } = require("vue");
 const { renderToString } = require("@vue/server-renderer");
-let server;
+let server, store;
 test.before(async () => {
-  const context = {
-    window: {},
-    console,
-    localStorage: { removeItem() {}, getItem() {} },
-    document: { documentElement: { classList: { add() {} } } },
-  };
-  vm.createContext(context);
-  for (const file of [
-    "src/config/routes.js",
-    "src/config/blog.config.js",
-    "js/posts-data.js",
-    "src/lib/html.js",
-    "src/lib/store.js",
-    "src/lib/navigation.js",
-    "src/lib/post-navigation.js",
-  ])
-    vm.runInContext(fs.readFileSync(require('../scripts/generated-path').resourcePath(file), "utf8"), context);
-  context.window.BlogStore.init();
-  global.window = context.window;
   global.document = {
+    documentElement: { classList: { add() {} } },
     title: "",
     querySelector() {
       return null;
@@ -40,6 +21,8 @@ test.before(async () => {
     server: { middlewareMode: true, hmr: false },
     optimizeDeps: { noDiscovery: true },
   });
+  ({store} = await server.ssrLoadModule('/src/lib/store.js'));
+  store.init(JSON.parse(fs.readFileSync(require('../scripts/generated-path').resourcePath('data/index.json'), 'utf8')));
 });
 test.after(async () => {
   await server?.close();
@@ -168,8 +151,8 @@ test("Vue tag selection is derived from the URL including encoded Chinese params
   const { selectedTags, tagsPath } = await server.ssrLoadModule(
     "/src/lib/content.js",
   );
-  const original = window.BlogStore.getAllTags;
-  window.BlogStore.getAllTags = () => [{ name: "中文" }, { name: "Git" }];
+  const original = store.getAllTags;
+  store.getAllTags = () => [{ name: "中文" }, { name: "Git" }];
   try {
     assert.deepEqual(
       selectedTags({ params: { tags: ["中文"] }, query: { tag: "git" } }),
@@ -177,14 +160,13 @@ test("Vue tag selection is derived from the URL including encoded Chinese params
     );
     assert.equal(tagsPath(["中文", "Git"]), "/tags/git/%E4%B8%AD%E6%96%87");
   } finally {
-    window.BlogStore.getAllTags = original;
+    store.getAllTags = original;
   }
 });
 
 test("Vue scroll restoration waits for document loading and rejects stale navigation", async () => {
   const { scrollPosition } = await server.ssrLoadModule("/src/lib/scroll.js");
-  const store = window.BlogStore,
-    original = store.loadDocument;
+  const original = store.loadDocument;
   let loaded = false;
   store.loadDocument = async (document) => {
     loaded = true;

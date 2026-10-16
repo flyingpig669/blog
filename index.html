@@ -7,11 +7,11 @@
   <meta name="description" content="A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.">
   <!--
     分享 / SEO 元信息。本站为 Hash 路由 SPA（每条路由共享同一个物理 URL），
-    因此 canonical 与 og:url 一律指向站点根；配置了 blog.config.js 的 site.url 后，
-       静态值由构建期校验与 blog.config.js 保持一致。
+    因此 canonical 与 og:url 一律指向站点根；配置了 src/config/blog.config.js 的 site.url 后，
+       静态值由构建期校验与 src/config/blog.config.js 保持一致。
 
     两条约定：
-    1) 下面三处 description 必须与 blog.config.js 的 site.description 逐字一致。
+    1) 下面三处 description 必须与 src/config/blog.config.js 的 site.description 逐字一致。
        构建期校验静态元信息与配置值，避免爬虫与读者看到不同内容。
     2) lang 声明的是「页面主要语言」。本页外壳 —— 导航、标题、页脚、加载与错误态 ——
        全部是英文，因此声明 en；中文正文属于文章内容，不改变外壳的语言。
@@ -25,11 +25,11 @@
   <meta property="og:description" content="A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.">
   <meta property="og:url" content="https://notes.theccyy.com/">
   <!--
-    og:image 由 `npm run build:og` 生成（scripts/generate-og-image.js，文案取自 blog.config.js）。
+    og:image 由 `npm run build:og` 生成（scripts/generate-og-image.js，文案取自 src/config/blog.config.js）。
     og:image / og:url / canonical 在静态 HTML 里就必须是绝对地址：
     微信 / Telegram / X 等社交爬虫不执行 JS，看不到 Vue 应用的运行时改写，
     相对路径会直接丢分享卡片（OG 规范也要求绝对 URL）。
-    这几处取值来自 blog.config.js 的 site.url，scripts/validate-content.js 会构建期互查，
+    这几处取值来自 src/config/blog.config.js 的 site.url，scripts/validate-content.js 会构建期互查，
     换域名时只改 site.url，再按报错提示同步这里。
   -->
   <meta property="og:image" content="https://notes.theccyy.com/og-image.png">
@@ -75,7 +75,6 @@
     <main class="shell mx-auto px-4 sm:px-6 pt-16 pb-20" role="status">Loading CCC de Notes…</main>
     <noscript><p class="text-center">Please enable JavaScript to read CCC de Notes.</p><footer class="mt-24 py-10 text-center font-mono text-muted text-[12px]">© 2026 CCC · All rights reserved. · <a href="mailto:ccc0000006@gmail.com">EMAIL</a></footer></noscript>
   </div>
-  <script defer src="js/posts-data.js"></script>
   <script type="module" src="js/vue/app.js"></script>
 </body>
 </html>

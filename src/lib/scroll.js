@@ -1,3 +1,4 @@
+import { mathLoader } from './katex-loader.js';
 import { nextTick } from "vue";
 import { store, docForRoute, features } from "./content";
 
@@ -10,7 +11,7 @@ export async function scrollPosition(to, saved, isCurrent) {
       if (metadata) {
         const document = await store.loadDocument(metadata);
         if (features.mathKaTeX !== false)
-          await window.BlogKatex?.ensure(document.content || "");
+          await mathLoader.ensure(document.content || "");
       }
     }
     await nextTick();

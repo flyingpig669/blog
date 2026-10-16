@@ -1,7 +1,9 @@
-// Markdown compilation and collection queries are shared with the content validator.
-export const store = window.BlogStore;
-export const config = window.BlogConfig;
-export const registry = window.BlogRouteRegistry;
+import { store } from './store.js';
+import { config } from '../config/blog.config.js';
+import { registry, routes } from '../config/routes.js';
+import { html } from './html.js';
+import { navigation } from './navigation.js';
+export { store, config, registry };
 export const features = config.features || {};
 export const pathFor = (name, value) => store.routePath(name, value);
 export const hrefFor = (name, value) => "#" + pathFor(name, value);
@@ -11,14 +13,14 @@ export const columnHref = (column) =>
   hrefFor(registry.collectionFor(column).name, column.id);
 export const tagHref = (tag) => hrefFor("tags", store.tagSlug(tag));
 export const safeUrl = (value) =>
-  window.BlogHtml.safeUrl(String(value || "").replace(/ /g, "%20"));
+  html.safeUrl(String(value || "").replace(/ /g, "%20"));
 export const lines = (value) =>
   Array.isArray(value) ? value.join("\n") : String(value || "");
 export const wordCount = (value) =>
   value >= 1000 ? Math.round(value / 100) / 10 + "k 字词" : value + " 字词";
 export const pad = (value) => String(value).padStart(2, "0");
-export const navController = Object.assign({}, window.BlogRouter, {
-  getRoutes: () => config.routes || window.BlogRoutes,
+export const navController = Object.assign({}, navigation, {
+  getRoutes: () => config.routes || routes,
 });
 export const navItems = () => navController.getFlattenedNav();
 export const docForRoute = (route) => {

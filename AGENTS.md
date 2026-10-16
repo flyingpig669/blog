@@ -442,3 +442,4 @@ $$
 - `.vue` 保存由现有 `./run.sh` 增量编译 Vue 与样式；所有生成文件写入 `.cache/build/` 或 `.cache/preview/`，正式发布目录为 `_site/`，禁止纳入文件监听与 Git。修改模块后仍执行 `./check.sh`。
 
 - 前端工具源码统一位于 `src/lib/`，通过 Vite 导入；不要在 index.html 单独加载它们。DOMPurify 随应用包编译。根目录禁止重新生成 js/、data/ 等旧产物目录。
+- 项目模块必须使用 ES `import` / `export`，禁止新增 `window.Blog*` 全局对象。站点配置导出 `config`，路由表导出 `routeTable` / `registry` / `routes`，内容状态由 `createStore()` 创建并使用 Vue `shallowReactive`。启动入口加载 `data/index.json`，正文和搜索索引继续懒加载。

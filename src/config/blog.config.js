@@ -1,3 +1,4 @@
+import { routes, registry } from './routes.js';
 /**
  * ==============================================================================
  * Aurora Blog - 全局统一配置文件 (Global Blog Configuration)
@@ -10,13 +11,13 @@
  * 即席导航项（见下方 nav 的 concat 部分）。
  */
 
-window.BlogConfig = {
+export const config = {
   // 统一路由字典：由 src/config/routes.js 的声明表派生（name -> path）。
   // 这里不再手写字面量 —— 新增/改名请改那张表，路由、导航、校验会一起跟上。
-  routes: window.BlogRoutes,
+  routes: routes,
 
   // 默认路由：访问空 Hash (#) 或根地址时落到哪里
-  defaultRoute: window.BlogRoutes.home,
+  defaultRoute: routes.home,
 
   // 1. 站点基础信息 (Site Metadata)
   site: {
@@ -56,7 +57,7 @@ window.BlogConfig = {
   // 单个对象 = 普通导航项；数组 = 下拉菜单（展示第一项，其余折叠进下拉）。
   // 站内新模块请改路由表，不要写在这里；写法参考 src/config/routes.js 顶部的「怎么加一个新模块」。
   // 外部链接项用 href 而不是 target（target 会被当作站内路由解析）。
-  nav: window.BlogRouteRegistry.buildNav().concat([
+  nav: registry.buildNav().concat([
     // { id: "rss", label: "RSS", href: "https://example.com/feed.xml" },
   ]),
 
@@ -91,7 +92,7 @@ window.BlogConfig = {
   // 6. 过滤与排除规则 (Exclude & Filter Settings)
   exclude: {
     // 测试文档显示开关：为 false 时过滤隐藏所有带 test 标签或 test: true 的测试文档，为 true 时展示。
-    // 生产环境必须是 false —— 被隐藏的文档不会进入 js/posts-data.js，也不会生成 data/documents/*.json。
+    // 生产环境必须是 false —— 被隐藏的文档不会进入 data/index.json，也不会生成 data/documents/*.json。
     showTest: false,
 
     // 根据文件名排除指定文档 (例如: ["secret.md", "draft-1.md"])
