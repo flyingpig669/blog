@@ -30,7 +30,7 @@ const puppeteer = require('/Users/ccc/.workbuddy/binaries/node/workspace/node_mo
 function loadSite() {
   const context = { window: {} };
   vm.createContext(context);
-  for (const file of ['js/lib/routes.js', 'blog.config.js']) {
+  for (const file of ['src/lib/routes.js', 'blog.config.js']) {
     const full = path.join(ROOT, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), context, { filename: full, timeout: 1000 });
   }

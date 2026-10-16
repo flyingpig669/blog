@@ -50,7 +50,7 @@
     html, body { margin: 0; background: #0A0A0B; color: #EDEDED; }
   </style>
 
-  <!-- KaTeX 样式与脚本改为按正文需要动态注入（见 js/lib/katex-loader.js）：
+  <!-- KaTeX 样式与脚本改为按正文需要动态注入（见 src/lib/katex-loader.js）：
        全站只有少数文章用到公式，列表页与无公式文章不再下载这 75KB。 -->
 
   <!-- Static utilities compiled at build time (no browser Tailwind runtime). -->
@@ -61,7 +61,6 @@
 
   <!-- Vendor JS -->
   <script defer src="vendor/marked.min.js"></script>
-  <script defer src="vendor/purify.min.js"></script>
   <script defer src="vendor/prism.js"></script>
   <script defer src="vendor/prism-components/prism-javascript.min.js"></script>
   <script defer src="vendor/prism-components/prism-python.min.js"></script>
@@ -70,22 +69,13 @@
   <script defer src="vendor/prism-components/prism-yaml.min.js"></script>
   <script defer src="vendor/prism-components/prism-bibtex.min.js"></script>
   <script defer src="vendor/prism-components/prism-markdown.min.js"></script>
-  <script defer src="js/lib/katex-loader.js"></script>
 </head>
 <body class="bg-page text-primary min-h-screen antialiased selection:bg-accent/20 selection:text-primary">
   <div id="app" class="min-h-screen flex flex-col">
     <main class="shell mx-auto px-4 sm:px-6 pt-16 pb-20" role="status">Loading CCC de Notes…</main>
     <noscript><p class="text-center">Please enable JavaScript to read CCC de Notes.</p><footer class="mt-24 py-10 text-center font-mono text-muted text-[12px]">© 2026 CCC · All rights reserved. · <a href="mailto:ccc0000006@gmail.com">EMAIL</a></footer></noscript>
   </div>
-  <script defer src="js/lib/routes.js"></script>
-  <script defer src="blog.config.js"></script>
   <script defer src="js/posts-data.js"></script>
-  <script defer src="js/lib/html.js"></script>
-  <script defer src="js/lib/callout-icons.js"></script>
-  <script defer src="js/store.js"></script>
-  <script defer src="js/markdown.js"></script>
-  <script defer src="js/lib/router.js"></script>
-  <script defer src="js/lib/post-navigation.js"></script>
   <script type="module" src="js/vue/app.js"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const context = { window: {} };
 vm.createContext(context);
-vm.runInContext(fs.readFileSync(require.resolve('../js/lib/html.js'), 'utf8'), context);
+vm.runInContext(fs.readFileSync(require.resolve('../src/lib/html.js'), 'utf8'), context);
 const html = context.window.BlogHtml;
 test('URL policy rejects active schemes, control characters and resource mail links', () => {
   for (const value of ['javascript:alert(1)', 'JaVaScript:alert(1)', 'data:text/html,test', 'file:///tmp/test', 'https://example.com/\nx', 'vbscript:1']) assert.equal(html.safeUrl(value), '');

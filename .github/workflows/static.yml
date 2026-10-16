@@ -1,8 +1,8 @@
 # Deploy static content to GitHub Pages
 #
 # 关键约束：**只发布站点运行时真正需要的文件**。
-# 站点运行时只读这些路径（见 js/store.js 的 fetch 与 index.html 的 script/link）：
-#   index.html, blog.config.js, css/, js/, data/, vendor/, attachments/
+# 站点运行时只读这些路径（见 src/lib/store.js 的 fetch 与 index.html 的 script/link）：
+#   index.html, css/, js/, data/, vendor/, attachments/
 # 外加 robots.txt / sitemap.xml / og-image.png / 404.html。
 #
 # 历史问题：这里曾直接以 `path: '.'` 发布整个仓库，导致 /AGENTS.md、/deploy.sh、
@@ -57,48 +57,9 @@ jobs:
       - name: Validate, build and test
         run: ./check.sh
 
-      # 组装站点根目录：白名单之外的任何文件都不会进入发布产物。
-      - name: Assemble site
-        run: |
-          set -euo pipefail
-          rm -rf _site && mkdir -p _site
-          for f in index.html blog.config.js robots.txt 404.html og-image.png CNAME; do
-            if [ -f "$f" ]; then cp "$f" _site/; else echo "::warning::缺少站点文件 $f"; fi
-          done
-          if [ -f sitemap.xml ]; then cp sitemap.xml _site/; fi
-          for d in css js data vendor attachments; do
-            if [ -d "$d" ]; then cp -r "$d" _site/; fi
-          done
-          # 404.html 会被 Pages 原样返回给任意深度的未知物理路径，且 URL 不重写，
-          # 因此页内相对路径一律不可用。站点根按 Pages 的规则推导后注入：
-          # 项目站点是 /<repo>/，用户站点（仓库名 = <owner>.github.io）是 /。
-          owner="${GITHUB_REPOSITORY%%/*}"; repo="${GITHUB_REPOSITORY#*/}"
-          if [ -s CNAME ]; then
-            base="/"
-          elif [ "$repo" = "${owner}.github.io" ]; then
-            base="/"
-          else
-            base="/${repo}/"
-          fi
-          if [ -f _site/404.html ]; then
-            sed -i "s|__SITE_BASE__|${base}|g" _site/404.html
-            if grep -q '__SITE_BASE__' _site/404.html; then
-              echo "::error::404.html 中的 __SITE_BASE__ 未被替换"
-              exit 1
-            fi
-            echo "404.html 站点根已注入：${base}"
-          else
-            echo "::warning::缺少 404.html，非 Hash 路径会落到 Pages 默认 404"
-          fi
-          # 兜底断言：发布产物里绝不能出现源码、测试、模板或原始 Markdown
-          leaked="$(find _site \( -name '*.md' -o -name '*.vue' -o -name '*.py' -o -name '*.sh' \
-            -o -name 'package*.json' -o -name '*.test.js' -o -name '*.yml' \) -print)"
-          if [ -n "$leaked" ]; then
-            echo "::error::发布产物中混入源码或文档文件"
-            echo "$leaked"
-            exit 1
-          fi
-          echo "发布产物："; du -sh _site; ls -1 _site
+      # npm run build / check.sh 已使用同一份白名单生成 _site/。
+      - name: Verify assembled site
+        run: test -f _site/index.html && test -f _site/js/vue/app.js
 
       - name: Upload checked build
         if: github.event_name != 'pull_request'

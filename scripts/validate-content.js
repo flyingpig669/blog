@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const { resourcePath } = require('./generated-path');
 const context = { window: {}, console, localStorage: { removeItem() {}, getItem() {}, setItem() {} }, document: { documentElement: { classList: { add() {} } } } };
 vm.createContext(context);
-for (const name of ['js/lib/routes.js', 'blog.config.js', 'js/posts-data.js', 'js/lib/html.js', 'js/store.js', 'js/lib/router.js']) {
+for (const name of ['src/lib/routes.js', 'blog.config.js', 'js/posts-data.js', 'src/lib/html.js', 'src/lib/store.js', 'src/lib/navigation.js']) {
   vm.runInContext(fs.readFileSync(resourcePath(name), 'utf8'), context, { filename: name });
 }
 const { BlogStore: store, BlogRouter: router, BlogHtml: html, BlogConfig: config, BlogRouteRegistry: registry } = context.window;
@@ -79,7 +79,7 @@ for (const def of context.window.BlogRouteTable) {
 // 本地预览一切正常、构建也查不出（文件确实存在），但**线上必 404** ——
 // 这里在构建期直接拦下并指路 attachments/。
 const PUBLISHED_DIRS = ['attachments/', 'css/', 'js/', 'vendor/', 'data/'];
-const PUBLISHED_FILES = new Set(['index.html', 'blog.config.js', 'robots.txt', '404.html', 'og-image.png', 'sitemap.xml']);
+const PUBLISHED_FILES = new Set(['index.html', 'robots.txt', '404.html', 'og-image.png', 'sitemap.xml']);
 function checkAsset(value, source) {
   if (!html.safeUrl(value, true)) { fail(`${source}: unsafe resource ${value}`); return; }
   if (/^(?:https?:)?\/\//i.test(value)) return;
@@ -202,9 +202,9 @@ for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
 // 这里补上加载器内 vendor 路径的存在性与白名单校验 —— 否则路径写错时
 // 构建全绿、直到某篇带公式的文章被打开才 404。
 {
-  const loaderSource = fs.readFileSync(path.join(root, 'js/lib/katex-loader.js'), 'utf8');
+  const loaderSource = fs.readFileSync(path.join(root, 'src/lib/katex-loader.js'), 'utf8');
   for (const m of loaderSource.matchAll(/'((?:vendor|css|js)\/[^']+)'/g)) {
-    checkAsset(m[1], 'js/lib/katex-loader.js');
+    checkAsset(m[1], 'src/lib/katex-loader.js');
   }
 }
 // 静态分享 / SEO 元信息 × blog.config.js 互查。

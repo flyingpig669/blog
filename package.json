@@ -2,7 +2,7 @@
   "name": "aurora-notes",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -i styles/utilities.css -o css/utilities.css --minify",
+    "build:css": "node scripts/build-css.js",
     "build:og": "node scripts/generate-og-image.js",
     "build": "node scripts/build.js",
     "build:preview": "node scripts/build.js --preview",

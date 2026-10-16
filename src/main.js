@@ -1,3 +1,15 @@
+import './lib/routes';
+import '../blog.config.js';
+import './lib/html';
+import './lib/store';
+import './lib/navigation';
+import './lib/callout-icons';
+import './lib/markdown';
+import './lib/katex-loader';
+import './lib/post-navigation';
+import DOMPurify from 'dompurify';
+window.DOMPurify = DOMPurify;
+
 function failed(error) {
   const root = document.getElementById("app");
   root.textContent = "Unable to start CCC de Notes. Please rebuild the site.";

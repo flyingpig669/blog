@@ -196,7 +196,7 @@ class ContentTests(unittest.TestCase):
             for name in ("one", "two"):
                 (posts / (name + ".md")).write_text('---\nslug: "same-slug"\n---\nBody\n', encoding="utf-8")
             index = os.path.join(directory, "js", "posts-data.js")
-            with patch.object(sync_posts, "BASE_DIR", directory), patch.object(sync_posts, "POSTS_DIR", str(posts)), patch.object(sync_posts, "POSTS_DATA_FILE", index), contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(sync_posts, "BASE_DIR", directory), patch.object(sync_posts, "POSTS_DIR", str(posts)), patch.dict(os.environ, AURORA_OUTPUT_DIR=directory), contextlib.redirect_stdout(io.StringIO()):
                 with self.assertRaisesRegex(ValueError, "重复 slug"):
                     sync_posts.sync()
             self.assertFalse(os.path.exists(index))

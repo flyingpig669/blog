@@ -85,7 +85,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
    - 顶部间距：`mt-24`，上边框 `border-t border-white/[0.06]`，垂直内边距 `py-10`。
    - 版心对齐：`shell mx-auto px-4 sm:px-6`。
    - 极简原则：页脚仅展示单行版权信息（如 `© 2026 CCC · All rights reserved.`），严禁在页脚添加社交媒体图标或多列链接群。
-   - 版权文案的唯一来源是 `blog.config.js` 的 `site.footerText`（`js/components/footer.js` 负责写入）；`index.html` 里那段静态文本只是无 JS 兜底，改配置时两处必须一起改。
+   - 版权文案的唯一来源是 `blog.config.js` 的 `site.footerText`（`src/components/Footer.vue` 负责渲染）；`index.html` 里那段静态文本只是无 JS 兜底，改配置时两处必须一起改。
 6. **快捷搜索弹窗 (Cmd+K Modal)**：
    - 宽度严格限制为 `max-w-[560px]`（弹窗非版心，属独立浮层，不受第 0 条约束），背景色 `#111113`，边框 `border-white/[0.12]`，圆角 `rounded-xl`。
 
@@ -143,20 +143,18 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 ### 5.7 可展开条目与论著卡片 (Collapsible Entry & Publications Card)
 
-`timeline[]` / `focusAreas[]` 的条目与 `publications[]` 的论著卡片共用同一套折叠机制，实现集中在 `js/app.js`：
+`timeline[]` / `focusAreas[]`、论著和书籍目录共用 `src/components/ExpandableEntry.vue` 与 `src/composables/useExpandable.js`：
 
 | 关注点 | 约定 |
 | :--- | :--- |
-| 触发器 | `toggleHeadingHtml()` 生成「看起来是标题、行为是按钮」的 `<button class="entry-toggle" data-expand-target="<panelId>" aria-expanded aria-controls>`；无折叠内容时退化为纯标题，**不渲染空箭头** |
-| 箭头位置 | 箭头是文本流内的 `inline-block`（`.entry-chevron`），跟随标题最后一行；**不得**改为独立的 flex 尾项，否则标题换行时箭头会飘到版心最右侧 |
-| 状态 | 面板状态记在 `hidden` 属性上，视觉态记在容器类 `is-expanded` 上，两者分离以便 CSS 决定动画 |
-| 交互绑定 | 统一走 `bindExpandables(container)` 的**事件委托**，绑在 `#app-main` 上一次即可覆盖后续所有重渲染；禁止在每次 `innerHTML` 后逐个 `addEventListener` |
-| 链接优先 | 委托处理里必须先判断 `a` / `[data-pub-jump]` / `[data-pub-preview]` 并提前 `return`，否则点外链会顺手把面板收起 |
-| 文本选择 | 拖选文字时 `window.getSelection()` 非空则跳过折叠，避免复制正文时误触 |
-| 论著卡片 | 序号 `font-mono` + 标题 + 署名（`<strong class="pub-author-self">`）+ 期刊/年份/引用 + 右对齐资源徽章；`is-expanded` 时加 1px 边框与 `8px` 圆角 |
-| PDF 预览 | **必须懒加载**：`iframe` 只在用户点「预览 PDF」时创建，再次点击改为收起；展开摘要绝不能顺带下载 PDF |
+| 触发器 | Vue 模板生成 `button.entry-toggle`，绑定 `aria-expanded` 和 `aria-controls`；无内容时为纯标题，不渲染空箭头 |
+| 箭头位置 | `.entry-chevron` 保持文本流内的 inline-block，跟随标题最后一行，禁止改为独立 flex 尾项 |
+| 状态 | Vue 响应式状态同时绑定面板 `hidden` 与容器 `is-expanded`，不要用 display 覆盖 hidden |
+| 复用 | 新增折叠区块必须使用共用组件及组合函数，禁止页面重复实现或逐个手动绑定事件 |
+| 链接优先 | 共用开关跳过 a、资源跳转、预览控件；拖选文字时跳过折叠 |
+| 论著 | 序号等宽，标题和署名无衬线，本人作者加粗，年份引用等宽，资源徽章右对齐；展开态为细边框 |
+| PDF | `PdfPreview.vue` 点击后才加载，展开摘要不下载文件，卸载时销毁任务 |
 
-新增任何「点击展开」区块都必须复用上述机制，禁止另写一套开关逻辑。
 
 ---
 
@@ -195,12 +193,12 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 ### 6.5 重定向与兼容约束
 
-1. 若路由发生变更，旧路由必须保留重定向至新路由，禁止直接删除导致死链。Hash 路由无法发送 HTTP 301，等效实现为 `history.replaceState` 原地改写地址栏（参照 `app.js` 中 `/posts` → `/archive` 的收敛分支）。
+1. 若路由发生变更，旧路由必须保留重定向至新路由，禁止直接删除导致死链。Hash 路由无法发送 HTTP 301，等效实现为 `history.replaceState` 原地改写地址栏（由 `src/lib/router.js` 的 Vue Router 重定向实现）。
 2. 禁止在同一个项目中同时存在两套命名逻辑（如一部分用复数，一部分用单数）。
 
 ### 6.6 标准路由字典 (Canonical Route Map)
 
-**这张表由 [`js/lib/routes.js`](js/lib/routes.js) 的声明式路由表定义，不允许在下表之外另起命名体系，也不允许在配置或页面里硬编码路由字符串。** 下表是文档视图；真正的唯一来源是代码里的表，二者必须一致。
+**这张表由 [`src/lib/routes.js`](src/lib/routes.js) 的声明式路由表定义，不允许在下表之外另起命名体系，也不允许在配置或页面里硬编码路由字符串。** 下表是文档视图；真正的唯一来源是代码里的表，二者必须一致。
 
 基于本项目的导航结构，全站必须统一使用以下标准路由。新增功能必须按此表扩展：
 
@@ -221,7 +219,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 | Search | （无路由） | 检索以 Cmd+K 弹窗承载，不占用独立路由；`/search?q=` 会落到 404 |
 
 > **地址失效的处理方式**：本站是 Hash 路由，无法发送真正的 HTTP 301。旧路由的「永久重定向」等效实现为
-> `history.replaceState` 原地改写地址栏（见 6.5 第 1 条与 `app.js` 的 `/posts` 分支）。
+> `history.replaceState` 原地改写地址栏（见 6.5 第 1 条与 `src/lib/router.js` 的兼容逻辑）。
 
 ### 6.7 路由与布局的映射关系
 
@@ -272,11 +270,11 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 2. **层级延续性**：新增路由必须遵循 `模块集合 -> 模块详情` 的层级。例如新增 Series 模块后，必须同时定义 `/series` 与 `/series/:slug` 两级，禁止出现只定义详情不定义列表的情况。
 3. **参数延续性**：新增路由的资源唯一标识必须使用语义化 slug，禁止使用数字 ID；筛选、分页等必须使用查询参数。
 4. **版心延续性**：新增路由必须使用全站统一的 `shell`（720px）；只有确需并排放置「正文 + 常驻目录」的详情页才可用 `shell-detail`（1000px）。禁止定义第三档宽度，也禁止写裸 `max-w-[...]`。若新页面确需特殊布局（如全宽画布），必须在文档中显式申报并说明理由。
-5. **配置驱动**：新增路由上线时，必须同步在路由声明表 `js/lib/routes.js` 中登记一行（路由、导航、视图分派、校验都由这一行派生），禁止散落在页面或配置里硬编码。
+5. **配置驱动**：新增路由上线时，必须同步在路由声明表 `src/lib/routes.js` 中登记一行（路由、导航、视图分派、校验都由这一行派生），禁止散落在页面或配置里硬编码。
 
 ### 7.5 路由声明表的扩展格式
 
-新增模块时，必须在 [`js/lib/routes.js`](js/lib/routes.js) 的表里追加一条，方可进入开发：
+新增模块时，必须在 [`src/lib/routes.js`](src/lib/routes.js) 的表里追加一条，方可进入开发：
 
 ```javascript
 {
@@ -323,7 +321,7 @@ Agent 进行前端编写时，以下行为一律判定为违规：
 10. **严禁为单模块引入独立版心或独立视觉**：新增模块必须复用既有版心与设计令牌，禁止为新模块单独设计一套布局语言。
 11. **严禁未转义地拼接文本进 `innerHTML`**：任何来自 FrontMatter / Markdown 正文 / `blog.config.js` 的文本，在其进入 HTML 字符串前必须经过 `escapeHtml()`（含属性值）。唯一豁免是由代码内部生成的、字符集可证明安全的值（如 `'section-' + n`）。
 12. **严禁绕过 `applyTagSelection()` 写标签选中状态**：标签筛选遵循「URL 即状态」，`selectedSortedTags` 只能由路由解析或 `applyTagSelection()` 写入；禁止在视图中直接 `this.selectedSortedTags.add(...)`，否则地址栏与页面内容会脱节。
-13. **严禁在 `<head>` 同步引入大体积依赖**：PDF.js（约 1.3MB）与 `slide-viewer.js` 必须通过 `app.js#ensureSlideViewer()` 按需注入。新增任何 >100KB 的依赖都必须走同样的懒加载路径，禁止直接写 `<script src>` 阻塞首屏。
+13. **严禁在 `<head>` 同步引入大体积依赖**：PDF.js（约 1.3MB）必须通过 `src/lib/viewer.js#ensureViewer()` 按需注入。新增任何 >100KB 的依赖都必须走同样的懒加载路径，禁止直接写 `<script src>` 阻塞首屏。
 14. **严禁把运行期产物纳入文件监听**：`server.py` 的 `scan_tree()` 必须排除 `server.log` 及 `WATCH_IGNORED_SUFFIXES` 中的一切扩展名。监听器一旦覆盖到服务端自己会写的文件（日志、缓存、临时锁），就会形成「请求 → 文件变化 → 广播刷新 → 浏览器再请求」的无限重载循环。
 15. **严禁用 `display` 属性覆盖 `hidden`**：折叠面板依赖 `hidden` 属性表达状态。给 `.pub-panel` / `.entry-panel` 之类元素写 `display: flex/grid` 会静默让 `hidden` 失效、面板永远可见。需要布局时在内部再包一层。
 16. **严禁在移动端隐藏必要控件**：缩放、翻页、展开等操作入口不得用 `hidden md:inline-flex` 之类的断点类移除 —— 窄屏恰恰是最需要它们的场景（历史缺陷：幻灯片缩放按钮在移动端完全不可用）。
@@ -408,7 +406,7 @@ $$
 
 线上的产物**不是整个仓库**，而是 CI 组装的 `_site/` 白名单。新增任何站点级文件前必须同时改白名单，否则线上拿不到；反过来，不要把源码、测试、模板混进白名单。
 
-1. **白名单**（见 [`.github/workflows/static.yml`](.github/workflows/static.yml) 的 Assemble site）：`index.html`、`blog.config.js`、`robots.txt`、`404.html`、`og-image.png`、`sitemap.xml`，以及目录 `css/`、`js/`、`data/`、`vendor/`、`attachments/`。
+1. **白名单**（唯一实现为 `scripts/assemble-site.js`，本地构建和 CI 共用）：`index.html`、`robots.txt`、`404.html`、`og-image.png`、`sitemap.xml`，以及目录 `css/`、`js/`、`data/`、`vendor/`、`attachments/`。
 2. **兜底断言**：产物中出现 `*.md` / `*.py` / `*.sh` / `*.yml` / `package*.json` / `*.test.js` 即判定构建失败。原始 Markdown 尤其不能上线 —— `robots.txt` 是 `Allow: /`，一旦可下载就会被搜索引擎当独立页面收录。
 3. **`404.html` 不能用相对路径**：Pages 会把它原样返回给任意深度的未知物理路径且不重写 URL，`css/…` 这类相对路径必然解析错。因此样式全部内联，站内链接依赖 CI 注入的 `__SITE_BASE__`；新增链接时必须沿用该占位符。
 4. **`og-image.png` 用 `npm run build:og` 生成**（`scripts/generate-og-image.js`，文案取自 `blog.config.js`），产物随仓库提交，CI 只拷贝 —— 不让部署依赖无头浏览器。站点主题或文案变更后需重新生成。
@@ -428,17 +426,19 @@ $$
 ## 内容元数据补充约定
 
 - 文章 slug 与标签支持中文；模块路径与专栏标识继续使用英文小写。
-- `category` 仅保留 `books`（书籍）与 `index`（目录／索引页）作为结构标识；普通文章省略，物理、数学、工程等主题统一由 `tags` 表达。
+- 内容类型统一使用 `type`（normal / post / books / index），不再使用 `category`；主题统一由 `tags` 表达。
 - 正文 PDF 默认显示预览与下载入口，点击预览才加载 PDF.js 和对应文件。禁止打开文章时同时初始化全部 PDF 播放器。
 
-## Vue 迁移后的实现约定
+## Vue 源码与构建约定
 
-本次全站 Vue 重写后，以本节替代上文指向旧 `js/app.js`、`js/components/` 的实现位置要求，设计与路由规范继续有效。
+全部前端源码统一位于 src/；设计与路由规范保持一致。
 
 - 全部页面 UI 使用 `src/**/*.vue`；根组件为 `src/App.vue`，组件/页面/组合函数/服务分别位于 `components/`、`views/`、`composables/`、`lib/`。禁止重新引入全局 `BlogApp`、页面 `innerHTML` 或行内 `onclick`。
-- 路由仍声明在 `js/lib/routes.js`，`src/lib/router.js` 将其转换为 Vue Router Hash 路由；旧地址用 `replace` 重定向，标签选中集合从 URL 派生。
+- 路由仍声明在 `src/lib/routes.js`，`src/lib/router.js` 将其转换为 Vue Router Hash 路由；旧地址用 `replace` 重定向，标签选中集合从 URL 派生。
 - 折叠共用 `ExpandableEntry.vue` 与 `useExpandable.js`；状态由 Vue 维护 `hidden`、`aria-expanded` 与 `is-expanded`。保留链接优先、文本选择保护和空箭头禁止规则。
 - PDF/Office 预览统一使用 `PdfPreview.vue`。PDF.js 只由 `src/lib/viewer.js` 在点击后加载；播放器任务及 ResizeObserver 在卸载时释放。
 - 配置/FrontMatter 通过 Vue 文本插值和属性绑定渲染；仅 DOMPurify 清洗后的 Markdown 可使用 `v-html`，不要将其他不可信文本拼接进 HTML。
 - 页脚使用 `Footer.vue`，当前用户要求为无分割线、居中版权和 EMAIL 超链接；无 JavaScript 兜底在 `index.html` 的 `noscript` 中保持相同文案。
-- `.vue` 保存由现有 `./run.sh` 增量编译 Vue 与样式；`js/vue/` 为忽略的产物目录，禁止纳入文件监听与 Git。修改模块后仍执行 `./check.sh`。
+- `.vue` 保存由现有 `./run.sh` 增量编译 Vue 与样式；所有生成文件写入 `.cache/build/` 或 `.cache/preview/`，正式发布目录为 `_site/`，禁止纳入文件监听与 Git。修改模块后仍执行 `./check.sh`。
+
+- 前端工具源码统一位于 `src/lib/`，通过 Vite 导入；不要在 index.html 单独加载它们。DOMPurify 随应用包编译。根目录禁止重新生成 js/、data/ 等旧产物目录。

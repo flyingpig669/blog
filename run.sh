@@ -169,7 +169,7 @@ free_port "$PORT" || exit 1
 
 echo ""
 echo "  访问地址： http://localhost:$PORT"
-echo "  实时刷新： 保存 css/ js/ posts/ 下任意文件即自动刷新"
+echo "  实时刷新： 保存 css/ src/ posts/ 下任意文件即自动刷新"
 echo "  停止服务： Ctrl+C"
 echo ""
 

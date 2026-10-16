@@ -7,9 +7,9 @@ const path = require('node:path');
 function createStore() {
   const context = { window: {} };
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/lib/routes.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/routes.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../blog.config.js'), 'utf8'), context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/store.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/store.js'), 'utf8'), context);
   const store = context.window.BlogStore;
   store.posts = [
     { id: 'post-demo', slug: 'other-roadmap', relPath: 'demo/roadmap.md', type: 'normal', title: 'Other roadmap', tags: ['algebra'] },
@@ -25,7 +25,7 @@ test('lazy bodies share a request and failed validation permits retry', async ()
   const context = { window: {}, AbortController, setTimeout, clearTimeout, fetch: async () => { calls++; return {ok: true, json: async () => body}; } };
   let calls = 0, body = {slug: 'wrong', content: 'body'};
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/store.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/store.js'), 'utf8'), context);
   const store = context.window.BlogStore;
   store._requests = new Map();
   const doc = {slug: 'sample', bodyUrl: 'sample.json'};
@@ -84,7 +84,7 @@ test('store site fallback defaults align with brand metadata', () => {
     document: { documentElement: { classList: { toggle() {}, add() {}, remove() {} }, setAttribute() {} } }
   };
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/store.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/lib/store.js'), 'utf8'), context);
   const store = context.window.BlogStore;
   store.init();
   assert.equal(store.site.title, 'CCC de Notes');

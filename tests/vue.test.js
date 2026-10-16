@@ -14,15 +14,15 @@ test.before(async () => {
   };
   vm.createContext(context);
   for (const file of [
-    "js/lib/routes.js",
+    "src/lib/routes.js",
     "blog.config.js",
     "js/posts-data.js",
-    "js/lib/html.js",
-    "js/store.js",
-    "js/lib/router.js",
-    "js/lib/post-navigation.js",
+    "src/lib/html.js",
+    "src/lib/store.js",
+    "src/lib/navigation.js",
+    "src/lib/post-navigation.js",
   ])
-    vm.runInContext(fs.readFileSync(file, "utf8"), context);
+    vm.runInContext(fs.readFileSync(require('../scripts/generated-path').resourcePath(file), "utf8"), context);
   context.window.BlogStore.init();
   global.window = context.window;
   global.document = {

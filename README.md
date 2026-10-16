@@ -21,9 +21,9 @@
 
 ## 一、核心架构与目录结构
 
-本系统是 **Vue 3 + Vue Router + Vite 的静态单页应用 (SPA)**。前端使用单文件组件（`src/**/*.vue`），由 Vite 编译为 `js/vue/` 下的入口与内容哈希应用包，继续使用 Hash 路由，可直接部署到 GitHub Pages。Node.js 只用于构建，线上不需要后端服务。
+本系统是 **Vue 3 + Vue Router + Vite 的静态单页应用 (SPA)**。前端使用单文件组件（`src/**/*.vue`），由 Vite 编译到 `.cache/build/js/vue/`，最终组装到 `_site/`，继续使用 Hash 路由，可直接部署到 GitHub Pages。Node.js 只用于构建，线上不需要后端服务。
 
-内容层由 `sync_posts.py` 扫描 Markdown，生成轻量元数据索引 `js/posts-data.js` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
+内容层由 `sync_posts.py` 扫描 Markdown，在构建缓存中生成轻量元数据索引 `js/posts-data.js` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
 
 ```text
 blog/
@@ -33,12 +33,8 @@ blog/
 │   ├── views/              # 首页、Archive、Tags、集合、文档与动态模块
 │   ├── composables/        # 文档加载生命周期、折叠状态
 │   └── lib/                # Vue Router、内容服务、预览依赖与论著元数据
-├── js/
-│   ├── store.js            # 内容查询、排序、全文索引、请求去重与双链解析
-│   ├── markdown.js         # 安全 Markdown、公式、高亮、Callout 与 TOC
-│   ├── lib/routes.js       # 路由及导航声明的唯一来源
-│   ├── posts-data.js       # 生成的内容索引，不提交
-│   └── vue/                # 生成的入口与 Vue 应用包，不提交
+├── .cache/                 # 忽略的构建缓存：build/ 正式构建，preview/ 本地预览
+├── _site/                  # 生成的完整静态发布目录，不提交
 ├── css/main.css            # 全站设计令牌与共享样式
 ├── blog.config.js          # 站点、作者、导航、功能配置
 ├── index.html              # Vue 挂载入口与静态 SEO 元信息
@@ -46,7 +42,6 @@ blog/
 ├── about.md                # 结构化 About 数据
 ├── attachments/            # 原始附件（PDF、Office、图片等）
 ├── templates/              # Markdown 写作模板
-├── data/                   # 生成的正文、搜索索引与 Office PDF 预览，不提交
 ├── scripts/                # 构建与发布校验；build-app.mjs 调用 Vite 编译 Vue
 ├── lib/                    # Python FrontMatter 和 Office 转换
 ├── sync_posts.py           # Markdown 编译及预览缓存
@@ -63,7 +58,7 @@ blog/
 
 ### 1. 路由声明表：一个模块一行
 
-**全站路由与导航的唯一来源是 [`js/lib/routes.js`](js/lib/routes.js) 里的声明表。** 加一个页面、改一个地址，只改这张表：
+**全站路由与导航的唯一来源是 [`src/lib/routes.js`](src/lib/routes.js) 里的声明表。** 加一个页面、改一个地址，只改这张表：
 
 ```javascript
 {
@@ -501,7 +496,7 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 ---
 ```
 
-两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）。**FrontMatter 显式声明的 `slide` 优先**：只要写了它，播放器就固定挂在页头之下、正文之上；正文里若也内嵌了同一份课件，那个挂载点会被自动剔除——同一份 PDF 绝不出现两个播放器（正文内嵌**其它**课件不受影响，仍按书写位置渲染）。只写方式 A 时课件挂在所写处（此时 `slide` 字段由第一条指令反推）；只写方式 B 时挂在顶部。不管用哪种，`sync_posts.py` 都会把课件路径收进文档的 `slide` 字段，列表页的 `SLIDE` 徽章与构建日志里的 `[SLIDE]` 标记都由它驱动；`scripts/validate-content.js` 还会在构建期校验该文件真实存在，路径写错直接构建失败（注意：本地 `server.py` 的实时重建只跑同步不做校验，坏路径要以 `./check.sh` 为准）。
+两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）。**FrontMatter 显式声明的 `slide` 优先**：只要写了它，播放器就固定挂在页头之下、正文之上；正文里若也内嵌了同一份课件，那个挂载点会被自动剔除——同一份 PDF 绝不出现两个播放器（正文内嵌**其它**课件不受影响，仍按书写位置渲染）。只写方式 A 时课件挂在所写处（此时 `slide` 字段由第一条指令反推）；只写方式 B 时挂在顶部。不管用哪种，`sync_posts.py` 都会把课件路径收进文档的 `slide` 字段，列表页的 `SLIDE` 徽章与构建日志里的 `[SLIDE]` 标记都由它驱动；`scripts/validate-content.js` 还会在构建期校验该文件真实存在，路径写错直接构建失败（本地实时重建和完整构建都会校验引用）。
 
 **全屏放映对齐 PowerPoint 的行为**：进入放映后幻灯片按原始宽高比铺满视口的某一轴（另一轴富余的部分由深色背景充当信箱边，绝不拉伸），无圆角、无阴影、无边距；控制岛、底部进度线与鼠标指针在静止 2.5 秒后一起淡出，移动鼠标即一起恢复。
 
@@ -606,9 +601,11 @@ npm run build
 npm run dev    # 等价于 ./run.sh
 ```
 
+前端源码全部位于 `src/`：Vue 组件与数据、Markdown、路由工具统一构建。根目录不再生成 `js/` 或 `data/`。DOMPurify 已直接纳入 Vue 应用包，不再复制独立 vendor 文件。
+
 构建入口是 `scripts/build.js`；`run.sh` / `check.sh` 自动优先使用项目 `.venv`。使用其它 Python 环境可设置 `AURORA_PYTHON`。开发监听按改动选择构建步骤：文章修改更新内容与 CSS，Vue 组件与 src/ JS 修改更新应用包、CSS 并校验，静态 JS／HTML／CSS 修改更新样式并校验，配置和构建脚本修改执行完整构建。第三方依赖不再每次复制。生成数据、CSS、日志、依赖与缓存不进入监听，避免刷新循环。
 
-**本地试改请用 `./run.sh`**：启动和保存时的生成数据、CSS、第三方依赖都写入已被 Git 忽略的 `.cache/preview/`，服务器将这些资源映射到原有 URL，浏览器仍能看到最新内容。源文件即时读取，不需要复制；预览不会改动或删除仓库中的发布产物。单独生成预览产物可用 `npm run build:preview`。正式 `npm run build`、`./check.sh` 和部署会生成发布产物，但它们已被 Git 忽略；提交源码、Markdown 与附件即可，CI 会从干净仓库生成并校验完整站点。
+**本地试改请用 `./run.sh`**：启动和保存时的生成数据、CSS、第三方依赖都写入已被 Git 忽略的 `.cache/preview/`，服务器将这些资源映射到原有 URL，浏览器仍能看到最新内容。源文件即时读取，不需要复制；预览不会改动或删除仓库中的发布产物。单独生成预览产物可用 `npm run build:preview`。正式 `npm run build`、`./check.sh` 将生成文件写入 `.cache/build/`，并由 `scripts/assemble-site.js` 按白名单生成 `_site/`；两处均已被 Git 忽略；提交源码、Markdown 与附件即可，CI 会从干净仓库生成并校验完整站点。
 
 公共组件位于 `src/components/`，页面组装位于 `src/views/`，生命周期逻辑位于 `src/composables/`，数据与路由服务位于 `src/lib/`。导航、页脚、文章、搜索、折叠、目录及 PDF/Office 播放器均使用 Vue 模板与响应式状态，不再通过页面级 `innerHTML` 或全局 `BlogApp` 渲染。只有经过 DOMPurify 清洗的 Markdown 正文使用 `v-html`，其代码复制和嵌入预览在组件生命周期内绑定、销毁。`ExpandableEntry.vue` / `useExpandable.js` 是共用折叠机制，避免每个页面单独维护开关。设计颜色与字体仍集中在 `css/main.css`。
 
@@ -661,10 +658,10 @@ Pull Request 也执行完整检查但不发布；只有检查通过的非 PR 构
 
 ### 发布产物是白名单，不是整个仓库
 
-CI 的 `check` 任务在自检之后额外做一次 **Assemble site**：把站点运行时真正需要的文件拷进 `_site/`，再上传部署。白名单之外的任何文件都不会出现在线上：
+本地构建和 CI 的 `check` 任务共用 **scripts/assemble-site.js**：从源码及 `.cache/build/` 组装运行时文件到 `_site/`，检查通过后再上传部署。白名单之外的任何文件都不会出现在线上：
 
 ```text
-index.html  blog.config.js  robots.txt  404.html  og-image.png  sitemap.xml
+index.html  robots.txt  404.html  og-image.png  sitemap.xml
 css/  js/  data/  vendor/  attachments/
 ```
 
@@ -672,7 +669,7 @@ css/  js/  data/  vendor/  attachments/
 
 另外两步产物处理：
 
-- **`404.html` 注入站点根**：GitHub Pages 会把 `404.html` 原样返回给任意深度的未知物理路径，且**不重写 URL**，因此页内的相对路径在深层路径下必然解析错。CI 按 Pages 规则推导站点根（项目站点 `/<repo>/`、用户站点 `/`）并用 `sed` 注入 `__SITE_BASE__`，注入失败会直接报错。
+- **`404.html` 注入站点根**：GitHub Pages 会把 `404.html` 原样返回给任意深度的未知物理路径，且**不重写 URL**，因此页内的相对路径在深层路径下必然解析错。统一组装脚本按 Pages 规则推导站点根（项目站点 `/<repo>/`、用户站点 `/`）并注入 `__SITE_BASE__`，注入失败会直接报错。
 - **`og-image.png` 不重新生成**：分享图只在本地用 `npm run build:og` 生成并随仓库提交（文案取自 `blog.config.js`），CI 只做拷贝，避免部署依赖无头浏览器。
 
 仍使用 Hash 路由，独立静态页面与 SSG 属于后续路由迁移，不在本次改造内。
@@ -756,7 +753,7 @@ UI、路由、样式与模块化的强制约束见 [`AGENTS.md`](AGENTS.md)。�
 
 ### Books
 
-Books 入口由 `js/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `type: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
+Books 入口由 `src/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `type: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
 
 已收录 John Wiegley 的 **Git from the Bottom Up**，18 个章节与小节、10 张插图；原文来源和 CC BY 4.0 许可保留在每篇正文。导入日期是本地收录日期。
 

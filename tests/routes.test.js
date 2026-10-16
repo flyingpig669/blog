@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-const ROUTES_SOURCE = fs.readFileSync(path.join(__dirname, '../js/lib/routes.js'), 'utf8');
+const ROUTES_SOURCE = fs.readFileSync(path.join(__dirname, '../src/lib/routes.js'), 'utf8');
 const CONFIG_SOURCE = fs.readFileSync(path.join(__dirname, '../blog.config.js'), 'utf8');
 
 function load() {

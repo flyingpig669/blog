@@ -137,7 +137,7 @@ def enable_line_buffering():
 # server.log 必须排除：--daemon 模式下服务器把日志写进这个文件，而每个 HTTP 请求
 # 都会追加一行 —— 一旦把它纳入快照，就会形成「请求 -> 日志 mtime 变化 -> 广播刷新
 # -> 浏览器重新请求 -> 日志再变化」的无限重载循环。任何运行期产物都不该参与监听。
-WATCH_IGNORED_DIRS = {"__pycache__", "node_modules", "data", "output"}
+WATCH_IGNORED_DIRS = {"__pycache__", "node_modules", "_site", "output"}
 WATCH_IGNORED_FILES = {"server.log", "utilities.css"}
 WATCH_IGNORED_SUFFIXES = (".log", ".pyc", ".pyo", ".swp", ".swo")
 
@@ -150,7 +150,6 @@ def scan_tree(root):
         dirnames[:] = [
             d for d in dirnames
             if d not in WATCH_IGNORED_DIRS and not d.startswith(".")
-            and not (d == "vue" and os.path.relpath(dirpath, root) == "js")
         ]
         for name in filenames:
             if name.startswith(".") or name in WATCH_IGNORED_FILES:
@@ -171,8 +170,6 @@ class FileWatcher(threading.Thread):
     每次变化递增版本号，删除文件或恢复旧时间戳也能触发刷新。
     """
 
-    # sync_posts.py 的输出：它们是同步动作的结果，不应再单独触发一次刷新
-    GENERATED = {"js/posts-data.js", "sitemap.xml", "vendor/purify.min.js"}
     # 改动这些扩展名/文件后，需要先重建索引再刷新
     SYNC_TRIGGERS = (".md", ".markdown", ".js", ".mjs", ".vue", ".html", ".css", ".doc", ".docx", ".ppt", ".pptx")
     SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "sync_posts.py", "lib/frontmatter.py", "lib/office_preview.py"}
@@ -245,21 +242,14 @@ class FileWatcher(threading.Thread):
         if not changed:
             return
 
-        sources = [path for path in changed if path not in self.GENERATED]
+        sources = changed
         needs_sync = self.auto_sync and any(
             path.lower().endswith(self.SYNC_TRIGGERS) or path in self.SYNC_FILES
             for path in sources
         )
         if needs_sync:
             self._run_sync(sources)
-            # sync 会重写 js/posts-data.js，一并吞进新基线，避免紧接着再刷一次
-            # 只吞掉生成文件；编译期间的新源文件改动留给下一轮检测。
-            after_sync = scan_tree(self.root)
-            for path in self.GENERATED:
-                if path in after_sync:
-                    settled[path] = after_sync[path]
-                else:
-                    settled.pop(path, None)
+            # 产物目录已从快照排除；编译期间的新源码改动留给下一轮检测。
 
         with self._lock:
             self._snapshot = settled
@@ -317,9 +307,9 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
     def translate_path(self, path):
         source = super().translate_path(path)
-        preview = os.environ.get("AURORA_OUTPUT_DIR")
+        preview = os.environ.get("AURORA_OUTPUT_DIR") or os.path.join(self.directory, '.cache', 'build')
         relative = os.path.relpath(source, self.directory).replace(os.sep, "/")
-        generated = relative in {"js/posts-data.js", "css/utilities.css", "vendor/purify.min.js", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
+        generated = relative in {"js/posts-data.js", "css/utilities.css", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
         if preview and generated:
             # Missing preview data must 404 rather than expose stale production bodies.
             return os.path.join(os.path.abspath(preview), relative)
@@ -497,7 +487,7 @@ if __name__ == "__main__":
         with ThreadingHTTPServer(("", args.port), CustomHandler) as httpd:
             print(f"Aurora Blog Server listening on http://localhost:{args.port}")
             if args.watch:
-                print("🔁 已开启实时刷新：保存 css/ js/ posts/ 下任意文件，浏览器会自动刷新")
+                print("🔁 已开启实时刷新：保存 css/ src/ posts/ 下任意文件，浏览器会自动刷新")
                 if args.sync:
                     print("   改动 Markdown 或 blog.config.js 时会先重建 js/posts-data.js")
                 print("   （脚本只注入到本地响应，磁盘上的 index.html 不会被改动）")

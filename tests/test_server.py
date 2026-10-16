@@ -12,7 +12,7 @@ import server
 class WatcherTests(unittest.TestCase):
     def test_generated_files_and_dependencies_are_not_watched(self):
         with tempfile.TemporaryDirectory() as root:
-            for name in ['server.log', 'css/utilities.css', 'data/documents/demo.json', 'node_modules/test.js', 'js/vue/app.js', 'src/App.vue']:
+            for name in ['server.log', 'css/utilities.css', '.cache/build/data/documents/demo.json', '.cache/preview/js/vue/app.js', '_site/js/vue/app.js', 'node_modules/test.js', 'src/App.vue']:
                 file = Path(root) / name
                 file.parent.mkdir(parents=True, exist_ok=True)
                 file.write_text('test', encoding='utf-8')

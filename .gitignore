@@ -8,11 +8,5 @@ __pycache__/
 node_modules/
 .venv/
 output/playwright/
-# Built locally for checks and generated again by CI for publication.
-js/posts-data.js
-js/vue/
-css/utilities.css
-vendor/purify.min.js
-data/
-sitemap.xml
+# Assembled static publication; intermediate products live under .cache/.
 _site/

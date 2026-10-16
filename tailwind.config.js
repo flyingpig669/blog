@@ -2,7 +2,7 @@
 const token = name => `var(--${name})`;
 
 module.exports = {
-  content: ['./index.html', './src/**/*.{vue,js}', './js/**/*.js', './posts/**/*.md', './about.md'],
+  content: ['./index.html', './src/**/*.{vue,js}', './posts/**/*.md', './about.md'],
   darkMode: 'class',
   theme: {
     extend: {
