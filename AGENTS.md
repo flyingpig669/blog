@@ -406,7 +406,7 @@ $$
 
 线上的产物**不是整个仓库**，而是 CI 组装的 `_site/` 白名单。新增任何站点级文件前必须同时改白名单，否则线上拿不到；反过来，不要把源码、测试、模板混进白名单。
 
-1. **白名单**（唯一实现为 `scripts/assemble-site.js`，本地构建和 CI 共用）：`index.html`、`robots.txt`、`404.html`、`og-image.png`、`sitemap.xml`，以及目录 `css/`、`js/`、`data/`、`vendor/`、`attachments/`。
+1. **白名单**（唯一实现为 `scripts/assemble-site.js`，本地构建和 CI 共用）：`index.html`、`robots.txt`、`404.html`、`og-image.png`、`sitemap.xml`、`feed.xml`，以及目录 `css/`、`js/`、`data/`、`vendor/`、`attachments/`。
 2. **兜底断言**：产物中出现 `*.md` / `*.py` / `*.sh` / `*.yml` / `package*.json` / `*.test.js` 即判定构建失败。原始 Markdown 尤其不能上线 —— `robots.txt` 是 `Allow: /`，一旦可下载就会被搜索引擎当独立页面收录。
 3. **`404.html` 不能用相对路径**：Pages 会把它原样返回给任意深度的未知物理路径且不重写 URL，`css/…` 这类相对路径必然解析错。因此样式全部内联，站内链接依赖 CI 注入的 `__SITE_BASE__`；新增链接时必须沿用该占位符。
 4. **`og-image.png` 用 `npm run build:og` 生成**（`scripts/generate-og-image.js`，文案取自 `src/config/blog.config.js`），产物随仓库提交，CI 只拷贝 —— 不让部署依赖无头浏览器。站点主题或文案变更后需重新生成。
@@ -443,3 +443,6 @@ $$
 
 - 前端工具源码统一位于 `src/lib/`，通过 Vite 导入；不要在 index.html 单独加载它们。DOMPurify 随应用包编译。根目录禁止重新生成 js/、data/ 等旧产物目录。
 - 项目模块必须使用 ES `import` / `export`，禁止新增 `window.Blog*` 全局对象。站点配置导出 `config`，路由表导出 `routeTable` / `registry` / `routes`，内容状态由 `createStore()` 创建并使用 Vue `shallowReactive`。启动入口加载 `data/index.json`，正文和搜索索引继续懒加载。
+
+- 阅读历史与排版设置集中在 `src/lib/reading.js`，生命周期绑定复用 `useReading`；仅「继续阅读」链接使用 `resume=1` 恢复位置。移动端阅读操作与目录抽屉使用同一断点。
+- 搜索必须保留中文输入、分类筛选、键盘焦点循环和失败重试。订阅字段 `rss` 与 `home` 独立；RSS 和引用关系均在内容构建阶段生成。新增产物同步加入发布白名单与预览映射。
