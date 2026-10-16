@@ -11,7 +11,7 @@
  * 设计令牌（颜色、字体、字距），用 HTML/CSS 写一遍就等于复用，不需要在 JS 里把
  * 版式再手工实现一次；同时避免引入 Pillow / ImageMagick 这类系统级依赖。
  *
- * 文案取自 blog.config.js 的 site 字段（唯一来源），改配置后重跑本脚本即可。
+ * 文案取自 src/config/blog.config.js 的 site 字段（唯一来源），改配置后重跑本脚本即可。
  * 这个脚本只在本地/开发时运行，产物 og-image.png 会随仓库提交（CI 只做拷贝）。
  */
 const fs = require('node:fs');
@@ -25,12 +25,12 @@ const OUT = path.join(ROOT, 'og-image.png');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const puppeteer = require('/Users/ccc/.workbuddy/binaries/node/workspace/node_modules/puppeteer-core');
 
-// 复用 sync_posts.py 读取配置的方式：路由声明表必须先于 blog.config.js 进入同一个
+// 复用 scripts/python/sync_posts.py 读取配置的方式：路由声明表必须先于 src/config/blog.config.js 进入同一个
 // vm 上下文，否则 window.BlogRoutes 不存在，配置会直接抛错。
 function loadSite() {
   const context = { window: {} };
   vm.createContext(context);
-  for (const file of ['src/lib/routes.js', 'blog.config.js']) {
+  for (const file of ['src/config/routes.js', 'src/config/blog.config.js']) {
     const full = path.join(ROOT, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), context, { filename: full, timeout: 1000 });
   }
@@ -50,7 +50,7 @@ function cardHtml(site) {
 <head>
 <meta charset="utf-8">
 <style>
-  /* 设计令牌与 css/main.css 的 :root 保持一致，改主题时两边一起改。 */
+  /* 设计令牌与 src/styles/main.css 的 :root 保持一致，改主题时两边一起改。 */
   :root {
     --bg-page: #0A0A0B;
     --bg-surface: #111113;

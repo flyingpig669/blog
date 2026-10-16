@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import sync_posts
+from scripts.python import sync_posts
 
 
 class ContentTests(unittest.TestCase):
@@ -133,20 +133,20 @@ class ContentTests(unittest.TestCase):
             self.assertIsNone(sync_posts.parse_structured_page_file(str(file))['tocLevels'])
 
     def test_escaped_quotes_and_invalid_arrays(self):
-        from lib.frontmatter import parse_frontmatter
+        from scripts.python.lib.frontmatter import parse_frontmatter
         data, _ = parse_frontmatter("---\ntags: [\"A \\\"quote\\\", # literal\", 'it''s fine']\n---\nBody")
         self.assertEqual(data['tags'], ['A "quote", # literal', "it's fine"])
         with self.assertRaises(ValueError):
             parse_frontmatter('---\ntags: ["unclosed"\n---\nBody')
 
     def test_invalid_metadata_and_duplicates(self):
-        from lib.frontmatter import parse_frontmatter
+        from scripts.python.lib.frontmatter import parse_frontmatter
         for metadata in ['date: 2026-02-30', 'title: A\ntitle: B', 'pinned: []', 'publications: invalid', 'chapter: -1']:
             with self.assertRaises(ValueError):
                 parse_frontmatter('---\n' + metadata + '\n---\nBody', 'sample.md')
 
     def test_yaml_multiline_and_nested_links(self):
-        from lib.frontmatter import parse_frontmatter
+        from scripts.python.lib.frontmatter import parse_frontmatter
         data, body = parse_frontmatter('---\ntitle: Example\nbio: |\n  First\n  Second\npublications:\n  - title: Paper\n    links: {doi: "10.1234/test"}\n---\nBody')
         self.assertEqual(data['bio'], 'First\nSecond\n')
         self.assertEqual(data['publications'][0]['links']['doi'], '10.1234/test')

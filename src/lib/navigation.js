@@ -16,7 +16,7 @@ window.BlogRouter = {
     return list;
   },
 
-  // 路由字典：直接来自 src/lib/routes.js 由声明表派生的 window.BlogRoutes。
+  // 路由字典：直接来自 src/config/routes.js 由声明表派生的 window.BlogRoutes。
   // config.routes 只是同一个对象的引用，优先读它以便测试注入。
   getRoutes: function() {
     var config = (window.BlogStore && window.BlogStore.config) || window.BlogConfig || {};

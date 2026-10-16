@@ -58,7 +58,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 严禁在任何页面引入自定义的随意外层宽度（如 `max-w-4xl`、`max-w-screen-xl` 等）：
 
-0. **版心唯一来源**：`css/main.css` 中的版心令牌。**全站标准页面必须统一为同一宽度**，页面只能挂 `.shell` / `.shell-detail`，**禁止**再写裸 `max-w-[...]`（改宽度只需改 CSS 里的 `--shell` / `--shell-detail`）：
+0. **版心唯一来源**：`src/styles/main.css` 中的版心令牌。**全站标准页面必须统一为同一宽度**，页面只能挂 `.shell` / `.shell-detail`，**禁止**再写裸 `max-w-[...]`（改宽度只需改 CSS 里的 `--shell` / `--shell-detail`）：
    - `--shell: 720px` —— **全站所有标准页面的统一宽度**：首页、About、Posts 列表、Archive、Tags、Columns 列表与详情、页脚。
    - `--shell-detail: 1000px` —— **仅文章详情页**。它要在同一行内放下「正文列 680px + 常驻目录 230px」，720px 装不下（会把正文挤成 402px 窄栏）。
    - **不得再引入第三档宽度**。历史上曾有过 1080px 的「平铺档」，导致标准页宽度在 720/1000/1080 之间跳变，已被移除 —— 页面之间宽度不一致比密度不足更伤观感。
@@ -78,14 +78,14 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 4. **顶部导航栏 (Navbar)**：
    - 高度固定 56px (`h-14`)，采用全宽占据页面方式 (`w-full px-4 sm:px-6 md:px-8 lg:px-12`)，支持缩放与自适应断点（`md:` 768px 折叠抽屉）。
    - 左侧为 Logo（等宽 `shrink-0`）与主导航项（`hidden md:flex gap-4 lg:gap-6 whitespace-nowrap`），两组保持充裕间距（`gap-6 lg:gap-8`），物理杜绝重叠粘连。
-   - **严禁在导航容器上使用 `overflow-*`**：`overflow-x-auto` 会同时把 `overflow-y` 变为 `auto`，从而裁掉绝对定位的下拉菜单面板（`.nav-dropdown-panel`）。下拉菜单必须使用 `css/main.css` 中的 `.nav-dropdown` / `.nav-dropdown-panel` 显式类，禁止依赖 Tailwind 命名 group 变体（动态注入的 HTML 可能无法生成对应样式）。
+   - **严禁在导航容器上使用 `overflow-*`**：`overflow-x-auto` 会同时把 `overflow-y` 变为 `auto`，从而裁掉绝对定位的下拉菜单面板（`.nav-dropdown-panel`）。下拉菜单必须使用 `src/styles/main.css` 中的 `.nav-dropdown` / `.nav-dropdown-panel` 显式类，禁止依赖 Tailwind 命名 group 变体（动态注入的 HTML 可能无法生成对应样式）。
    - 右侧为搜索快捷按钮（`Search ⌘K`）与移动端抽屉开关（`md:hidden`），统一 `shrink-0`。
    - 毛玻璃背景：`bg-[#0A0A0B]/72 backdrop-blur-md border-b border-white/[0.06]`。
 5. **页脚 (Footer)**：
    - 顶部间距：`mt-24`，上边框 `border-t border-white/[0.06]`，垂直内边距 `py-10`。
    - 版心对齐：`shell mx-auto px-4 sm:px-6`。
    - 极简原则：页脚仅展示单行版权信息（如 `© 2026 CCC · All rights reserved.`），严禁在页脚添加社交媒体图标或多列链接群。
-   - 版权文案的唯一来源是 `blog.config.js` 的 `site.footerText`（`src/components/Footer.vue` 负责渲染）；`index.html` 里那段静态文本只是无 JS 兜底，改配置时两处必须一起改。
+   - 版权文案的唯一来源是 `src/config/blog.config.js` 的 `site.footerText`（`src/components/Footer.vue` 负责渲染）；`index.html` 里那段静态文本只是无 JS 兜底，改配置时两处必须一起改。
 6. **快捷搜索弹窗 (Cmd+K Modal)**：
    - 宽度严格限制为 `max-w-[560px]`（弹窗非版心，属独立浮层，不受第 0 条约束），背景色 `#111113`，边框 `border-white/[0.12]`，圆角 `rounded-xl`。
 
@@ -198,7 +198,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 ### 6.6 标准路由字典 (Canonical Route Map)
 
-**这张表由 [`src/lib/routes.js`](src/lib/routes.js) 的声明式路由表定义，不允许在下表之外另起命名体系，也不允许在配置或页面里硬编码路由字符串。** 下表是文档视图；真正的唯一来源是代码里的表，二者必须一致。
+**这张表由 [`src/config/routes.js`](src/config/routes.js) 的声明式路由表定义，不允许在下表之外另起命名体系，也不允许在配置或页面里硬编码路由字符串。** 下表是文档视图；真正的唯一来源是代码里的表，二者必须一致。
 
 基于本项目的导航结构，全站必须统一使用以下标准路由。新增功能必须按此表扩展：
 
@@ -270,11 +270,11 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 2. **层级延续性**：新增路由必须遵循 `模块集合 -> 模块详情` 的层级。例如新增 Series 模块后，必须同时定义 `/series` 与 `/series/:slug` 两级，禁止出现只定义详情不定义列表的情况。
 3. **参数延续性**：新增路由的资源唯一标识必须使用语义化 slug，禁止使用数字 ID；筛选、分页等必须使用查询参数。
 4. **版心延续性**：新增路由必须使用全站统一的 `shell`（720px）；只有确需并排放置「正文 + 常驻目录」的详情页才可用 `shell-detail`（1000px）。禁止定义第三档宽度，也禁止写裸 `max-w-[...]`。若新页面确需特殊布局（如全宽画布），必须在文档中显式申报并说明理由。
-5. **配置驱动**：新增路由上线时，必须同步在路由声明表 `src/lib/routes.js` 中登记一行（路由、导航、视图分派、校验都由这一行派生），禁止散落在页面或配置里硬编码。
+5. **配置驱动**：新增路由上线时，必须同步在路由声明表 `src/config/routes.js` 中登记一行（路由、导航、视图分派、校验都由这一行派生），禁止散落在页面或配置里硬编码。
 
 ### 7.5 路由声明表的扩展格式
 
-新增模块时，必须在 [`src/lib/routes.js`](src/lib/routes.js) 的表里追加一条，方可进入开发：
+新增模块时，必须在 [`src/config/routes.js`](src/config/routes.js) 的表里追加一条，方可进入开发：
 
 ```javascript
 {
@@ -319,10 +319,10 @@ Agent 进行前端编写时，以下行为一律判定为违规：
 8. **严禁违反路由规范**：禁止出现大写字母、动词路径、下划线命名、单复数混用、无意义 ID 作为公开参数、路径末尾多余斜杠等违反第 6 节的路由行为。
 9. **严禁绕过准入流程新增导航**：任何新增导航项必须先通过第 7.2 节的四步准入，并在路由声明表（第 7.5 节）中登记，禁止直接在 Navbar 中插入未登记项，也禁止绕开派生机制手写 `BlogRoutes` 或 `nav` 数组。
 10. **严禁为单模块引入独立版心或独立视觉**：新增模块必须复用既有版心与设计令牌，禁止为新模块单独设计一套布局语言。
-11. **严禁未转义地拼接文本进 `innerHTML`**：任何来自 FrontMatter / Markdown 正文 / `blog.config.js` 的文本，在其进入 HTML 字符串前必须经过 `escapeHtml()`（含属性值）。唯一豁免是由代码内部生成的、字符集可证明安全的值（如 `'section-' + n`）。
+11. **严禁未转义地拼接文本进 `innerHTML`**：任何来自 FrontMatter / Markdown 正文 / `src/config/blog.config.js` 的文本，在其进入 HTML 字符串前必须经过 `escapeHtml()`（含属性值）。唯一豁免是由代码内部生成的、字符集可证明安全的值（如 `'section-' + n`）。
 12. **严禁绕过 `applyTagSelection()` 写标签选中状态**：标签筛选遵循「URL 即状态」，`selectedSortedTags` 只能由路由解析或 `applyTagSelection()` 写入；禁止在视图中直接 `this.selectedSortedTags.add(...)`，否则地址栏与页面内容会脱节。
 13. **严禁在 `<head>` 同步引入大体积依赖**：PDF.js（约 1.3MB）必须通过 `src/lib/viewer.js#ensureViewer()` 按需注入。新增任何 >100KB 的依赖都必须走同样的懒加载路径，禁止直接写 `<script src>` 阻塞首屏。
-14. **严禁把运行期产物纳入文件监听**：`server.py` 的 `scan_tree()` 必须排除 `server.log` 及 `WATCH_IGNORED_SUFFIXES` 中的一切扩展名。监听器一旦覆盖到服务端自己会写的文件（日志、缓存、临时锁），就会形成「请求 → 文件变化 → 广播刷新 → 浏览器再请求」的无限重载循环。
+14. **严禁把运行期产物纳入文件监听**：`scripts/python/server.py` 的 `scan_tree()` 必须排除 `server.log` 及 `WATCH_IGNORED_SUFFIXES` 中的一切扩展名。监听器一旦覆盖到服务端自己会写的文件（日志、缓存、临时锁），就会形成「请求 → 文件变化 → 广播刷新 → 浏览器再请求」的无限重载循环。
 15. **严禁用 `display` 属性覆盖 `hidden`**：折叠面板依赖 `hidden` 属性表达状态。给 `.pub-panel` / `.entry-panel` 之类元素写 `display: flex/grid` 会静默让 `hidden` 失效、面板永远可见。需要布局时在内部再包一层。
 16. **严禁在移动端隐藏必要控件**：缩放、翻页、展开等操作入口不得用 `hidden md:inline-flex` 之类的断点类移除 —— 窄屏恰恰是最需要它们的场景（历史缺陷：幻灯片缩放按钮在移动端完全不可用）。
 17. **严禁在 Archive / Tags / Columns 等列表页给容器型块加底色、边框或圆角**：这些页面用「细线分隔 + 单栏堆叠」语言，任何 `bg-[#111113]` + `border` + `rounded-*` 的组合都会立刻让页面看起来像另一套设计。方框与圆角只允许出现在可交互控件（标签胶囊 `.tag-tile`、条目内标签 chip、元信息徽章）上。
@@ -354,7 +354,7 @@ $$
 涉及长时间运行、批量编译、博文同步等任务：
 
 1. **单监控实例**：针对同一生命周期任务，最多仅调用一次 `spawn_agent` 派发监控任务，严禁频繁针对每个步骤、每个文件创建多个子代理。
-2. **脚本集中执行**：遍历与编译等批处理逻辑统一收敛在单个 Python 或 Shell 脚本中执行（如 `sync_posts.py`）。
+2. **脚本集中执行**：遍历与编译等批处理逻辑统一收敛在单个 Python 或 Shell 脚本中执行（如 `scripts/python/sync_posts.py`）。
 3. **禁止子代理嵌套**：监控子代理严禁再次派生次级子代理，直接通过本地工具检查状态，完成后返回精简指标。
 4. **代理复用**：需要跟进或调整已有任务时，通过 `send_message` 或 `followup_task` 发送指令，避免重复新建。
 
@@ -409,8 +409,8 @@ $$
 1. **白名单**（唯一实现为 `scripts/assemble-site.js`，本地构建和 CI 共用）：`index.html`、`robots.txt`、`404.html`、`og-image.png`、`sitemap.xml`，以及目录 `css/`、`js/`、`data/`、`vendor/`、`attachments/`。
 2. **兜底断言**：产物中出现 `*.md` / `*.py` / `*.sh` / `*.yml` / `package*.json` / `*.test.js` 即判定构建失败。原始 Markdown 尤其不能上线 —— `robots.txt` 是 `Allow: /`，一旦可下载就会被搜索引擎当独立页面收录。
 3. **`404.html` 不能用相对路径**：Pages 会把它原样返回给任意深度的未知物理路径且不重写 URL，`css/…` 这类相对路径必然解析错。因此样式全部内联，站内链接依赖 CI 注入的 `__SITE_BASE__`；新增链接时必须沿用该占位符。
-4. **`og-image.png` 用 `npm run build:og` 生成**（`scripts/generate-og-image.js`，文案取自 `blog.config.js`），产物随仓库提交，CI 只拷贝 —— 不让部署依赖无头浏览器。站点主题或文案变更后需重新生成。
-5. **页脚署名 / 站点描述等「两处出现」的文案**：`site.footerText` 与 `site.description` 的真身在 `blog.config.js`，`index.html` 中的同名文本是**无 JS 兜底**，必须逐字一致；否则同一个标签在 hydration 前后会是两个值。
+4. **`og-image.png` 用 `npm run build:og` 生成**（`scripts/generate-og-image.js`，文案取自 `src/config/blog.config.js`），产物随仓库提交，CI 只拷贝 —— 不让部署依赖无头浏览器。站点主题或文案变更后需重新生成。
+5. **页脚署名 / 站点描述等「两处出现」的文案**：`site.footerText` 与 `site.description` 的真身在 `src/config/blog.config.js`，`index.html` 中的同名文本是**无 JS 兜底**，必须逐字一致；否则同一个标签在 hydration 前后会是两个值。
 
 ---
 - [ ] 新增模块是否复用了既有版心（`max-w-[720px]` 或 `max-w-[1000px]`），未引入第三类宽度？
@@ -434,7 +434,7 @@ $$
 全部前端源码统一位于 src/；设计与路由规范保持一致。
 
 - 全部页面 UI 使用 `src/**/*.vue`；根组件为 `src/App.vue`，组件/页面/组合函数/服务分别位于 `components/`、`views/`、`composables/`、`lib/`。禁止重新引入全局 `BlogApp`、页面 `innerHTML` 或行内 `onclick`。
-- 路由仍声明在 `src/lib/routes.js`，`src/lib/router.js` 将其转换为 Vue Router Hash 路由；旧地址用 `replace` 重定向，标签选中集合从 URL 派生。
+- 路由仍声明在 `src/config/routes.js`，`src/lib/router.js` 将其转换为 Vue Router Hash 路由；旧地址用 `replace` 重定向，标签选中集合从 URL 派生。
 - 折叠共用 `ExpandableEntry.vue` 与 `useExpandable.js`；状态由 Vue 维护 `hidden`、`aria-expanded` 与 `is-expanded`。保留链接优先、文本选择保护和空箭头禁止规则。
 - PDF/Office 预览统一使用 `PdfPreview.vue`。PDF.js 只由 `src/lib/viewer.js` 在点击后加载；播放器任务及 ResizeObserver 在卸载时释放。
 - 配置/FrontMatter 通过 Vue 文本插值和属性绑定渲染；仅 DOMPurify 清洗后的 Markdown 可使用 `v-html`，不要将其他不可信文本拼接进 HTML。

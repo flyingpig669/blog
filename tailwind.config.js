@@ -1,4 +1,4 @@
-// All palette values come from css/main.css, including translucent utilities.
+// All palette values come from src/styles/main.css, including translucent utilities.
 const token = name => `var(--${name})`;
 
 module.exports = {

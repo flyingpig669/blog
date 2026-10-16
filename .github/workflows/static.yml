@@ -6,7 +6,7 @@
 # 外加 robots.txt / sitemap.xml / og-image.png / 404.html。
 #
 # 历史问题：这里曾直接以 `path: '.'` 发布整个仓库，导致 /AGENTS.md、/deploy.sh、
-# /server.py、/sync_posts.py、/tests/*、/templates/* 以及 /posts/*.md 原始 Markdown
+# /scripts/python/server.py、/scripts/python/sync_posts.py、/tests/*、/templates/* 以及 /posts/*.md 原始 Markdown
 # 正文全部可被公开下载（多出约 336K）；且 robots.txt 为 Allow: /，原始 .md 会被
 # 搜索引擎当作独立页面索引。现改为先组装 _site/ 白名单目录，再上传。
 name: Deploy static content to Pages

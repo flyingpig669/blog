@@ -23,7 +23,7 @@
 
 本系统是 **Vue 3 + Vue Router + Vite 的静态单页应用 (SPA)**。前端使用单文件组件（`src/**/*.vue`），由 Vite 编译到 `.cache/build/js/vue/`，最终组装到 `_site/`，继续使用 Hash 路由，可直接部署到 GitHub Pages。Node.js 只用于构建，线上不需要后端服务。
 
-内容层由 `sync_posts.py` 扫描 Markdown，在构建缓存中生成轻量元数据索引 `js/posts-data.js` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
+内容层由 `scripts/python/sync_posts.py` 扫描 Markdown，在构建缓存中生成轻量元数据索引 `js/posts-data.js` 与带内容哈希的 `data/documents/*.json`。集合只存文档 ID，正文在打开文档时加载；全文检索独立索引在第一次打开搜索时加载。失败可重试，同一资源请求合并，过期页面/搜索响应不会覆盖当前视图。
 
 ```text
 blog/
@@ -32,20 +32,19 @@ blog/
 │   ├── components/         # 可复用 UI：条目、折叠、搜索、目录、PDF/Office 播放器
 │   ├── views/              # 首页、Archive、Tags、集合、文档与动态模块
 │   ├── composables/        # 文档加载生命周期、折叠状态
+│   ├── config/             # blog.config.js 站点配置、routes.js 路由与导航声明
+│   ├── styles/             # main.css 设计令牌及共享样式、utilities.css 样式编译入口
 │   └── lib/                # Vue Router、内容服务、预览依赖与论著元数据
 ├── .cache/                 # 忽略的构建缓存：build/ 正式构建，preview/ 本地预览
 ├── _site/                  # 生成的完整静态发布目录，不提交
-├── css/main.css            # 全站设计令牌与共享样式
-├── blog.config.js          # 站点、作者、导航、功能配置
 ├── index.html              # Vue 挂载入口与静态 SEO 元信息
 ├── posts/                  # Markdown 文章、书籍与独立页
 ├── about.md                # 结构化 About 数据
 ├── attachments/            # 原始附件（PDF、Office、图片等）
 ├── templates/              # Markdown 写作模板
-├── scripts/                # 构建与发布校验；build-app.mjs 调用 Vite 编译 Vue
-├── lib/                    # Python FrontMatter 和 Office 转换
-├── sync_posts.py           # Markdown 编译及预览缓存
-├── server.py               # 支持 .vue 改动增量构建的本地服务器
+├── scripts/                # 构建、校验与静态发布组装
+│   └── python/             # sync_posts.py 内容编译、server.py 本地预览
+│       └── lib/            # FrontMatter 解析和 Office 转换
 ├── check.sh                # 完整构建、语法、内容校验和组件/内容测试
 └── .github/workflows/      # 检查后组装静态白名单发布到 Pages
 ```
@@ -58,7 +57,7 @@ blog/
 
 ### 1. 路由声明表：一个模块一行
 
-**全站路由与导航的唯一来源是 [`src/lib/routes.js`](src/lib/routes.js) 里的声明表。** 加一个页面、改一个地址，只改这张表：
+**全站路由与导航的唯一来源是 [`src/config/routes.js`](src/config/routes.js) 里的声明表。** 加一个页面、改一个地址，只改这张表：
 
 ```javascript
 {
@@ -91,7 +90,7 @@ Route home: 表里声明 shell-detail，但 HomeView.vue 实际用的是 shell
 
 ### 2. 全局配置
 
-站点其余属性收敛在根目录的 [`blog.config.js`](blog.config.js) 中：
+站点其余属性收敛在 [`src/config/blog.config.js`](src/config/blog.config.js) 中：
 
 ```javascript
 window.BlogConfig = {
@@ -105,7 +104,7 @@ window.BlogConfig = {
     description: "...",        // SEO 描述（同时写入 meta description 与 og/twitter:description）
     footerText: "© 2026 ...",  // 页脚版权（整站唯一一行）
     url: "",                   // 部署后的站点根地址，用于 sitemap.xml 与 og:url；留空则跳过 sitemap
-    wordsPerMinute: 300,       // 阅读时长估算速度（编译期读取，改动后需重跑 sync_posts.py）
+    wordsPerMinute: 300,       // 阅读时长估算速度（编译期读取，改动后需重跑 scripts/python/sync_posts.py）
   },
 
   author: { name, title, bio, avatar, location, email, github },
@@ -167,7 +166,7 @@ window.BlogConfig = {
 
 - **`nav` 为单个对象** = 普通导航项；**同 `group` 的多项** = 下拉菜单（默认展示表内首项；进入子模块后，当前模块成为顶部入口，其余项折叠进下拉）。
 - **`nav: null`** = 有意不放入导航（如 `posts` 仅是路径前缀），构建期会要求给出 `alias` 或理由。
-- 只想加一个站外入口（RSS、外链）时，才写进 `blog.config.js` 的 `nav` 尾部，且用 `href` 而不是 `target`。
+- 只想加一个站外入口（RSS、外链）时，才写进 `src/config/blog.config.js` 的 `nav` 尾部，且用 `href` 而不是 `target`。
 
 当前默认导航为 `Home / [Columns ▾ Books] / Archive / Tags / About`。Columns 与 Books 都在路由表的 `nav.group: 'collections'` 中声明；进入 Books 或书籍章节时顶部显示 Books，Columns 移到下拉，切回 Columns 时恢复。名称、链接与高亮随路由和浏览器前进后退同步更新；移动端沿用同一份配置，显示缩进子入口并只高亮当前模块。About 保留独立导航位置。
 
@@ -195,7 +194,7 @@ window.BlogConfig = {
 
 ### 4. 下拉菜单的交互与实现约束
 
-- 下拉面板样式定义在 [`css/main.css`](css/main.css) 的 `.nav-dropdown` / `.nav-dropdown-panel`，支持 **鼠标 hover、键盘 focus、点击箭头** 三种展开方式；点击页面其它区域或切换路由会自动收起。
+- 下拉面板样式定义在 [`src/styles/main.css`](src/styles/main.css) 的 `.nav-dropdown` / `.nav-dropdown-panel`，支持 **鼠标 hover、键盘 focus、点击箭头** 三种展开方式；点击页面其它区域或切换路由会自动收起。
 - **实现红线**：导航容器 `#desktop-nav` 上**禁止**使用任何 `overflow-*`。`overflow-x-auto` 会把 `overflow-y` 一并变为 `auto`，从而裁掉绝对定位的下拉面板（这正是历史 bug「展开啥都没有」的根因）。同理，下拉菜单不使用 Tailwind 命名 group 变体（`group-hover/xxx`），因为导航 HTML 是运行时注入的，命名变体样式可能来不及生成。
 
 > 路由模式导航项还可附带 `title` / `subtitle` / `type` / `tag` / `items` 字段，走通用动态栏目渲染器（按类型／标签筛选，或渲染声明式卡片集合）。内容形态统一使用 `type`：普通文章省略或填写 `normal`，书籍章节填写 `books`，目录／索引页填写 `index`，结构化独立页填写 `post`。主题使用 `tags`。
@@ -206,7 +205,7 @@ window.BlogConfig = {
 
 FrontMatter 的 `type`（或 `layout`）字段决定文档类型，缺省为 `normal`：
 
-普通文章与结构化页面共用 `lib/frontmatter.py`，使用 PyYAML 的安全 BaseLoader（标量统一保留为文本，不执行自定义对象标签），支持数组、嵌套映射、块文本与标准 YAML 引号转义。重复字段、非法日期、章节顺序和结构化字段类型会中止构建，并指出源文件。没有条目的列表应写 `[]`。
+普通文章与结构化页面共用 `scripts/python/lib/frontmatter.py`，使用 PyYAML 的安全 BaseLoader（标量统一保留为文本，不执行自定义对象标签），支持数组、嵌套映射、块文本与标准 YAML 引号转义。重复字段、非法日期、章节顺序和结构化字段类型会中止构建，并指出源文件。没有条目的列表应写 `[]`。
 
 `tocLevels: []`（或 `false`）关闭目录，省略时使用全局默认。标题锚点基于标题内容生成，重复标题追加序号；插入其他标题不会改变已有锚点。修改标题本身会改变锚点，可以在浏览器检查对应标题的 `id` 获取当前地址。
 
@@ -280,7 +279,7 @@ excerpt: "一句话摘要；不填写则自动截取正文前 140 字符。"
 
 省略 `date` 时，同步脚本会自动写入一次发布日期：已提交文章取首次 Git 提交日期，新文件取创建日期（无创建时间的系统使用首次同步时的修改时间，按 Asia/Shanghai 换算）。之后改正文、重建或重命名都保留该日期。可手写覆盖日期；更新日期单独填写 `updated: "2026-10-13"`，详情页会显示，列表仍按原发布日期排序。
 
-首页每本书汇总为一个入口，点击进入章节目录；Archive、标签与搜索仍保留各章节。`home: false` 的章节不参与首页聚合，整本书所有章节都隐藏时不会出现首页入口。分页默认每页 10 个条目，在 `blog.config.js` 的 `features.homePageSize` 中调整（1–100）；地址使用 `#/?page=2`，刷新和后退可恢复页码，非法或越界页码会收敛到有效页。
+首页每本书汇总为一个入口，点击进入章节目录；Archive、标签与搜索仍保留各章节。`home: false` 的章节不参与首页聚合，整本书所有章节都隐藏时不会出现首页入口。分页默认每页 10 个条目，在 `src/config/blog.config.js` 的 `features.homePageSize` 中调整（1–100）；地址使用 `#/?page=2`，刷新和后退可恢复页码，非法或越界页码会收敛到有效页。
 
 文章列表默认按发布日期倒序：首页置顶文章优先，Archive 忽略置顶。同一天先显示独立文章（按标题排序），再按专栏分组、章节 `order` 升序排列；标题相同再按 slug 排定，避免顺序受文件扫描影响。专栏详情、书籍目录和章节上下篇始终按 `order` 升序。
 
@@ -361,7 +360,7 @@ social:                                        # 名片区纯文字外链（自�
 | **折叠卡片** | 默认折叠，只显示标题 / 署名 / 期刊 / 年份 / 引用数 / 资源徽章 |
 | **点击展开** | 点标题或卡片空白处展开，显示 `abstract` 与 PDF 预览入口 |
 | **PDF 懒加载** | 展开**不会**下载 PDF；只有点「预览 PDF」才创建 iframe，再点一次收起 |
-| **署名高亮** | `authors` 里与 `blog.config.js` 的 `author.name` 同名者自动加粗 |
+| **署名高亮** | `authors` 里与 `src/config/blog.config.js` 的 `author.name` 同名者自动加粗 |
 | **链接补全** | `doi: "10.1103/…"` → `https://doi.org/10.1103/…`；`arxiv: "2601.00001"` → `https://arxiv.org/abs/2601.00001` |
 
 `links` 可用的 key 与徽章文案：`pdf` / `doi` / `arxiv` / `code` / `slides` / `dataset` / `video` / `poster` / `site` / `bib`。**未登记的 key 会自动大写生成徽章**，可随时自造 `dataset:`、`podcast:` 之类。区块右上角还会汇总 `N Papers · M Citations`（没有任何 `citations` 时只显示篇数）。
@@ -496,7 +495,7 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 ---
 ```
 
-两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）。**FrontMatter 显式声明的 `slide` 优先**：只要写了它，播放器就固定挂在页头之下、正文之上；正文里若也内嵌了同一份课件，那个挂载点会被自动剔除——同一份 PDF 绝不出现两个播放器（正文内嵌**其它**课件不受影响，仍按书写位置渲染）。只写方式 A 时课件挂在所写处（此时 `slide` 字段由第一条指令反推）；只写方式 B 时挂在顶部。不管用哪种，`sync_posts.py` 都会把课件路径收进文档的 `slide` 字段，列表页的 `SLIDE` 徽章与构建日志里的 `[SLIDE]` 标记都由它驱动；`scripts/validate-content.js` 还会在构建期校验该文件真实存在，路径写错直接构建失败（本地实时重建和完整构建都会校验引用）。
+两种方式都会在正文中挂载基于 PDF.js 的播放器（全屏演播、下载课件、深色高对比视口）。**FrontMatter 显式声明的 `slide` 优先**：只要写了它，播放器就固定挂在页头之下、正文之上；正文里若也内嵌了同一份课件，那个挂载点会被自动剔除——同一份 PDF 绝不出现两个播放器（正文内嵌**其它**课件不受影响，仍按书写位置渲染）。只写方式 A 时课件挂在所写处（此时 `slide` 字段由第一条指令反推）；只写方式 B 时挂在顶部。不管用哪种，`scripts/python/sync_posts.py` 都会把课件路径收进文档的 `slide` 字段，列表页的 `SLIDE` 徽章与构建日志里的 `[SLIDE]` 标记都由它驱动；`scripts/validate-content.js` 还会在构建期校验该文件真实存在，路径写错直接构建失败（本地实时重建和完整构建都会校验引用）。
 
 **全屏放映对齐 PowerPoint 的行为**：进入放映后幻灯片按原始宽高比铺满视口的某一轴（另一轴富余的部分由深色背景充当信箱边，绝不拉伸），无圆角、无阴影、无边距；控制岛、底部进度线与鼠标指针在静止 2.5 秒后一起淡出，移动鼠标即一起恢复。
 
@@ -520,7 +519,7 @@ slide: "attachments/slides/quantum-computing-slides.pdf"
 - 正文图片：`![alt 文本](attachments/images/foo.png)`，自动等比缩放不撑破正文列；带题注用原生 `<figure>/<figcaption>`，控制尺寸用 `<img width="480">`（详见 `templates/template-media-attachments.md`）。
 - 行内下载链接：`[数据集 (2.1 MB)](attachments/datasets/data.zip)`；文件末尾配套材料用 FrontMatter `attachments:` 列表，会自动渲染带强制下载属性的 Attachments 卡片。
 - 路径一律**相对站点根**书写（Hash 路由 SPA，所有文章共用同一物理页面）。
-- `sync_posts.py` 会自动跳过 `attachments/`、`assets/` 等资源目录，路径引用在本地与 GitHub Pages 均可用。
+- `scripts/python/sync_posts.py` 会自动跳过 `attachments/`、`assets/` 等资源目录，路径引用在本地与 GitHub Pages 均可用。
 - 需要「下载型」附件时，在 FrontMatter 里声明 `attachments`，文章末尾会自动渲染带 `download` 属性的下载区：
 
 ```yaml
@@ -573,7 +572,7 @@ attachments: ["attachments/讲义.docx", "attachments/课件.pptx"]
 
 ### 8. 全站统一版心与列表页布局
 
-**全站页面宽度统一为 720px**（定义在 `css/main.css` 的 `--shell`，页面挂 `.shell` 类）：首页、About、`/posts` 列表、Archive、Tags、Columns 列表与详情、页脚全部同宽。页面之间宽度一致比单页密度更重要 —— 切换页面时内容左右边缘不应跳变。
+**全站页面宽度统一为 720px**（定义在 `src/styles/main.css` 的 `--shell`，页面挂 `.shell` 类）：首页、About、`/posts` 列表、Archive、Tags、Columns 列表与详情、页脚全部同宽。页面之间宽度一致比单页密度更重要 —— 切换页面时内容左右边缘不应跳变。
 
 **唯一的例外是文章详情页** `--shell-detail: 1000px`：它需要在同一行内并排放置「正文列 680px + 右侧常驻目录 230px」，720px 装不下（会把正文挤成 402px 的窄栏）。除此之外不得再引入第三档宽度。
 
@@ -607,7 +606,7 @@ npm run dev    # 等价于 ./run.sh
 
 **本地试改请用 `./run.sh`**：启动和保存时的生成数据、CSS、第三方依赖都写入已被 Git 忽略的 `.cache/preview/`，服务器将这些资源映射到原有 URL，浏览器仍能看到最新内容。源文件即时读取，不需要复制；预览不会改动或删除仓库中的发布产物。单独生成预览产物可用 `npm run build:preview`。正式 `npm run build`、`./check.sh` 将生成文件写入 `.cache/build/`，并由 `scripts/assemble-site.js` 按白名单生成 `_site/`；两处均已被 Git 忽略；提交源码、Markdown 与附件即可，CI 会从干净仓库生成并校验完整站点。
 
-公共组件位于 `src/components/`，页面组装位于 `src/views/`，生命周期逻辑位于 `src/composables/`，数据与路由服务位于 `src/lib/`。导航、页脚、文章、搜索、折叠、目录及 PDF/Office 播放器均使用 Vue 模板与响应式状态，不再通过页面级 `innerHTML` 或全局 `BlogApp` 渲染。只有经过 DOMPurify 清洗的 Markdown 正文使用 `v-html`，其代码复制和嵌入预览在组件生命周期内绑定、销毁。`ExpandableEntry.vue` / `useExpandable.js` 是共用折叠机制，避免每个页面单独维护开关。设计颜色与字体仍集中在 `css/main.css`。
+公共组件位于 `src/components/`，页面组装位于 `src/views/`，生命周期逻辑位于 `src/composables/`，数据与路由服务位于 `src/lib/`。导航、页脚、文章、搜索、折叠、目录及 PDF/Office 播放器均使用 Vue 模板与响应式状态，不再通过页面级 `innerHTML` 或全局 `BlogApp` 渲染。只有经过 DOMPurify 清洗的 Markdown 正文使用 `v-html`，其代码复制和嵌入预览在组件生命周期内绑定、销毁。`ExpandableEntry.vue` / `useExpandable.js` 是共用折叠机制，避免每个页面单独维护开关。设计颜色与字体仍集中在 `src/styles/main.css`。
 
 Markdown 通过 DOMPurify 清理，再统一过滤链接/资源协议；前台标题与属性统一转义。搜索提供正文命中片段与安全高亮；章节标题旁的 `#` 可复制直达链接；About 提供区块跳转。普通文章按发布时间串联，专栏按章节顺序串联。
 
@@ -665,12 +664,12 @@ index.html  robots.txt  404.html  og-image.png  sitemap.xml
 css/  js/  data/  vendor/  attachments/
 ```
 
-组装完成后还有一道兜底断言 —— 只要产物里出现 `*.md`、`*.py`、`*.sh`、`*.yml`、`package*.json`、`*.test.js`，构建立刻失败。这样做是因为此前直接以 `path: '.'` 发布整个仓库，导致 `/AGENTS.md`、`/deploy.sh`、`/sync_posts.py`、`/tests/*`、`/templates/*` 以及 **`/posts/*.md` 原始 Markdown** 全部可被公开下载（多出约 336K），而 `robots.txt` 是 `Allow: /`，这些文件还会被搜索引擎索引。
+组装完成后还有一道兜底断言 —— 只要产物里出现 `*.md`、`*.py`、`*.sh`、`*.yml`、`package*.json`、`*.test.js`，构建立刻失败。这样做是因为此前直接以 `path: '.'` 发布整个仓库，导致 `/AGENTS.md`、`/deploy.sh`、`/scripts/python/sync_posts.py`、`/tests/*`、`/templates/*` 以及 **`/posts/*.md` 原始 Markdown** 全部可被公开下载（多出约 336K），而 `robots.txt` 是 `Allow: /`，这些文件还会被搜索引擎索引。
 
 另外两步产物处理：
 
 - **`404.html` 注入站点根**：GitHub Pages 会把 `404.html` 原样返回给任意深度的未知物理路径，且**不重写 URL**，因此页内的相对路径在深层路径下必然解析错。统一组装脚本按 Pages 规则推导站点根（项目站点 `/<repo>/`、用户站点 `/`）并注入 `__SITE_BASE__`，注入失败会直接报错。
-- **`og-image.png` 不重新生成**：分享图只在本地用 `npm run build:og` 生成并随仓库提交（文案取自 `blog.config.js`），CI 只做拷贝，避免部署依赖无头浏览器。
+- **`og-image.png` 不重新生成**：分享图只在本地用 `npm run build:og` 生成并随仓库提交（文案取自 `src/config/blog.config.js`），CI 只做拷贝，避免部署依赖无头浏览器。
 
 仍使用 Hash 路由，独立静态页面与 SSG 属于后续路由迁移，不在本次改造内。
 
@@ -704,13 +703,13 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 
 ### Q6: 如何自定义主题强调色？
 
-打开 [`css/main.css`](css/main.css)，修改 `:root` 中的 `--accent-primary`（主强调色，默认 `#3B82F6`）与 `--accent-secondary`（次强调色，默认 `#22D3EE`），保存刷新即可全站生效。
+打开 [`src/styles/main.css`](src/styles/main.css)，修改 `:root` 中的 `--accent-primary`（主强调色，默认 `#3B82F6`）与 `--accent-secondary`（次强调色，默认 `#22D3EE`），保存刷新即可全站生效。
 
 ### Q7: 文章卡片上的「字词」是怎么算的？阅读时长准吗？
 
-由 `sync_posts.py` 的 `estimate_word_units()` 在编译期统计：**英文按单词数、CJK 按字符数**相加，故中英混排下用中性的「字词」标注。阅读时长 = 字词数 ÷ `site.wordsPerMinute`（默认 300，最少显示 1 min）。
+由 `scripts/python/sync_posts.py` 的 `estimate_word_units()` 在编译期统计：**英文按单词数、CJK 按字符数**相加，故中英混排下用中性的「字词」标注。阅读时长 = 字词数 ÷ `site.wordsPerMinute`（默认 300，最少显示 1 min）。
 
-> 旧的实现直接取正文**字符数**当字数，英文文章会被算成中文的 6～7 倍，阅读时长虚高。改动 `wordsPerMinute` 后需重跑 `sync_posts.py` 才会生效。
+> 旧的实现直接取正文**字符数**当字数，英文文章会被算成中文的 6～7 倍，阅读时长虚高。改动 `wordsPerMinute` 后需重跑 `scripts/python/sync_posts.py` 才会生效。
 
 ### Q8: 为什么 `sitemap.xml` 里只有一条 URL？
 
@@ -720,7 +719,7 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 
 ### Q9: `sitemap.xml` 没有生成 / 生成的地址不对？
 
-在 `blog.config.js` 的 `site.url` 填入部署后的站点根地址（**含子路径、末尾不带 `/`**），例如 `https://<用户名>.github.io/<仓库名>`，然后重跑 `python3 sync_posts.py`。
+在 `src/config/blog.config.js` 的 `site.url` 填入部署后的站点根地址（**含子路径、末尾不带 `/`**），例如 `https://<用户名>.github.io/<仓库名>`，然后重跑 `python3 scripts/python/sync_posts.py`。
 
 `site.url` 留空时会跳过 sitemap 生成，同时 `og:url` / `canonical` 退回「当前文档目录」，本地预览与子路径部署都能自洽。
 
@@ -732,7 +731,7 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 2. **年份写成非数字**：`year: "2026 年"` 可以（只取前四位），但 `year: "待定"` 会进入 `UNYEARED` 组而不是报错 —— 这是刻意设计，避免整页渲染失败。
 3. **`abstract` / `links` 被吞掉**：解析器按「相对本行缩进更深」判定嵌套映射。若把 `abstract:` 写得比 `links:` 的**子键**还深，它会被当成 `links` 的一部分。请保持同一层级的字段左对齐。
 
-改完执行 `python3 sync_posts.py`（或保存文件后由实时刷新自动重建 `js/posts-data.js`）。
+改完执行 `python3 scripts/python/sync_posts.py`（或保存文件后由实时刷新自动重建 `js/posts-data.js`）。
 
 ### Q11: 时间线条目后面没有展开箭头？
 
@@ -742,7 +741,7 @@ GitHub 官方现代推荐方式为 Actions 原生部署：直接从 `main` 源�
 
 已修复。历史版本把 `server.log` 也纳入了文件监听快照 —— 而 `--daemon` 模式下每个 HTTP 请求都会往这个文件写日志，于是形成「请求 → 日志 mtime 变化 → 广播刷新 → 浏览器重新请求」的无限重载循环。
 
-现在 `server.py` 的监听层统一排除 `*.log` / `*.pyc` / `*.swp` 等运行期产物（见 `WATCH_IGNORED_FILES` / `WATCH_IGNORED_SUFFIXES`）。若你自定义了其它运行期产物文件，请一并加入该列表。
+现在 `scripts/python/server.py` 的监听层统一排除 `*.log` / `*.pyc` / `*.swp` 等运行期产物（见 `WATCH_IGNORED_FILES` / `WATCH_IGNORED_SUFFIXES`）。若你自定义了其它运行期产物文件，请一并加入该列表。
 
 ---
 
@@ -753,7 +752,7 @@ UI、路由、样式与模块化的强制约束见 [`AGENTS.md`](AGENTS.md)。�
 
 ### Books
 
-Books 入口由 `src/lib/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `type: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
+Books 入口由 `src/config/routes.js` 声明，书目与目录复用集合视图。书稿放入 `posts/books/<book-slug>/`，各章节声明 `type: books`、相同的 `column` / `columnName` / `columnDesc`，并用 `order` 指定顺序、中文或英文 `slug` 指定正文地址。插图放入 `attachments/books/<book-slug>/`。
 
 已收录 John Wiegley 的 **Git from the Bottom Up**，18 个章节与小节、10 张插图；原文来源和 CC BY 4.0 许可保留在每篇正文。导入日期是本地收录日期。
 

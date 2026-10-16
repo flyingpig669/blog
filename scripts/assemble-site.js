@@ -10,9 +10,11 @@ for (const file of ['index.html','robots.txt','404.html','og-image.png','CNAME',
   const source = resourcePath(file);
   if (fs.existsSync(source)) fs.copyFileSync(source, path.join(output,file));
 }
-for (const directory of ['css','vendor','attachments']) {
+for (const directory of ['vendor','attachments']) {
   fs.cpSync(path.join(root,directory),path.join(output,directory),{recursive:true});
 }
+fs.mkdirSync(path.join(output,'css'),{recursive:true});
+fs.copyFileSync(resourcePath('css/main.css'),path.join(output,'css/main.css'));
 for (const name of ['js/posts-data.js','css/utilities.css','js/vue','data']) {
   const target = path.join(output,name); fs.mkdirSync(path.dirname(target),{recursive:true});
   fs.cpSync(resourcePath(name),target,{recursive:true});

@@ -6,17 +6,17 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import server
+from scripts.python import server
 
 
 class WatcherTests(unittest.TestCase):
     def test_generated_files_and_dependencies_are_not_watched(self):
         with tempfile.TemporaryDirectory() as root:
-            for name in ['server.log', 'css/utilities.css', '.cache/build/data/documents/demo.json', '.cache/preview/js/vue/app.js', '_site/js/vue/app.js', 'node_modules/test.js', 'src/App.vue']:
+            for name in ['server.log', '.cache/build/css/utilities.css', '.cache/build/data/documents/demo.json', '.cache/preview/js/vue/app.js', '_site/js/vue/app.js', 'node_modules/test.js', 'src/App.vue', 'src/styles/utilities.css']:
                 file = Path(root) / name
                 file.parent.mkdir(parents=True, exist_ok=True)
                 file.write_text('test', encoding='utf-8')
-            self.assertEqual(set(server.scan_tree(root)), {'src/App.vue'})
+            self.assertEqual(set(server.scan_tree(root)), {'src/App.vue', 'src/styles/utilities.css'})
 
     def make_watcher(self):
         with patch.object(server, "scan_tree", return_value={"latest.css": 200, "old.css": 100}):
@@ -68,6 +68,7 @@ class RedirectTests(unittest.TestCase):
                 (source, 'js/posts-data.js', 'production'),
                 (preview, 'js/posts-data.js', 'preview'),
                 (source, 'src/App.vue', 'live source'),
+                (source, 'src/styles/main.css', 'shared styles'),
                 (source, 'js/vue/app.js', 'production app'),
                 (preview, 'js/vue/app.js', 'preview app'),
                 (source, 'data/stale.json', 'stale production'),
@@ -81,6 +82,7 @@ class RedirectTests(unittest.TestCase):
             with patch.dict(os.environ, AURORA_OUTPUT_DIR=str(preview)):
                 self.assertEqual(Path(handler.translate_path('/js/posts-data.js?v=1')).read_text(), 'preview')
                 self.assertEqual(Path(handler.translate_path('/src/App.vue')).read_text(), 'live source')
+                self.assertEqual(Path(handler.translate_path('/css/main.css?v=1')).read_text(), 'shared styles')
                 self.assertEqual(Path(handler.translate_path('/js/vue/app.js')).read_text(), 'preview app')
                 self.assertEqual(Path(handler.translate_path('/data/documents/%E4%B8%AD%E6%96%87.json')).read_text(), 'new body')
                 self.assertFalse(Path(handler.translate_path('/data/stale.json')).exists())

@@ -1,5 +1,5 @@
-import './lib/routes';
-import '../blog.config.js';
+import './config/routes';
+import './config/blog.config.js';
 import './lib/html';
 import './lib/store';
 import './lib/navigation';

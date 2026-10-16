@@ -10,7 +10,7 @@ tocLevels: [2, 3]
 # 渲染规则：
 #   1. 按 year 倒序自动分组（年份相同的归入同一组），组内保持书写顺序
 #   2. 卡片默认折叠；有 abstract 或 links.pdf 时可点击展开
-#   3. authors 数组里与 blog.config.js 的 author.name 同名者自动加粗；
+#   3. authors 数组里与 src/config/blog.config.js 的 author.name 同名者自动加粗；
 #      也可用 "**姓名**" 显式标注，或用尾随 * 标注通讯作者
 #   4. links 的值若是裸标识会自动补全协议前缀：
 #        doi: "10.1103/PhysRevA.113.012345"  ->  https://doi.org/10.1103/PhysRevA.113.012345
@@ -82,7 +82,7 @@ social:
 cp templates/template-publications-page.md posts/publications.md
 ```
 
-随后在 `blog.config.js` 的 `nav` 里绑定即可：
+随后在 `src/config/blog.config.js` 的 `nav` 里绑定即可：
 
 ```js
 { id: "publications", label: "Publications", target: "file:posts/publications.md" }

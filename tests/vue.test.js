@@ -14,8 +14,8 @@ test.before(async () => {
   };
   vm.createContext(context);
   for (const file of [
-    "src/lib/routes.js",
-    "blog.config.js",
+    "src/config/routes.js",
+    "src/config/blog.config.js",
     "js/posts-data.js",
     "src/lib/html.js",
     "src/lib/store.js",

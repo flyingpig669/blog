@@ -6,10 +6,10 @@
 #
 #   1. 启动前先释放端口。上一次的 dev server 若还占着 18888，直接启动会报
 #      "Address already in use"；这里先检测端口占用并结束旧进程。
-#      出于安全考虑，只自动结束后台里本项目的 server.py —— 端口被其它程序
+#      出于安全考虑，只自动结束后台里本项目的 scripts/python/server.py —— 端口被其它程序
 #      占用时会中止并打印占用的进程，绝不静默 kill 无关进程。
 #
-#   2. 以「监听文件变更 + 浏览器自动刷新」模式启动 server.py。
+#   2. 以「监听文件变更 + 浏览器自动刷新」模式启动 scripts/python/server.py。
 #      保存 css/ js/ posts/ 下任意文件，浏览器会自动刷新；
 #      改动内容与前端源码时会先在 .cache/preview/ 构建内容和 CSS 再刷新，
 #      不写回 Git 跟踪的发布产物。
@@ -32,7 +32,7 @@ PORT="${AURORA_PORT:-18888}"
 FORCE="${FORCE:-0}"
 SERVER_ARGS=()
 
-# ---- 解析参数：端口单独记下来给「端口检测」用，其余原样透传给 server.py ----
+# ---- 解析参数：端口单独记下来给「端口检测」用，其余原样透传给 scripts/python/server.py ----
 # 注意：--port 不放进 SERVER_ARGS，最后统一拼一次，避免重复传参。
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -80,7 +80,7 @@ list_pids_on_port() {
   lsof -nP -tiTCP:"$1" -sTCP:LISTEN 2>/dev/null || true
 }
 
-# 释放端口：只结束「本项目 server.py」；其它程序需 FORCE=1 显式确认
+# 释放端口：只结束「本项目 scripts/python/server.py」；其它程序需 FORCE=1 显式确认
 free_port() {
   local port="$1"
   local owners pid name full safe="" unsafe="" guessed="" tries=0
@@ -93,11 +93,11 @@ free_port() {
 
   while IFS="$(printf '\t')" read -r pid name; do
     [ -n "$pid" ] || continue
-    # 首选：完整命令行里能看到 server.py —— 这是最可靠的判据
+    # 首选：完整命令行里能看到 scripts/python/server.py —— 这是最可靠的判据
     full="$(ps -o command= -p "$pid" 2>/dev/null || true)"
     if [ -n "$full" ]; then
       case "$full" in
-        *server.py*) safe="$safe $pid" ;;
+        *scripts/python/server.py*) safe="$safe $pid" ;;
         *)           unsafe="$unsafe $pid" ;;
       esac
       continue
@@ -179,7 +179,7 @@ PYTHON="${AURORA_PYTHON:-python3}"
 if [ -x "$DIR/.venv/bin/python" ]; then PYTHON="$DIR/.venv/bin/python"; fi
 export AURORA_OUTPUT_DIR="$DIR/.cache/preview"
 AURORA_PYTHON="$PYTHON" npm run build:preview
-CMD=("$PYTHON" server.py --port "$PORT")
+CMD=("$PYTHON" scripts/python/server.py --port "$PORT")
 if [ "${#SERVER_ARGS[@]}" -gt 0 ]; then
   CMD+=("${SERVER_ARGS[@]}")
 fi

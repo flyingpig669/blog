@@ -34,7 +34,7 @@ import threading
 import time
 
 DEFAULT_PORT = int(os.environ.get("AURORA_PORT", "18888"))
-DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+DIRECTORY = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 实时刷新相关常量
 LIVE_PATH = "/__livereload"          # SSE 端点路径
@@ -138,7 +138,7 @@ def enable_line_buffering():
 # 都会追加一行 —— 一旦把它纳入快照，就会形成「请求 -> 日志 mtime 变化 -> 广播刷新
 # -> 浏览器重新请求 -> 日志再变化」的无限重载循环。任何运行期产物都不该参与监听。
 WATCH_IGNORED_DIRS = {"__pycache__", "node_modules", "_site", "output"}
-WATCH_IGNORED_FILES = {"server.log", "utilities.css"}
+WATCH_IGNORED_FILES = {"server.log"}
 WATCH_IGNORED_SUFFIXES = (".log", ".pyc", ".pyo", ".swp", ".swo")
 
 
@@ -172,7 +172,7 @@ class FileWatcher(threading.Thread):
 
     # 改动这些扩展名/文件后，需要先重建索引再刷新
     SYNC_TRIGGERS = (".md", ".markdown", ".js", ".mjs", ".vue", ".html", ".css", ".doc", ".docx", ".ppt", ".pptx")
-    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "sync_posts.py", "lib/frontmatter.py", "lib/office_preview.py"}
+    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "scripts/python/sync_posts.py", "scripts/python/lib/frontmatter.py", "scripts/python/lib/office_preview.py"}
 
     def __init__(self, root, auto_sync=True, log=None):
         super().__init__(name="aurora-file-watcher")
@@ -309,6 +309,8 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         source = super().translate_path(path)
         preview = os.environ.get("AURORA_OUTPUT_DIR") or os.path.join(self.directory, '.cache', 'build')
         relative = os.path.relpath(source, self.directory).replace(os.sep, "/")
+        if relative == 'css/main.css':
+            return os.path.join(self.directory, 'src', 'styles', 'main.css')
         generated = relative in {"js/posts-data.js", "css/utilities.css", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
         if preview and generated:
             # Missing preview data must 404 rather than expose stale production bodies.
@@ -489,7 +491,7 @@ if __name__ == "__main__":
             if args.watch:
                 print("🔁 已开启实时刷新：保存 css/ src/ posts/ 下任意文件，浏览器会自动刷新")
                 if args.sync:
-                    print("   改动 Markdown 或 blog.config.js 时会先重建 js/posts-data.js")
+                    print("   改动 Markdown 或 src/config/blog.config.js 时会先重建 js/posts-data.js")
                 print("   （脚本只注入到本地响应，磁盘上的 index.html 不会被改动）")
             else:
                 print("⏸  未开启实时刷新（--no-watch）")

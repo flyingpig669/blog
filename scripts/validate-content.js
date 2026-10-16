@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const { resourcePath } = require('./generated-path');
 const context = { window: {}, console, localStorage: { removeItem() {}, getItem() {}, setItem() {} }, document: { documentElement: { classList: { add() {} } } } };
 vm.createContext(context);
-for (const name of ['src/lib/routes.js', 'blog.config.js', 'js/posts-data.js', 'src/lib/html.js', 'src/lib/store.js', 'src/lib/navigation.js']) {
+for (const name of ['src/config/routes.js', 'src/config/blog.config.js', 'js/posts-data.js', 'src/lib/html.js', 'src/lib/store.js', 'src/lib/navigation.js']) {
   vm.runInContext(fs.readFileSync(resourcePath(name), 'utf8'), context, { filename: name });
 }
 const { BlogStore: store, BlogRouter: router, BlogHtml: html, BlogConfig: config, BlogRouteRegistry: registry } = context.window;
@@ -207,7 +207,7 @@ for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
     checkAsset(m[1], 'src/lib/katex-loader.js');
   }
 }
-// 静态分享 / SEO 元信息 × blog.config.js 互查。
+// 静态分享 / SEO 元信息 × src/config/blog.config.js 互查。
 // 社交爬虫（微信 / Telegram / X）不执行 JS，看不到 app.js#setDocumentTitle 的
 // 运行时改写，只能读静态标签 —— og:image / og:url / canonical 必须在
 // index.html 里就写成绝对地址，且与 site.url 同源；description 的三处静态
@@ -236,7 +236,7 @@ for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
     if (site.title) {
       const titleEl = entry.match(/<title>([^<]*)<\/title>/);
       if (!titleEl) fail('index.html: 缺少 <title> 标签');
-      else if (titleEl[1] !== site.title) fail(`index.html: <title> 应为 ${site.title}（当前 ${titleEl[1]}）—— 与 blog.config.js 的 site.title 保持一致`);
+      else if (titleEl[1] !== site.title) fail(`index.html: <title> 应为 ${site.title}（当前 ${titleEl[1]}）—— 与 src/config/blog.config.js 的 site.title 保持一致`);
       for (const name of ['og:site_name', 'og:title', 'twitter:title', 'og:image:alt']) {
         const actual = metaValue(name);
         if (actual !== site.title) fail(`index.html: ${name} 应为 ${site.title}（当前 ${actual}）—— 社交爬虫不执行 JS，读的是静态值`);
@@ -244,7 +244,7 @@ for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
     }
     if (site.description) {
       const descCount = (entry.match(new RegExp(escapeRegExp(site.description), 'g')) || []).length;
-      if (descCount < 3) fail(`index.html: description 应在页面静态出现 3 次（name/og/twitter），实际 ${descCount} 次 —— 与 blog.config.js 的 site.description 逐字一致`);
+      if (descCount < 3) fail(`index.html: description 应在页面静态出现 3 次（name/og/twitter），实际 ${descCount} 次 —— 与 src/config/blog.config.js 的 site.description 逐字一致`);
     }
   }
 }
@@ -259,9 +259,9 @@ for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
       const siteUrl = String(site.url || '').trim();
       const m = siteUrl.match(/^https?:\/\/([^\/:]+)/);
       if (!m) {
-        fail('blog.config.js site.url 格式无效: "' + siteUrl + '"');
+        fail('src/config/blog.config.js site.url 格式无效: "' + siteUrl + '"');
       } else if (m[1] !== cnameDomain) {
-        fail('CNAME 域名 "' + cnameDomain + '" 与 blog.config.js 中 site.url 的域名 "' + m[1] + '" 不一致');
+        fail('CNAME 域名 "' + cnameDomain + '" 与 src/config/blog.config.js 中 site.url 的域名 "' + m[1] + '" 不一致');
       }
     }
   }

@@ -4,7 +4,7 @@ window.BlogMarkdown = {
     options = options || {};
     if (!markdownText) return { html: '', toc: [] };
 
-    // 功能开关统一取自 blog.config.js 的 features，确保 mathKaTeX / codeHighlight 真正生效
+    // 功能开关统一取自 src/config/blog.config.js 的 features，确保 mathKaTeX / codeHighlight 真正生效
     var features = (window.BlogStore && window.BlogStore.config && window.BlogStore.config.features)
       || (window.BlogConfig && window.BlogConfig.features) || {};
 

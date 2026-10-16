@@ -11,7 +11,7 @@ if (['js/posts-data.js', 'css/utilities.css', 'js/vue/app.js'].some(name => !fs.
 fs.mkdirSync(path.dirname(resourcePath('css/utilities.css')), { recursive: true });
 const python = process.env.AURORA_PYTHON || (fs.existsSync(path.join(root, '.venv/bin/python')) ? path.join(root, '.venv/bin/python') : 'python3');
 const tasks = [];
-if (plan.content) tasks.push([python, ['sync_posts.py']]);
+if (plan.content) tasks.push([python, ['scripts/python/sync_posts.py']]);
 if (plan.css) tasks.push([process.execPath, ['scripts/build-css.js']]);
 if (plan.app) tasks.push([process.execPath, ['scripts/build-app.mjs']]);
 if (plan.validate) tasks.push([process.execPath, ['scripts/validate-content.js']]);

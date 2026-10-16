@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from lib.office_preview import attachment_sources, build_previews
+from scripts.python.lib.office_preview import attachment_sources, build_previews
 
 
 class OfficePreviewTests(unittest.TestCase):
@@ -28,7 +28,7 @@ class OfficePreviewTests(unittest.TestCase):
                 Path(args[-1]).with_suffix('.pdf').write_bytes(b'%PDF-1.7\npreview')
                 return type('Result', (), {'returncode': 0, 'stdout': '', 'stderr': ''})()
             doc = {'attachments': ['attachments/讲义.docx']}
-            with patch('lib.office_preview.shutil.which', return_value='soffice'), patch('lib.office_preview.subprocess.run', side_effect=convert) as run:
+            with patch('scripts.python.lib.office_preview.shutil.which', return_value='soffice'), patch('scripts.python.lib.office_preview.subprocess.run', side_effect=convert) as run:
                 first = build_previews(doc, root, output)
                 self.assertEqual(build_previews(doc, root, output), first)
                 self.assertEqual(run.call_count, 1)
@@ -53,6 +53,6 @@ class OfficePreviewTests(unittest.TestCase):
             source.parent.mkdir()
             source.write_bytes(b'broken')
             result = type('Result', (), {'returncode': 0, 'stdout': 'no output', 'stderr': ''})()
-            with patch('lib.office_preview.shutil.which', return_value='soffice'), patch('lib.office_preview.subprocess.run', return_value=result):
+            with patch('scripts.python.lib.office_preview.shutil.which', return_value='soffice'), patch('scripts.python.lib.office_preview.subprocess.run', return_value=result):
                 with self.assertRaisesRegex(ValueError, '转换失败'):
                     build_previews({'attachments': ['attachments/broken.ppt']}, root, root)

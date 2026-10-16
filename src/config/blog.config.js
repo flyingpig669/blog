@@ -5,13 +5,13 @@
  * 所有站点名称、作者资料、社交媒体链接、导航菜单与显示选项均在此集中配置。
  * 修改此处即可全站生效，无需翻找繁琐的 HTML 或 JS 模板。
  *
- * 注意：`routes` 与 `nav` 不再手写 —— 它们由 src/lib/routes.js 的声明式路由表派生。
+ * 注意：`routes` 与 `nav` 不再手写 —— 它们由 src/config/routes.js 的声明式路由表派生。
  * 新增页面或改路由请改那张表（一个模块一行）；本文件只保留「不对应站内路由」的
  * 即席导航项（见下方 nav 的 concat 部分）。
  */
 
 window.BlogConfig = {
-  // 统一路由字典：由 src/lib/routes.js 的声明表派生（name -> path）。
+  // 统一路由字典：由 src/config/routes.js 的声明表派生（name -> path）。
   // 这里不再手写字面量 —— 新增/改名请改那张表，路由、导航、校验会一起跟上。
   routes: window.BlogRoutes,
 
@@ -32,9 +32,9 @@ window.BlogConfig = {
     footerText: "© 2026 CCC · All rights reserved.",
     footerEmail: "ccc0000006@gmail.com",
     // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。
-    // 填好后 sync_posts.py 会产出 sitemap.xml，app.js#absoluteSiteUrl 也会用它作 canonical。
+    // 填好后 scripts/python/sync_posts.py 会产出 sitemap.xml，app.js#absoluteSiteUrl 也会用它作 canonical。
     url: "https://notes.theccyy.com",
-    // 文章预估阅读速度 (每分钟字数)：由 sync_posts.py 在编译期读取，用于估算 readTime
+    // 文章预估阅读速度 (每分钟字数)：由 scripts/python/sync_posts.py 在编译期读取，用于估算 readTime
     wordsPerMinute: 300,
   },
 
@@ -51,10 +51,10 @@ window.BlogConfig = {
   },
 
   // 3. 顶部主导航菜单 (Navigation Menu)
-  // 主体由路由声明表派生：每个模块的 label / 分组 / 目标都写在 src/lib/routes.js 里，
+  // 主体由路由声明表派生：每个模块的 label / 分组 / 目标都写在 src/config/routes.js 里，
   // 这里只补「有导航项但不对应任何站内路由」的即席入口，例如外部链接。
   // 单个对象 = 普通导航项；数组 = 下拉菜单（展示第一项，其余折叠进下拉）。
-  // 站内新模块请改路由表，不要写在这里；写法参考 src/lib/routes.js 顶部的「怎么加一个新模块」。
+  // 站内新模块请改路由表，不要写在这里；写法参考 src/config/routes.js 顶部的「怎么加一个新模块」。
   // 外部链接项用 href 而不是 target（target 会被当作站内路由解析）。
   nav: window.BlogRouteRegistry.buildNav().concat([
     // { id: "rss", label: "RSS", href: "https://example.com/feed.xml" },

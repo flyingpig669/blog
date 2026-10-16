@@ -8,7 +8,7 @@ bio: "Physics, Math, and Computer Science Enthusiast. Exploring the frontiers of
 
 # 论著与学术产出 (Publications) - 按年份倒序自动分组，卡片可点击展开摘要与 PDF 预览
 # 字段：title / slug / authors / venue / year / citations / links{pdf,doi,arxiv,code,...} / abstract
-#   authors 数组里与 blog.config.js 的 author.name 同名的作者会自动加粗（也可用 "**姓名**" 显式标注）
+#   authors 数组里与 src/config/blog.config.js 的 author.name 同名的作者会自动加粗（也可用 "**姓名**" 显式标注）
 #   links 的值若是裸标识会自动补全：doi -> https://doi.org/…，arxiv -> https://arxiv.org/abs/…
 #   links 的值若是 URL，则会作为链接直接显示。
 # publications:

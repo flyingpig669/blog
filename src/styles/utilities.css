@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+@source "../../index.html";
+@source "..";
+@source "../../posts";
+@source "../../about.md";
