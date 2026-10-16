@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
-import { postHref, columnHref, pad } from "../lib/content";
+import { columnHref } from "../lib/content";
+import SeriesChapters from "./SeriesChapters.vue";
 const props = defineProps({ toc: Array, navigation: Object, post: Object });
 const route = useRoute();
 const mobile = ref(false),
@@ -56,16 +57,8 @@ onUnmounted(() => {
         <span>Series Chapters</span
         ><a :href="columnHref(navigation.columnInfo)">Index →</a>
       </div>
-      <div class="max-h-[190px] overflow-y-auto space-y-1">
-        <a
-          v-for="(chapter, index) in navigation.colPosts"
-          :key="chapter.slug"
-          :href="postHref(chapter)"
-          class="block truncate text-[11px] text-secondary py-1"
-          :class="{ 'text-accent': chapter.slug === post.slug }"
-          ><span class="mr-2">{{ pad(chapter.order || index + 1) }}</span
-          >{{ chapter.title }}</a
-        >
+      <div class="max-h-[190px] overflow-y-auto">
+        <SeriesChapters :chapters="navigation.colPosts" :current-slug="post.slug" compact />
       </div>
     </div>
     <div v-if="toc?.length">
@@ -106,15 +99,8 @@ onUnmounted(() => {
         <span class="font-mono text-[12px] text-muted">Outline & Chapters</span
         ><button aria-label="关闭目录" @click="mobile = false">✕</button>
       </div>
-      <div v-if="navigation.columnInfo" class="space-y-2 mb-6">
-        <a
-          v-for="(chapter, index) in navigation.colPosts"
-          :key="chapter.slug"
-          :href="postHref(chapter)"
-          class="block font-mono text-[12px] text-secondary"
-          :class="{ 'text-accent': chapter.slug === post.slug }"
-          >{{ pad(chapter.order || index + 1) }} {{ chapter.title }}</a
-        >
+      <div v-if="navigation.columnInfo" class="mb-6">
+        <SeriesChapters :chapters="navigation.colPosts" :current-slug="post.slug" />
       </div>
       <nav aria-label="Page outline">
         <button

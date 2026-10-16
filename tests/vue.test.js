@@ -36,6 +36,21 @@ async function render(name, props) {
   ).default;
   return renderToString(createSSRApp(component, props));
 }
+test("Series chapters highlight only the current article on desktop and mobile", async () => {
+  const chapters = [{slug:"first",title:"First",order:1}, {slug:"second",title:"Second",order:2}];
+  for (const compact of [true, false]) {
+    for (const currentSlug of ["first", "second"]) {
+      const html = await render("SeriesChapters", {chapters,currentSlug,compact});
+      const links = [...html.matchAll(/<a\b([^>]*)>/g)].map(match => match[1]);
+      const active = links.filter(link => link.includes('aria-current="page"'));
+      assert.equal(active.length,1);
+      assert.ok(active[0].includes(`#/posts/${currentSlug}`));
+      assert.ok(active[0].includes("text-accent"));
+      assert.ok(!active[0].includes("text-secondary"));
+      assert.ok(links.filter(link => !link.includes('aria-current="page"')).every(link => link.includes("text-secondary") && !link.includes("text-accent")));
+    }
+  }
+});
 test("Vue footer preserves EMAIL link, centering and absence of the divider", async () => {
   const html = await render("Footer");
   assert.match(html, /mailto:ccc0000006@gmail.com/);
