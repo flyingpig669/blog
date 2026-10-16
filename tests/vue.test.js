@@ -179,8 +179,27 @@ test("Vue tag selection is derived from the URL including encoded Chinese params
   }
 });
 
+test("Home continue reading respects hidden articles even when they were read most recently", async () => {
+  const { reading } = await server.ssrLoadModule('/src/lib/reading.js');
+  const { createVueRouter } = await server.ssrLoadModule('/src/lib/router.js');
+  const { createMemoryHistory } = await server.ssrLoadModule('vue-router');
+  const component = (await server.ssrLoadModule('/src/views/HomeView.vue')).default;
+  const previousPosts=store.posts, previousEntries=reading.entries;
+  try {
+    store.posts=[{slug:'hidden',title:'Hidden article',home:false,date:'2026-10-17',tags:[]}, {slug:'visible',title:'Visible article',date:'2026-10-17',tags:[]}];
+    reading.entries={hidden:{top:100,progress:0.5,visitedAt:2},visible:{top:50,progress:0.2,visitedAt:1}};
+    const router=createVueRouter(createMemoryHistory(),false);
+    await router.push('/');
+    const html=await renderToString(createSSRApp(component).use(router));
+    assert.ok(html.includes('visible?resume=1'));
+    assert.ok(!html.includes('Hidden article'));
+    assert.ok(!html.includes('hidden?resume=1'));
+  } finally { store.posts=previousPosts; reading.entries=previousEntries; }
+});
 test("Vue scroll restoration waits for document loading and rejects stale navigation", async () => {
   const { scrollPosition } = await server.ssrLoadModule("/src/lib/scroll.js");
+  const { reading } = await server.ssrLoadModule('/src/lib/reading.js');
+  const previousEntry=reading.entries['hello-world'];
   const original = store.loadDocument;
   let loaded = false;
   store.loadDocument = async (document) => {
@@ -198,9 +217,15 @@ test("Vue scroll restoration waits for document loading and rejects stale naviga
       top: 600,
     });
     assert.ok(loaded);
+    reading.entries['hello-world']={top:120,progress:0.2,visitedAt:1};
+    const resume={...route,query:{resume:'1'}};
+    assert.deepEqual(await scrollPosition(resume,null,()=>true),{top:120});
+    assert.deepEqual(await scrollPosition(resume,{top:600},()=>true),{top:600});
     assert.equal(await scrollPosition(route, { top: 600 }, () => false), false);
   } finally {
     store.loadDocument = original;
+    if(previousEntry) reading.entries['hello-world']=previousEntry;
+    else delete reading.entries['hello-world'];
     delete global.requestAnimationFrame;
   }
 });

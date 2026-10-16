@@ -18,10 +18,11 @@ export async function scrollPosition(to, saved, isCurrent) {
     await nextTick();
     await new Promise((resolve) => requestAnimationFrame(resolve));
     if (!isCurrent()) return false;
+    if (saved) return saved;
     if (to.query.heading)
       return { el: "#" + CSS.escape(String(to.query.heading)), top: 76 };
     if (to.query.resume === '1' && reading.entries[to.params.slug]) return {top:reading.entries[to.params.slug].top};
-    return saved || { top: 0 };
+    return { top: 0 };
   } catch {
     return false;
   }

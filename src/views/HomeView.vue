@@ -29,7 +29,7 @@ watchEffect(() => {
         {{ config.site.tagline }}
       </p>
     </header>
-    <ContinueReading :posts="store.getPosts()" />
+    <ContinueReading :posts="store.getPosts({home:true})" />
     <section>
       <PostItem v-for="post in page.items" :key="post.slug" :post="post" />
       <p v-if="!page.total" class="view-status">还没有文章。</p>
