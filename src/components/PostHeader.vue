@@ -7,7 +7,7 @@ defineProps({ document: Object, navigation: Object });
     aria-label="Breadcrumb"
     class="flex flex-wrap gap-2 text-[12px] font-mono text-muted mb-4"
   >
-    <a :href="hrefFor('home')">Writing</a
+    <a :href="hrefFor('home')">文章</a
     ><template v-if="navigation.columnInfo"
       ><span>/</span
       ><a
@@ -24,7 +24,7 @@ defineProps({ document: Object, navigation: Object });
     <span class="font-mono text-secondary"
       >PART {{ navigation.partNumber }} / {{ navigation.totalParts }}</span
     ><a :href="columnHref(navigation.columnInfo)" class="text-accent font-mono"
-      >Series Index →</a
+      >章节目录 →</a
     >
   </div>
   <header class="mb-8 pb-6 border-b border-divider">

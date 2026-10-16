@@ -79,8 +79,8 @@ export const markdown = {
     text = text.replace(calloutRegex, function(match, type, title, content) {
       var titles = { tip: '提示 (Tip)', warning: '注意 (Warning)', note: '笔记 (Note)', danger: '警示 (Danger)' };
       var displayTitle = (title || '').trim() || titles[type] || '提示';
-      var icons = { tip: 'check-circle-2', warning: 'alert-triangle', note: 'info', danger: 'alert-triangle' };
-      var iconName = icons[type] || 'info';
+      var iconNames = { tip: 'check-circle-2', warning: 'alert-triangle', note: 'info', danger: 'alert-triangle' };
+      var iconName = iconNames[type] || 'info';
       var iconSvg = icons ? icons.get(iconName, 'callout-icon text-current') : '';
       return '<div class="callout callout-' + type + '">' +
         iconSvg +
@@ -99,7 +99,7 @@ export const markdown = {
       // 避免 title 与 desc 取到同一字符串（历史问题）。
       var inlineTitle = (title || '').trim();
       var bodyText = (desc || '').trim();
-      var slideTitle = inlineTitle || bodyText || 'Presentation Deck (PPT / PDF)';
+      var slideTitle = inlineTitle || bodyText || '课件预览';
       var cleanUrl = html.safeUrl(url, true);
       if (!cleanUrl) return '<p class="view-status">Invalid presentation URL.</p>';
       // 两个属性值都来自正文，必须转义后再拼接（escapeHtml 会先处理 & ，避免实体被二次解析）

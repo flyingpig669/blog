@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { store, config, features, setTitle } from "../lib/content";
 import PostItem from "../components/PostItem.vue";
 import Pagination from "../components/Pagination.vue";
+import ContinueReading from '../components/ContinueReading.vue';
 const route = useRoute(),
   router = useRouter();
 const page = computed(() =>
@@ -28,9 +29,10 @@ watchEffect(() => {
         {{ config.site.tagline }}
       </p>
     </header>
+    <ContinueReading :posts="store.getPosts()" />
     <section>
       <PostItem v-for="post in page.items" :key="post.slug" :post="post" />
-      <p v-if="!page.total" class="view-status">No articles yet.</p>
+      <p v-if="!page.total" class="view-status">还没有文章。</p>
     </section>
     <Pagination :page="page" />
   </div>

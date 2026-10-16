@@ -8,7 +8,7 @@ defineProps({ navigation: Object });
       v-if="navigation.columnInfo"
       :href="columnHref(navigation.columnInfo)"
       class="font-mono text-[12px] text-accent"
-      >All {{ navigation.totalParts }} Chapters →</a
+      >全部 {{ navigation.totalParts }} 章 →</a
     >
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
       <a
@@ -22,7 +22,7 @@ defineProps({ navigation: Object });
           {{ navigation.prevPost.title }}
         </p></a
       ><span v-else class="font-mono text-[11px] text-muted p-4"
-        >No earlier articles.</span
+        >已到第一篇</span
       ><a
         v-if="navigation.nextPost"
         :href="postHref(navigation.nextPost)"
@@ -34,7 +34,7 @@ defineProps({ navigation: Object });
           {{ navigation.nextPost.title }}
         </p></a
       ><span v-else class="font-mono text-[11px] text-muted p-4"
-        >No later articles.</span
+        >已到最后一篇</span
       >
     </div>
   </div>

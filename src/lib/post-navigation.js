@@ -5,8 +5,8 @@ export const postNavigation = {
     var colPosts = [];
     var prevPost = null;
     var nextPost = null;
-    var prevLabel = '← PREVIOUS ARTICLE';
-    var nextLabel = 'NEXT ARTICLE →';
+    var prevLabel = '← 上一篇';
+    var nextLabel = '下一篇 →';
     var colIndex = -1;
 
     if (columnInfo && Array.isArray(columnInfo.posts) && columnInfo.posts.length > 0) {
@@ -20,11 +20,11 @@ export const postNavigation = {
         nextPost = colIndex < colPosts.length - 1 ? colPosts[colIndex + 1] : null;
         if (prevPost) {
           var pOrder = prevPost.order ? (prevPost.order < 10 ? '0' + prevPost.order : prevPost.order) : (colIndex);
-          prevLabel = '← PART ' + pOrder;
+          prevLabel = '← 第 ' + pOrder;
         }
         if (nextPost) {
           var nOrder = nextPost.order ? (nextPost.order < 10 ? '0' + nextPost.order : nextPost.order) : (colIndex + 2);
-          nextLabel = 'PART ' + nOrder + ' →';
+          nextLabel = '第 ' + nOrder + ' →';
         }
       }
     } else {

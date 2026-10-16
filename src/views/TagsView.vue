@@ -54,7 +54,7 @@ setTitle(definition.title);
         v-for="tag in tags"
         :key="tag.name"
         class="tag-tile"
-        :class="{ active: selected.includes(tag.name) }"
+        :class="{ 'is-active': selected.includes(tag.name) }"
         :aria-pressed="selected.includes(tag.name)"
         @click="toggle(tag.name)"
       >
@@ -64,7 +64,7 @@ setTitle(definition.title);
     </div>
     <section class="ruled-list">
       <PostItem v-for="post in posts" :key="post.slug" :post="post" />
-      <p v-if="!posts.length" class="view-status">No matching articles.</p>
+      <p v-if="!posts.length" class="view-status">没有匹配的文章，试试减少筛选标签。</p>
     </section>
   </div>
 </template>

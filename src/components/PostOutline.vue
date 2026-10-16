@@ -1,12 +1,18 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { ref, onMounted, onUnmounted, watch,nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { columnHref } from "../lib/content";
+import ExpandableEntry from './ExpandableEntry.vue';
 import SeriesChapters from "./SeriesChapters.vue";
 const props = defineProps({ toc: Array, navigation: Object, post: Object });
 const route = useRoute();
 const mobile = ref(false),
   active = ref("");
+const mobileChapters=ref(null);
+defineExpose({expanded:mobile,open:() => {mobile.value=true;nextTick(()=>{
+  mobileChapters.value?.locate();
+  document.getElementById('mobile-outline-drawer')?.querySelector('button')?.focus();
+});}});
 let frame;
 function scrollTo(id) {
   document
@@ -26,7 +32,10 @@ function track() {
   });
 }
 function key(event) {
-  if (event.key === "Escape") mobile.value = false;
+  if (event.key === "Escape" && mobile.value) {
+    mobile.value = false;
+    document.getElementById('mobile-reading-outline-trigger')?.focus();
+  }
 }
 watch(
   () => route.fullPath,
@@ -54,18 +63,18 @@ onUnmounted(() => {
       class="mb-5 pb-4 border-b border-divider"
     >
       <div class="flex justify-between text-[11px] text-accent mb-2">
-        <span>Series Chapters</span
-        ><a :href="columnHref(navigation.columnInfo)">Index →</a>
+        <span>系列章节</span
+        ><a :href="columnHref(navigation.columnInfo)">全部 →</a>
       </div>
-      <div class="max-h-[190px] overflow-y-auto">
+      <ExpandableEntry title="章节目录" expandable initially-expanded title-class="text-[11px] text-secondary"><div class="max-h-[190px] overflow-y-auto mt-2">
         <SeriesChapters :chapters="navigation.colPosts" :current-slug="post.slug" compact />
-      </div>
+      </div></ExpandableEntry>
     </div>
     <div v-if="toc?.length">
-      <div class="text-muted text-[11px] mb-2">On this page</div>
+      <div class="text-muted text-[11px] mb-2">本文目录</div>
       <nav
         id="desktop-outline-nav"
-        aria-label="On this page"
+        aria-label="本文目录"
         class="border-l border-subtle pl-2.5 max-h-[calc(100vh-280px)] overflow-y-auto"
       >
         <button
@@ -82,27 +91,19 @@ onUnmounted(() => {
     </div>
   </aside>
   <div class="outline-floating-fab fixed">
-    <button
-      class="fixed right-5 bottom-20 z-40 btn-secondary font-mono text-[12px]"
-      aria-controls="mobile-outline-drawer"
-      :aria-expanded="mobile"
-      @click="mobile = !mobile"
-    >
-      # Outline
-    </button>
     <div
       id="mobile-outline-drawer"
       :hidden="!mobile"
       class="fixed top-14 bottom-0 right-0 w-[280px] max-w-[85vw] bg-page border-l border-subtle z-50 p-5 overflow-y-auto"
     >
       <div class="flex justify-between mb-4">
-        <span class="font-mono text-[12px] text-muted">Outline & Chapters</span
+        <span class="font-mono text-[12px] text-muted">章节与目录</span
         ><button aria-label="关闭目录" @click="mobile = false">✕</button>
       </div>
       <div v-if="navigation.columnInfo" class="mb-6">
-        <SeriesChapters :chapters="navigation.colPosts" :current-slug="post.slug" />
+        <SeriesChapters ref="mobileChapters" :chapters="navigation.colPosts" :current-slug="post.slug" />
       </div>
-      <nav aria-label="Page outline">
+      <nav aria-label="本文目录">
         <button
           v-for="item in toc"
           :key="item.id"

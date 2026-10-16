@@ -2,10 +2,12 @@
 import { ref, shallowRef, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { ensureViewer } from "../lib/viewer";
 import { safeUrl, pad } from "../lib/content";
+import { fileSize } from '../lib/attachments.js';
 const props = defineProps({
   url: String,
   title: String,
   source: String,
+  size: Number,
   format: { type: String, default: "PDF" },
 });
 const opened = ref(false),
@@ -138,6 +140,7 @@ onUnmounted(() => {
       <h3 class="text-[15px] font-semibold text-primary mb-3">
         {{ title || format }}
       </h3>
+      <p v-if="size !== undefined" class="font-mono text-[11px] text-muted mb-3">{{ format }} · {{ fileSize(size) }}</p>
       <p v-if="error" role="status" class="text-[13px] text-secondary mb-3">
         {{ error }}
       </p>
@@ -176,7 +179,7 @@ onUnmounted(() => {
         >
           <div class="flex gap-2 items-center w-full sm:w-auto min-w-0">
             <span class="font-mono text-[10px] text-accent shrink-0">{{
-              format === "Word" ? "WORD" : "SLIDE DECK"
+              format.toUpperCase()
             }}</span
             ><span class="truncate text-[13px] text-primary">{{ title }}</span>
           </div>
@@ -212,7 +215,7 @@ onUnmounted(() => {
             >
               ＋</button
             ><button class="btn-secondary" @click="present = true">
-              Present</button
+              全屏</button
             ><a
               :href="safeUrl(url)"
               download
@@ -239,7 +242,7 @@ onUnmounted(() => {
           ><button class="btn-secondary" aria-label="下一页" @click="turn(1)">
             →</button
           ><button class="btn-secondary" @click="present = false">
-            Exit (ESC)
+            退出全屏 (ESC)
           </button>
         </div>
       </div></Teleport

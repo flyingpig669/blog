@@ -1,14 +1,16 @@
 <script setup>
 import { useId, watch } from "vue";
 import { useExpandable } from "../composables/useExpandable";
-defineProps({
+const props = defineProps({
   title: String,
   expandable: Boolean,
+  initiallyExpanded: Boolean,
   titleClass: { type: String, default: "" },
 });
 const emit = defineEmits(["update:expanded"]);
 const id = useId();
 const { expanded, toggle } = useExpandable();
+expanded.value = props.initiallyExpanded;
 watch(expanded, (value) => emit("update:expanded", value));
 function rowClick(event) {
   if (!event.target.closest("button,input,[data-preview-control]"))

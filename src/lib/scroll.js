@@ -1,3 +1,4 @@
+import { reading } from './reading.js';
 import { mathLoader } from './katex-loader.js';
 import { nextTick } from "vue";
 import { store, docForRoute, features } from "./content";
@@ -19,6 +20,7 @@ export async function scrollPosition(to, saved, isCurrent) {
     if (!isCurrent()) return false;
     if (to.query.heading)
       return { el: "#" + CSS.escape(String(to.query.heading)), top: 76 };
+    if (to.query.resume === '1' && reading.entries[to.params.slug]) return {top:reading.entries[to.params.slug].top};
     return saved || { top: 0 };
   } catch {
     return false;

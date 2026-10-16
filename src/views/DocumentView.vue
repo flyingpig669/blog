@@ -13,8 +13,16 @@ import MarkdownBody from "../components/MarkdownBody.vue";
 import PdfPreview from "../components/PdfPreview.vue";
 import Attachments from "../components/Attachments.vue";
 import NotFoundView from "./NotFoundView.vue";
+import { useReading } from '../composables/useReading';
+import { reading } from '../lib/reading.js';
+import ReadingSettings from '../components/ReadingSettings.vue';
+import MobileReadingBar from '../components/MobileReadingBar.vue';
+import ArticleRelations from '../components/ArticleRelations.vue';
+import DocumentStatus from '../components/DocumentStatus.vue';
 const route = useRoute();
 const { document, loading, error, retry } = useDocument();
+useReading(document);
+const outlineView = ref(null);
 const toc = ref([]);
 const navigation = computed(() =>
   document.value
@@ -28,14 +36,14 @@ function outline(items) {
   toc.value = items;
   nextTick(() => {
     if (route.query.heading)
-      document.getElementById(route.query.heading)?.scrollIntoView();
+      window.document.getElementById(route.query.heading)?.scrollIntoView();
   });
 }
 watch(
   () => route.query.heading,
   (heading) => {
     if (heading)
-      nextTick(() => document.getElementById(heading)?.scrollIntoView());
+      nextTick(() => window.document.getElementById(heading)?.scrollIntoView());
   },
 );
 </script>
@@ -44,8 +52,7 @@ watch(
     v-if="loading || error"
     class="shell mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20"
   >
-    <p class="view-status" role="status">{{ error || "Loading document…" }}</p>
-    <button v-if="error" class="btn-secondary" @click="retry">重试</button>
+    <DocumentStatus :loading="loading" :error="error" @retry="retry" />
   </div>
   <NotFoundView v-else-if="!document" />
   <StructuredPage
@@ -57,23 +64,27 @@ watch(
     v-else
     class="shell-detail mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20 flex items-start gap-8"
   >
-    <div class="flex-1 max-w-[680px] min-w-0">
+    <div class="flex-1 max-w-[680px] min-w-0 reader-content" :style="{'--reader-size':reading.fontSize+'px','--reader-leading':reading.lineHeight}">
+      <ReadingSettings />
       <PostHeader :document="document" :navigation="navigation" /><PdfPreview
         v-if="document.slideExplicit && document.slide"
         :url="document.slide"
         :title="document.title"
+        :size="document.attachmentInfo?.[document.slide]?.size"
       /><MarkdownBody
         :key="document.slug"
         :content="document.content"
+        :attachment-info="document.attachmentInfo"
         :source-path="document.sourcePath"
         :toc-levels="document.tocLevels"
         :primary-pdf="document.slideExplicit ? document.slide : undefined"
         @outline="outline"
       />
       <div class="mt-10"><Attachments :document="document" /></div>
-      <PostAdjacent :navigation="navigation" />
+      <ArticleRelations :post="document" /><PostAdjacent :navigation="navigation" />
     </div>
     <PostOutline
+      ref="outlineView"
       v-if="
         features.outlineSidebar !== false &&
         (toc.length || navigation.colPosts.length > 1)
@@ -83,5 +94,6 @@ watch(
       :toc="toc"
       :navigation="navigation"
     />
+    <MobileReadingBar :navigation="navigation" :outline="features.outlineSidebar !== false && (toc.length || navigation.colPosts.length > 1)" :outline-expanded="!!outlineView?.expanded" @outline="outlineView?.open()" />
   </div>
 </template>

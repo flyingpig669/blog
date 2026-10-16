@@ -9,6 +9,7 @@ const props = defineProps({
   sourcePath: String,
   tocLevels: Array,
   primaryPdf: String,
+  attachmentInfo: Object,
 });
 const emit = defineEmits(["outline"]);
 const root = ref(null),
@@ -42,7 +43,7 @@ async function update() {
         return;
       }
       render(
-        h(PdfPreview, { url, title: mount.getAttribute("data-slide-title") }),
+        h(PdfPreview, { url, title: mount.getAttribute("data-slide-title"), size:props.attachmentInfo?.[url]?.size }),
         mount,
       );
       mounts.add(mount);

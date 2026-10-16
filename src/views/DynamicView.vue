@@ -24,6 +24,7 @@ watchEffect(() => setTitle(item.value.title || item.value.label));
     />
     <section class="ruled-list">
       <PostItem v-for="post in posts" :key="post.slug" :post="post" />
+      <p v-if="!posts.length" class="view-status">这里还没有文章。</p>
     </section>
   </div>
 </template>
