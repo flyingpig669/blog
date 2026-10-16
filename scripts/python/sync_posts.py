@@ -17,12 +17,16 @@ import subprocess
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from xml.sax.saxutils import escape as escape_xml
+from pathlib import Path
+from urllib.parse import urlsplit, unquote
 if __package__:
     from .lib.frontmatter import parse_frontmatter, normalize_doc_type
     from .lib.office_preview import build_previews
+    from .lib.feed import render_feed
 else:
     from lib.frontmatter import parse_frontmatter, normalize_doc_type
     from lib.office_preview import build_previews
+    from lib.feed import render_feed
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 POSTS_DIR = os.path.join(BASE_DIR, "posts")
@@ -109,6 +113,9 @@ import(pathToFileURL(process.argv[1]).href).then(({config}) => {
     site = config.get('site', {})
     exclude = config.get('exclude', {})
     cfg.update(exclude)
+    cfg["site"] = site
+    cfg["postsRoute"] = config.get("routes", {}).get("posts", "/posts")
+    cfg["rssIncludeHidden"] = config.get("features", {}).get("rssIncludeHidden", False)
     cfg['wordsPerMinute'] = int(site.get('wordsPerMinute', 300))
     if cfg['wordsPerMinute'] < 1:
         raise ValueError('site.wordsPerMinute 必须是正整数')
@@ -136,6 +143,7 @@ def parse_md_file(filepath, words_per_minute=300):
     tags = []
     pinned = False
     home = None
+    rss = None
     excerpt = ""
     slide = ""
     slide_explicit = False
@@ -190,6 +198,8 @@ def parse_md_file(filepath, words_per_minute=300):
                 toc_levels = normalize_toc_levels(value)
             elif key == "pinned":
                 pinned = (val.lower() == "true")
+            elif key == "rss":
+                rss = (val.lower() == "true")
             elif key == "home":
                 home = (val.lower() == "true")
             elif key == "excerpt":
@@ -257,6 +267,7 @@ def parse_md_file(filepath, words_per_minute=300):
         "words": word_units,
         "pinned": pinned,
         **({"home": home} if home is not None else {}),
+        **({"rss": rss} if rss is not None else {}),
         "type": doc_type,
         "isTest": is_test,
         "slide": slide,
@@ -481,8 +492,8 @@ def sync():
     office_keep = set()
     for slug, doc in documents.items():
         doc['type'] = normalize_doc_type(doc.get('type', 'normal'))
-        if 'home' in doc:
-            doc['home'] = str(doc['home']).lower() == 'true'
+        for flag in ['home','rss']:
+            if flag in doc: doc[flag] = str(doc[flag]).lower() == 'true'
         if not valid_resource_slug(slug):
             raise ValueError(f"{doc['sourcePath']}: slug 需使用中文、英文小写或数字")
         for alias in [slug, doc.get('id'), doc['sourcePath'], doc.get('relPath')]:
@@ -496,12 +507,21 @@ def sync():
         office_keep.update(office_previews.values())
         if office_previews:
             clean_doc['attachmentPreviews'] = office_previews
+        clean_doc['attachmentInfo'] = {}
+        resources = set(clean_doc.get('attachments') or []) | set(office_previews)
+        if clean_doc.get('slide'): resources.add(clean_doc['slide'])
+        for resource in resources:
+            parsed = urlsplit(resource)
+            if parsed.scheme or parsed.netloc: continue
+            source = (Path(BASE_DIR) / unquote(parsed.path).removeprefix('./')).resolve()
+            if source.is_relative_to((Path(BASE_DIR) / 'attachments').resolve()) and source.is_file():
+                clean_doc['attachmentInfo'][resource] = {'size': source.stat().st_size}
         body = json.dumps(clean_doc, ensure_ascii=False, separators=(',', ':'))
         digest = hashlib.sha256(body.encode('utf-8')).hexdigest()[:16]
         body_url = f'data/documents/{slug}.{digest}.json'
         bodies[body_url] = body
         keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'updated', 'tags',
-                'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'home', 'isTest', 'excerpt', 'tocLevels']
+                'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'home', 'rss', 'isTest', 'excerpt', 'tocLevels']
         documents[slug] = {key: doc[key] for key in keep if key in doc}
         documents[slug]['bodyUrl'] = body_url
         if doc.get('type', 'normal') != 'post':
@@ -557,6 +577,10 @@ def sync():
         'about': about_data['slug'] if about_data else None,
         'searchUrl': search_url
     }
+    if cfg.get('siteUrl'):
+        write_if_changed(os.path.join(output_dir(),'feed.xml'), render_feed(list(documents.values()),cfg['site'],cfg['postsRoute'],cfg['rssIncludeHidden']))
+    elif os.path.exists(os.path.join(output_dir(),'feed.xml')):
+        os.remove(os.path.join(output_dir(),'feed.xml'))
     index_path = os.path.join(output_dir(), 'data', 'index.json')
     write_if_changed(index_path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     # Remove the obsolete global-script index left by earlier builds.

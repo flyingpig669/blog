@@ -74,7 +74,7 @@ for (const def of routeTable) {
 // 本地预览一切正常、构建也查不出（文件确实存在），但**线上必 404** ——
 // 这里在构建期直接拦下并指路 attachments/。
 const PUBLISHED_DIRS = ['attachments/', 'css/', 'js/', 'vendor/', 'data/'];
-const PUBLISHED_FILES = new Set(['index.html', 'robots.txt', '404.html', 'og-image.png', 'sitemap.xml']);
+const PUBLISHED_FILES = new Set(['index.html', 'robots.txt', '404.html', 'og-image.png', 'sitemap.xml', 'feed.xml']);
 function checkAsset(value, source) {
   if (!html.safeUrl(value, true)) { fail(`${source}: unsafe resource ${value}`); return; }
   if (/^(?:https?:)?\/\//i.test(value)) return;
@@ -147,6 +147,7 @@ for (const tag of store.getAllTags()) {
   tagSlugs.add(slug);
 }
 for (const match of entry.matchAll(/(?:src|href)="([^"#]+)"/g)) {
+  if (match[1] === config.site.feedPath && !config.site.url) continue;
   if (!/^(https?:|mailto:|tel:|data:image\/svg\+xml,)/i.test(match[1])) checkAsset(match[1], 'index.html');
 }
 for (const name of ['vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js', 'js/vue/app.js']) checkAsset(name, 'PDF viewer');

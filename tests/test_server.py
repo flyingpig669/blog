@@ -60,6 +60,22 @@ class WatcherTests(unittest.TestCase):
 
 
 class RedirectTests(unittest.TestCase):
+    def test_optional_feed_discovery_matches_local_feed_availability(self):
+        with tempfile.TemporaryDirectory() as directory:
+            entry = Path(directory) / 'index.html'
+            entry.write_text('<head>\n<link type="application/rss+xml" href="feed.xml">\n</head><body></body>')
+            handler = object.__new__(server.CustomHandler)
+            handler.directory = directory
+            handler.send_response = lambda *_: None
+            handler.send_header = lambda *_: None
+            handler.end_headers = lambda: None
+            with patch.object(server, 'WATCHER', None), patch.dict(os.environ, AURORA_OUTPUT_DIR=directory):
+                self.assertNotIn(b'application/rss+xml', handler._injected_html_response(str(entry)).read())
+                (Path(directory) / 'feed.xml').write_text('<rss/>')
+                body = handler._injected_html_response(str(entry)).read()
+                self.assertIn(b'application/rss+xml', body)
+                self.assertNotIn(b'data-aurora-livereload', body)
+
     def test_preview_serves_generated_overlay_and_sources_without_stale_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'source'

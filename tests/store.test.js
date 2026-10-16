@@ -174,3 +174,8 @@ test('home aggregates visible book chapters and paginates without changing archi
   assert.equal(store.getHomePage(2, 2).items[0].slug, 'older');
   assert.equal(store.getPosts({sort: 'date'}).length, 5);
 });
+
+test('search matches a book or column name without requiring it in the chapter body',()=>{
+  const store=createStore();store.posts=[{slug:'chapter',title:'简介',columnName:'抽象代数与群论导引',tags:[],date:'2026-10-16'}];
+  assert.equal(store.searchPosts('群论')[0].slug,'chapter');
+});

@@ -89,6 +89,7 @@ export function createStore() { return shallowReactive({
         return (
           (p.title && p.title.toLowerCase().indexOf(q) !== -1) ||
           (p.excerpt && p.excerpt.toLowerCase().indexOf(q) !== -1) ||
+          ((p.columnName || p.columnDesc || '').toLowerCase().includes(q)) ||
           ((this.searchIndex && this.searchIndex[p.slug] || p.content || '').toLowerCase().indexOf(q) !== -1) ||
           (p.tags && p.tags.some(function(t) { return t.toLowerCase().indexOf(q) !== -1; }))
         );
@@ -167,6 +168,7 @@ export function createStore() { return shallowReactive({
       if (title === q) return 5;
       if (title.startsWith(q)) return 4;
       if (title.includes(q)) return 3;
+      if (String(post.columnName || '').toLowerCase().includes(q)) return 2;
       if ((post.tags || []).some(function(tag) { return tag.toLowerCase().includes(q); })) return 2;
       if (String(post.excerpt || '').toLowerCase().includes(q)) return 1;
       return 0;

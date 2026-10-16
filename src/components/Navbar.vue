@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { config, registry, navController, hrefFor } from "../lib/content";
+import ActionLinks from './ActionLinks.vue';
 const props = defineProps({ active: String, routeKey: String });
 defineEmits(["search"]);
 const mobile = ref(false),
@@ -149,6 +150,7 @@ onUnmounted(() => {
             >⌘K</kbd
           >
         </button>
+        <ActionLinks />
         <button
           id="mobile-nav-toggle"
           class="md:hidden p-1.5 text-secondary"

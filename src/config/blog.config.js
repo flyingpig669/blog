@@ -1,4 +1,5 @@
 import { routes, registry } from './routes.js';
+const feedPath = 'feed.xml';
 /**
  * ==============================================================================
  * Aurora Blog - 全局统一配置文件 (Global Blog Configuration)
@@ -31,6 +32,7 @@ export const config = {
     description: "A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.",
     // 页脚版权说明 (由 src/components/Footer.vue 渲染)
     footerText: "© 2026 CCC · All rights reserved.",
+    feedPath,
     footerEmail: "ccc0000006@gmail.com",
     // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。
     // 填好后 scripts/python/sync_posts.py 会产出 sitemap.xml，app.js#absoluteSiteUrl 也会用它作 canonical。
@@ -61,6 +63,9 @@ export const config = {
     // { id: "rss", label: "RSS", href: "https://example.com/feed.xml" },
   ]),
 
+  // 操作组链接：新增静态订阅或站外入口只改配置。
+  actions: [{id:'rss', label:'RSS', description:'RSS 订阅', href:feedPath, feature:'rss', requiresSiteUrl:true}],
+
   // 4. 社交媒体链接 (Social Links - 预留：关于页社交信息统一在 about.md 的 social 字段维护)
   // social: [
   //   { name: "GitHub", url: "https://github.com/flyingpig669", icon: "github" },
@@ -75,6 +80,8 @@ export const config = {
   features: {
     // 首页每页条目数；每本书聚合为一个入口。
     homePageSize: 10,
+    rss: true,
+    rssIncludeHidden: false,
     // 启用顶部平滑阅读进度条
     readingProgress: true,
     // 文章详情页常驻右侧悬浮 Outline (目录导航与自动 Scrollspy 高亮)

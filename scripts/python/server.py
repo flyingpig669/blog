@@ -172,7 +172,7 @@ class FileWatcher(threading.Thread):
 
     # 改动这些扩展名/文件后，需要先重建索引再刷新
     SYNC_TRIGGERS = (".md", ".markdown", ".js", ".mjs", ".vue", ".html", ".css", ".doc", ".docx", ".ppt", ".pptx")
-    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "src/package.json", "scripts/python/sync_posts.py", "scripts/python/lib/frontmatter.py", "scripts/python/lib/office_preview.py"}
+    SYNC_FILES = {"tailwind.config.js", "package.json", "package-lock.json", "src/package.json", "scripts/python/sync_posts.py", "scripts/python/lib/frontmatter.py", "scripts/python/lib/office_preview.py", "scripts/python/lib/feed.py"}
 
     def __init__(self, root, auto_sync=True, log=None):
         super().__init__(name="aurora-file-watcher")
@@ -244,7 +244,7 @@ class FileWatcher(threading.Thread):
 
         sources = changed
         needs_sync = self.auto_sync and any(
-            path.lower().endswith(self.SYNC_TRIGGERS) or path in self.SYNC_FILES
+            path.startswith('attachments/') or path.lower().endswith(self.SYNC_TRIGGERS) or path in self.SYNC_FILES
             for path in sources
         )
         if needs_sync:
@@ -311,7 +311,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         relative = os.path.relpath(source, self.directory).replace(os.sep, "/")
         if relative == 'css/main.css':
             return os.path.join(self.directory, 'src', 'styles', 'main.css')
-        generated = relative in {"data/index.json", "css/utilities.css", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
+        generated = relative in {"data/index.json", "css/utilities.css", "sitemap.xml", "feed.xml"} or relative.startswith(("data/", "js/vue/"))
         if preview and generated:
             # Missing preview data must 404 rather than expose stale production bodies.
             return os.path.join(os.path.abspath(preview), relative)
@@ -387,14 +387,13 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
     # ---- 实时刷新：把客户端脚本注入 HTML 响应 ----
     def send_head(self):
-        if WATCHER is not None:
-            translated = self.translate_path(self.path)
-            if os.path.isdir(translated):
-                translated = os.path.join(translated, "index.html")
-            if translated.lower().endswith(".html") and os.path.isfile(translated):
-                injected = self._injected_html_response(translated)
-                if injected is not None:
-                    return injected
+        translated = self.translate_path(self.path)
+        if os.path.isdir(translated):
+            translated = os.path.join(translated, "index.html")
+        if translated.lower().endswith(".html") and os.path.isfile(translated):
+            injected = self._injected_html_response(translated)
+            if injected is not None:
+                return injected
         return super().send_head()
 
     def _injected_html_response(self, path):
@@ -405,7 +404,9 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         except OSError:
             return None
 
-        if b"data-aurora-livereload" not in body:
+        if not os.path.isfile(self.translate_path('/feed.xml')):
+            body = b'\n'.join(line for line in body.split(b'\n') if b'type="application/rss+xml"' not in line)
+        if WATCHER is not None and b"data-aurora-livereload" not in body:
             if b"</body>" in body:
                 body = body.replace(b"</body>", LIVE_RELOAD_BYTES + b"</body>", 1)
             else:
