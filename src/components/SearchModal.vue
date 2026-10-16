@@ -3,7 +3,7 @@ import { ref, computed, watch, nextTick, onScopeDispose } from "vue";
 import { store, postHref, tagHref } from "../lib/content";
 import { html } from '../lib/html.js';
 import { recentlyRead } from '../lib/reading.js';
-const scope=ref('all'),failed=ref(false);
+const scope=ref('all'),failed=ref(false),emptyHeading=ref('最新文章');
 const props = defineProps({ open: Boolean });
 const emit = defineEmits(["close"]);
 const query = ref(""),
@@ -25,7 +25,11 @@ async function search() {
     if (current !== revision || !props.open) return;
     const q=query.value.trim();
     let posts=store.searchPosts(q).filter(post=>scope.value==='books' ? post.type==='books' : scope.value==='articles' ? post.type!=='books' : true);
-    if (!q) { const recent=recentlyRead(posts); if(recent.length) posts=recent; else posts=posts.slice(0,5); }
+    if (!q) {
+      const recent=recentlyRead(posts);
+      emptyHeading.value=recent.length ? '最近阅读' : '最新文章';
+      posts=recent.length ? recent : posts.slice(0,5);
+    }
     const tags=store.getAllTags().filter(tag=>tag.name.toLowerCase().includes(q.toLowerCase())).map(tag=>({...tag,slug:tag.name,title:'#'+tag.name,kind:'tag'}));
     results.value=(scope.value==='tags' ? tags : scope.value==='all' && q ? [...posts,...tags] : posts).slice(0,30);
     active.value = 0;
@@ -141,7 +145,7 @@ onScopeDispose(() => {
         <div class="search-filters" aria-label="搜索范围">
           <button v-for="filter in [{id:'all',label:'全部'},{id:'articles',label:'文章'},{id:'books',label:'书籍'},{id:'tags',label:'标签'}]" :key="filter.id" class="tag-pill" :class="{'is-selected':scope===filter.id}" :aria-pressed="scope===filter.id" @click="scope=filter.id">{{ filter.label }}</button>
         </div>
-        <p v-if="!query && scope!=='tags'" class="px-4 text-[11px] text-muted">{{ recentlyRead(store.getPosts()).length ? '最近阅读' : '最新文章' }}</p>
+        <p v-if="!query.trim() && scope!=='tags' && !status" class="px-4 text-[11px] text-muted">{{ emptyHeading }}</p>
         <div
           id="search-modal-results"
           aria-live="polite"
@@ -150,7 +154,7 @@ onScopeDispose(() => {
           <p v-if="status" class="view-status" role="status">{{ status }} <button v-if="failed" class="text-accent" @click="search">重试</button></p>
           <a
             v-for="(post, index) in results"
-            :key="post.slug"
+            :key="(post.kind || 'post')+':'+post.slug"
             :href="post.kind==='tag' ? tagHref(post.name) : postHref(post)"
             class="search-result-item block p-3 rounded-lg"
             :class="{ 'is-active': index === active }"

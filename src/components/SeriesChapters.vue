@@ -1,10 +1,20 @@
 <script setup>
-import { ref,onMounted,watch,nextTick } from 'vue';
+import { ref,onMounted,onUnmounted,watch,nextTick } from 'vue';
 import { postHref, pad } from "../lib/content";
 const props = defineProps({ chapters: Array, currentSlug: String, compact: Boolean });
 const root=ref(null);
-async function locate() { await nextTick(); const link=root.value?.querySelector('[aria-current=page]'); const list=props.compact ? root.value?.parentElement : root.value?.closest('#mobile-outline-drawer'); if (link && list && list.scrollHeight>list.clientHeight) list.scrollTop=Math.max(0,link.offsetTop-list.offsetTop-list.clientHeight/2+link.offsetHeight/2); }
-onMounted(locate);watch(()=>props.currentSlug,locate);
+async function locate() {
+  await nextTick();
+  const link=root.value?.querySelector('[aria-current=page]');
+  const list=props.compact ? root.value?.parentElement : root.value?.closest('#mobile-outline-drawer');
+  if (link && list && list.scrollHeight>list.clientHeight) {
+    const item=link.getBoundingClientRect(),box=list.getBoundingClientRect();
+    list.scrollTop=Math.max(0,list.scrollTop+item.top-box.top-list.clientHeight/2+item.height/2);
+  }
+}
+onMounted(()=>{locate();window.addEventListener('resize',locate);});
+onUnmounted(()=>window.removeEventListener('resize',locate));
+watch(()=>props.currentSlug,locate);
 defineExpose({locate});
 </script>
 <template>

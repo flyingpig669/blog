@@ -9,6 +9,7 @@ const route = useRoute();
 const mobile = ref(false),
   active = ref("");
 const mobileChapters=ref(null);
+const desktopChapters=ref(null);
 defineExpose({expanded:mobile,open:() => {mobile.value=true;nextTick(()=>{
   mobileChapters.value?.locate();
   document.getElementById('mobile-outline-drawer')?.querySelector('button')?.focus();
@@ -66,8 +67,8 @@ onUnmounted(() => {
         <span>系列章节</span
         ><a :href="columnHref(navigation.columnInfo)">全部 →</a>
       </div>
-      <ExpandableEntry title="章节目录" expandable initially-expanded title-class="text-[11px] text-secondary"><div class="max-h-[190px] overflow-y-auto mt-2">
-        <SeriesChapters :chapters="navigation.colPosts" :current-slug="post.slug" compact />
+      <ExpandableEntry title="章节目录" expandable initially-expanded title-class="text-[11px] text-secondary" @update:expanded="value=>value && desktopChapters?.locate()"><div class="max-h-[190px] overflow-y-auto mt-2">
+        <SeriesChapters ref="desktopChapters" :chapters="navigation.colPosts" :current-slug="post.slug" compact />
       </div></ExpandableEntry>
     </div>
     <div v-if="toc?.length">
