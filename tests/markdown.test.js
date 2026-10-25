@@ -31,3 +31,10 @@ test('math outside code still renders after a fenced block', () => {
   assert.match(html, /<code[^>]*>\$\$x\$\$/);
   assert.match(html, /<code class="font-mono text-xs">y<\/code>/);
 });
+
+test('template comments cannot activate PDF or math preprocessing', () => {
+  const html = render('<!--\n::: slide attachments/missing.pdf\n::: \n$$hidden$$\n-->\n\nVisible text');
+  assert.doesNotMatch(html, /article-slide-player-mount|missing\.pdf|hidden/);
+  assert.match(html, /Visible text/);
+  assert.match(render('```html\n<!-- keep this example -->\n```'), /&lt;!-- keep this example --&gt;/);
+});

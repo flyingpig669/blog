@@ -45,6 +45,8 @@ export const markdown = {
     // 缩进代码块与任意长度反引号包裹的行内代码。
     text = text.replace(/^(?:(?: {4}|\t)[^\n]*(?:\n|$))+/gm, protectCode);
     text = text.replace(/(`+)([\s\S]*?)\1(?!`)/g, protectCode);
+    // Writing hints in templates must never become live formulas or PDF directives.
+    text = text.replace(/<!--[\s\S]*?(?:-->|$)/g, '');
 
     // 1. Pre-process Math formulas using safe %% tokens
     // 1.1 Support explicit inline math \( ... \)

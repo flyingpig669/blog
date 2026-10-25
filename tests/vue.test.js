@@ -6,12 +6,13 @@ const { renderToString } = require("@vue/server-renderer");
 let server, store;
 test.before(async () => {
   global.document = {
-    documentElement: { classList: { add() {} } },
+    documentElement: { dataset: {}, classList: { toggle() {} } },
     title: "",
     querySelector() {
       return null;
     },
   };
+  global.getComputedStyle = () => ({ getPropertyValue: () => '#0A0A0B' });
   global.history = { state: null };
   const { createServer } = await import("vite");
   const vue = (await import("@vitejs/plugin-vue")).default;
@@ -29,6 +30,7 @@ test.after(async () => {
   delete global.window;
   delete global.document;
   delete global.history;
+  delete global.getComputedStyle;
 });
 async function render(name, props) {
   const component = (

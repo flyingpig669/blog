@@ -1,100 +1,116 @@
-# Aurora Notes 文档写作模板库 (Templates)
+# 写作模板
 
-本目录收录了全站所有标准写作模板。**本目录已在全局配置文件及构建同步脚本中被排除**，放置在此处的任何文件均不会被发布到公开博客文章列表中。
+先选模板，再复制到 `posts/`。本目录只存写作源文件，不进入文章列表，也不会发布到网站。
 
----
+## 选哪个模板
 
-## 模板清单
+| 你要写的内容 | 模板 | 复制后的类型 |
+| --- | --- | --- |
+| 普通技术文章 | [标准文章](template-standard-post.md) | `normal`（省略即可） |
+| 连载专栏的一章 | [专栏章节](template-column-chapter.md) | `normal` + `column` |
+| 一本书的一章 | [书籍章节](template-book-chapter.md) | `books` + `column` |
+| 按主题整理的阅读目录 | [阅读索引](template-collection.md) | `index` |
+| 关于、经历、路线规划 | [结构化独立页](template-independent-page.md) | `post` |
+| 论文与研究成果列表 | [论著页](template-publications-page.md) | `post` |
+| PDF 课件与演讲稿 | [演示文稿](template-slide-presentation.md) | `normal` |
+| 图片、下载、Office、音视频 | [媒体附件](template-media-attachments.md) | `normal` |
+| 数学与物理推导 | [公式长文](template-math-physics-paper.md) | `normal` |
 
-| 模板文件名 | 适用场景 | 核心特性 |
-| :--- | :--- | :--- |
-| **`template-standard-post.md`** | 常规技术博客 | 完整代码高亮、数学公式、Callout 提示框、标签分类 |
-| **`template-column-chapter.md`** | 专栏 / 系列连载章节 | 包含 `column` 与 `order` 标识，专栏内部上下篇定向翻页，系列全景侧边栏 |
-| **`template-slide-presentation.md`** | PPT / PDF 演示文稿课件 | 支持 `::: slide` 嵌入本地 PDF 课件，具备 Retina 矢量放映与真全屏演播 |
-| **`template-media-attachments.md`** | 图片 / 下载 / 音视频嵌入 | 正文配图与题注、行内下载链接、FrontMatter 附件区、video/audio 标签、路径与白名单全部边界情况 |
-| **`template-independent-page.md`** | 结构化独立页 (type: post) | 声明 `type: "post"`，支持时间线/关注领域/社交等区块，可被导航 `target: "file:xxx.md"` 绑定为独立页 |
-| **`template-publications-page.md`** | 论著 / 学术产出页 | `publications` 按年份分组、卡片展开摘要与 PDF 预览；`timeline[].links.paper` 与论著形成可点闭环 |
-| **`template-math-physics-paper.md`** | 理论数学与物理推导长文 | 严格兼容 Codex 双美元符号 KaTeX，狄拉克符号、矩阵与多行对齐方程推导 |
-| **`template-collection.md`** | 文章收录 / 阅读索引页 | 用 `[[slug]]` 双链与相对 `.md` 链接把全站文章整理成可跳转索引 |
+`post` 在这里表示**结构化独立页**，不是普通文章；普通文章用 `normal`。新内容统一使用 `type`，不要使用旧 `layout` / `page` 写法；`category` 已停用，会导致构建报错。
 
----
+## 三步开始写
 
-## 快速使用指南
-
-当需要撰写新文章或专栏时，只需复制对应模板到 `posts/` 目录并修改 FrontMatter 即可：
+以普通文章为例：
 
 ```bash
-# 示例 1：创建一篇新博客
-cp templates/template-standard-post.md posts/my-new-article.md
-
-# 示例 2：创建一个新专栏的第 1 章
-cp templates/template-column-chapter.md posts/my-column-part-01.md
-
-# 示例 3：创建一篇带演示文稿的文章
-cp templates/template-slide-presentation.md posts/my-presentation.md
-
-# 示例 4：创建一个文章收录 / 索引页
-cp templates/template-collection.md posts/collection.md
-
-# 示例 5：创建一个论著 / 学术产出页
-cp templates/template-publications-page.md posts/publications.md
+cp templates/template-standard-post.md posts/my-first-note.md
+./run.sh
 ```
 
----
+1. 修改文件开头两行 `---` 之间的 FrontMatter，至少写清 `title`、`tags` 和 `excerpt`。
+2. 替换正文，删除不需要的示例。页面已经显示标题，正文从 `##` 开始；`<!-- ... -->` 是不显示的写作提示，可删可留。
+3. 在浏览器打开 `http://127.0.0.1:18888/` 检查，发布前执行 `./check.sh`。
 
-## FrontMatter 完整字段速查字典
+模板不固定日期和 slug：首次构建会写入发布日期；slug 默认由文件名生成。复制后改文件名即可创建自己的文章。附件模板中的示例路径默认位于注释或代码块，上传真实文件后再启用。
+
+完整说明：[Markdown YAML 全部字段](../docs/frontmatter.md) · [config 与路由配置](../docs/configuration.md)。下表用于快速起稿。
+
+## FrontMatter 常用字段
+
+只保留需要的字段，布尔值写 `true` / `false`，YAML 缩进使用空格。
+
+| 字段 | 示例 | 作用 |
+| --- | --- | --- |
+| `title` | `"我的第一篇笔记"` | 页面标题 |
+| `tags` | `["物理", "量子计算"]` | 标签，不带 `#` |
+| `excerpt` | `"说明文章的问题与结论。"` | 列表摘要 |
+| `date` | `"2026-10-25"` | 可省略，首次构建写入并保持不变 |
+| `updated` | `"2026-10-26"` | 可选更新日期，不改变发布排序 |
+| `slug` | `"my-first-note"` | 可省略；显式填写可固定文章地址，支持中文 |
+| `type` | `normal` / `books` / `index` / `post` | 选择内容结构 |
+| `pinned` | `true` | 首页置顶 |
+| `home` | `false` | 从首页隐藏，仍可在归档、标签、搜索中找到 |
+| `tocLevels` | `[2, 3]` 或 `false` | 覆盖全站目录层级或关闭目录 |
+| `slide` | `"attachments/slides/talk.pdf"` | 正文上方的 PDF 预览入口 |
+| `attachments` | `["attachments/files/data.zip"]` | 文末附件操作区 |
+
+
+### 专栏与书籍
 
 ```yaml
----
-# 基础必选字段
-title: "文章大标题"                    # 文章主标题 (必填)
-date: "2026-10-10"                   # 发布日期 YYYY-MM-DD (选填，首次同步自动写入并保持不变)
-updated: "2026-10-13"                # 可选更新日期，不改变发布日期和排序
-slug: "my-article-slug"              # URL 标识 (选填，默认取文件名；支持中文；可显式声明以保持地址稳定)
-tags: ["tech", "systems"]            # 标签数组，用于 Tags 页面多选组合检索 (选填)
-excerpt: "一句话文章摘要简介"           # 呈现在首页与列表中的简要导读 (选填)
-
-# 专栏 / 系列字段 (只要填写 column 即可自动纳入专栏体系)
-column: "distributed-systems"        # 专栏唯一标识 (用于把多篇文章聚合成一个专栏)
-columnSlug: "distributed-systems"    # 专栏 URL 标识 (选填，默认取 column；含中文时建议显式声明 ASCII slug)
-columnName: "分布式系统与高可用架构"  # 专栏对外展示的中文全名 (选填，默认同 column)
-order: 1                             # 章节序号，专栏内以此顺序排定上一章/下一章 (整数)
-
-# 页面排版模式
-type: "normal"                       # normal（默认）、books（书籍章节）、index（知识索引）、post（结构化独立页）
-pinned: false                        # 是否在首页置顶展示 (true / false)
-home: true                           # 是否在首页显示；false 仍收录 Archive、标签、搜索与专栏
-
-# 附件与演示文稿
-slide: "attachments/slides/xxx.pdf"  # 挂载的演示文稿文件路径
-attachments: ["attachments/xxx.zip"] # 下载类附件
-
-# 结构化区块（仅 type: post 生效，详见 template-independent-page.md 与 template-publications-page.md）
-publications:                        # 论著列表：按 year 倒序分组、卡片可展开摘要与 PDF 预览
-  - title: "..."
-    slug: "paper-slug"               # 供 timeline[].links.paper 回指
-    authors: ["Your Name", "Co Author"]
-    venue: "..."
-    year: 2026
-    citations: 12
-    links: { pdf: "...", doi: "...", arxiv: "...", code: "..." }
-    abstract: "..."
-timeline:
-  - period: "..."
-    title: "..."
-    desc: "..."                      # 始终可见
-    detail: "..."                    # 点击标题后展开
-    links: { paper: "paper-slug", post: "post-slug", code: "https://..." }
-focusAreas:
-  - title: "..."
-    desc: "..."
-    detail: "..."                    # 与 timeline 同一套展开逻辑
-    links: { paper: "paper-slug" }
-
-# 大纲目录配置 (单篇覆盖)
-tocLevels: [2, 3]                    # 指定 TOC 追踪的标题层级数组 (如 [2, 3]、[2, 3, 4] 或 false)
----
+column: "my-series"
+columnName: "专栏的显示名称"
+columnDesc: "介绍这个专栏。"
+order: 1
 ```
 
+同一组保持 `column`、`columnName`、`columnDesc` 一致，`order` 使用正整数。下一章只修改标题、摘要、顺序和正文。`columnSlug` 可显式固定专栏地址；常规情况让它沿用英文小写连字符的 `column` 即可。
 
-内容结构统一使用 `type`：书籍章节填写 `type: "books"`，目录／索引页填写 `type: "index"`，普通文章省略或填写 `normal`，结构化独立页填写 `post`。`category` 已停用，物理、工程等主题全部放在 `tags` 中；不会再根据目录名生成分类或默认标签。
+- 普通专栏自动进入 Columns，无需添加路由。
+- 书籍章节再加 `type: books`，自动进入 Books；推荐目录 `posts/books/my-book/`。
+- 两种章节都自动生成组内的上一篇／下一篇。
+
+### 结构化独立页的入口
+
+复制独立页不等于自动新增导航。把下面条目加入 `src/config/routes.js` 的 `routeTable`，不要改 Navbar 或直接拼接 `config.nav`：
+
+```javascript
+{
+  name: 'publications',
+  path: '/publications',
+  view: 'page',
+  shell: 'shell',
+  kind: 'page',
+  page: 'posts/publications.md',
+  nav: { label: 'Publications', group: 'about', target: 'file:posts/publications.md' },
+  note: '研究成果单页，归入 About 折叠组。'
+}
+```
+
+文件名与目标必须一致。`view: 'page'` 是路由渲染器名称，Markdown 中仍写 `type: 'post'`。路由表负责生成站内地址和导航；执行 `./check.sh` 校验。若只是修改 About，把模板区块合并到根目录 `about.md` 即可。
+
+## 结构化区块怎么填
+
+| 区块／字段 | 用法 |
+| --- | --- |
+| `focus` / `bio` / `quote` | 当前方向、简介、引用；不需要时删除 |
+| `timeline[]` | `period`、`title`、`desc` 是可见内容 |
+| `focusAreas[]` | 用 `title` 和 `desc` 描述关注领域 |
+| `detail` / `links` | 时间线与关注领域的折叠内容；两者均空时不显示箭头 |
+| `publications[]` | `title`、`authors`、`venue`、`year`；`abstract` 作为展开摘要 |
+| `publications[].links` | 可选 `pdf`、`doi`、`arxiv`、`code` 等资源 |
+| `timeline[].links.paper` | 对应本页某篇论著的 `slug`，点击定位并展开 |
+| `social[]` | `name` 与 `url`，显示在独立页；不进入全局页脚 |
+
+嵌套字段按模板缩进填写：`abstract` 和 `links` 是同级，不能把摘要缩进到 `links.pdf` 下面。作者名匹配站点配置 `author.name` 时自动加粗。
+
+## 容易出错的地方
+
+- **文件位置**：Markdown 放 `posts/`，图片与下载材料放 `attachments/`。`posts/picture.png` 不会发布。
+- **资源路径**：相对站点根填写 `attachments/images/picture.png`，不写本机绝对路径；未上传的示例路径不要直接启用。
+- **文章链接**：使用 `[[slug]]`、`[[slug|显示文字]]` 或 `[文字](posts/文章.md)`，不要硬编码 Hash 路由。索引模板的示例链接也要换成自己的内容。
+- **公式**：行内使用 `(E = mc^2)`，块公式用独占两行的 `$$`；不使用单美元符号。多行对齐使用 `aligned`。
+- **Office 预览**：本地构建需安装 LibreOffice；PPT 会转换成静态 PDF，不保留动画与音视频。
+- **主题样式**：模板不必写颜色或容器 HTML，日夜主题由全站样式自动适配。
+
+完整开发、配置和发布说明见根目录 [README](../README.md)。

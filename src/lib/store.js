@@ -2,6 +2,7 @@ import { shallowReactive } from 'vue';
 import { config as siteConfig } from '../config/blog.config.js';
 import { routes as defaultRoutes, registry } from '../config/routes.js';
 import { html } from './html.js';
+import { THEME_STORAGE_KEY, readThemePreference, normalizeTheme, systemTheme, applyDocumentTheme } from './theme.js';
 /**
  * ==============================================================================
  * Aurora Blog - 数据中心与持久化存储模块 (Blog Reactive Store)
@@ -13,7 +14,9 @@ import { html } from './html.js';
  */
 
 export function createStore() { return shallowReactive({
-  STATE_KEY_THEME: 'aurora_blog_theme_v3',
+  STATE_KEY_THEME: THEME_STORAGE_KEY,
+  theme: 'dark',
+  themePreference: null,
 
   init: function(postsData, config = siteConfig) {
     // 1. 清理旧版本遗留的硬编码样本缓存
@@ -55,11 +58,8 @@ export function createStore() { return shallowReactive({
     this._tagsCache = null;
 
     // 4. 应用主题偏好
-    var savedTheme = 'dark';
-    try {
-      savedTheme = localStorage.getItem(this.STATE_KEY_THEME) || 'dark';
-    } catch (e) {}
-    this.applyTheme(savedTheme);
+    this.themePreference = readThemePreference();
+    this.applyTheme(this.themePreference || systemTheme(), false);
   },
 
   // 获取全部博文 (支持多维筛选与排序)
@@ -463,13 +463,15 @@ export function createStore() { return shallowReactive({
     return this._tagsCache;
   },
 
-  // 主题：本站为固定深色（<html class="dark">）。保留写入接口，便于日后接入浅色模式。
-  applyTheme: function(theme) {
-    this.theme = theme || 'dark';
-    try {
-      localStorage.setItem(this.STATE_KEY_THEME, this.theme);
-    } catch (e) {}
-    if (typeof document !== 'undefined') document.documentElement.classList.add('dark');
+  applyTheme: function(theme, persist = true) {
+    this.theme = normalizeTheme(theme) || systemTheme();
+    if (persist) {
+      this.themePreference = this.theme;
+      try {
+        localStorage.setItem(this.STATE_KEY_THEME, this.theme);
+      } catch (e) {}
+    }
+    applyDocumentTheme(this.theme);
   }
 }); }
 export const store = createStore();

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildPlan } = require('../scripts/build-plan');
-test('attachment updates regenerate file metadata, references and RSS',()=>{
+test('attachment updates regenerate file metadata and references',()=>{
   assert.deepEqual(buildPlan(['attachments/files/讲义.pdf']),{content:true,css:false,app:false,validate:true});
 });
 test('preview rebuilds only the required stages', () => {

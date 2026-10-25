@@ -12,6 +12,31 @@ from scripts.python import sync_posts
 
 
 class ContentTests(unittest.TestCase):
+    def test_writing_templates_parse_without_activating_example_resources(self):
+        templates = Path(__file__).resolve().parents[1] / 'templates'
+        for template in templates.glob('template-*.md'):
+            with self.subTest(template=template.name):
+                document = sync_posts.parse_md_file(str(template))
+                self.assertTrue(document['title'])
+                self.assertEqual(document['slide'], '')
+                self.assertEqual(document['attachments'], [])
+
+    def test_slide_discovery_ignores_literal_examples_and_comments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            article = Path(directory) / 'sample.md'
+            examples = '''<!-- ::: slide attachments/missing-comment.pdf -->
+````text
+::: slide attachments/missing-code.pdf
+:::
+`````
+`::: slide attachments/missing-inline.pdf`
+    ::: slide attachments/missing-indented.pdf
+'''
+            article.write_text(examples)
+            self.assertEqual(sync_posts.parse_md_file(str(article))['slide'], '')
+            article.write_text(examples + '\n::: slide attachments/real.pdf\n:::\n')
+            self.assertEqual(sync_posts.parse_md_file(str(article))['slide'], 'attachments/real.pdf')
+
     def test_automatic_publication_date_uses_first_commit_and_remains_fixed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

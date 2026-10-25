@@ -6,13 +6,9 @@ const root = path.resolve(__dirname, '..');
 const output = path.join(root, '_site');
 fs.rmSync(output, {recursive:true, force:true});
 fs.mkdirSync(output, {recursive:true});
-for (const file of ['index.html','robots.txt','404.html','og-image.png','CNAME','sitemap.xml','feed.xml']) {
+for (const file of ['index.html','robots.txt','404.html','og-image.png','CNAME','sitemap.xml']) {
   const source = resourcePath(file);
   if (fs.existsSync(source)) fs.copyFileSync(source, path.join(output,file));
-}
-if (!fs.existsSync(path.join(output,'feed.xml'))) {
-  const entry=path.join(output,'index.html');
-  fs.writeFileSync(entry,fs.readFileSync(entry,'utf8').replace(/^.*type="application\/rss\+xml".*\n/gm,''));
 }
 for (const directory of ['vendor','attachments']) {
   fs.cpSync(path.join(root,directory),path.join(output,directory),{recursive:true});

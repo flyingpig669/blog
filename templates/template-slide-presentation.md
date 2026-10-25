@@ -1,34 +1,35 @@
 ---
-title: "量子模拟器与架构演讲汇报"
-date: "2026-10-10"
-tags: ["quantum", "presentation", "slides"]
-slide: "attachments/slides/quantum-computing-slides.pdf"   # 声明后播放器固定挂在正文最上方；正文里同 URL 的 ::: slide 会被自动去重
-excerpt: "基于高维复希尔伯特空间演化的学术汇报总结，正文内嵌高保真全屏演讲播放器。"
-tocLevels: [2, 3]
+title: "在这里填写演讲或课件标题"
+tags: ["演讲", "课件"]
+excerpt: "介绍演讲主题、面向的读者与主要内容。"
+# 上传真实 PDF 后取消下一行注释；该方式在正文上方提供播放器入口。
+# slide: "attachments/slides/my-talk.pdf"
 ---
 
-# 量子模拟器与架构演讲汇报
+<!-- 使用：复制到 posts/my-talk.md，把 PDF 放入 attachments/slides/。
+     任选一种方式：启用上方 slide 字段，或在正文需要的位置放 ::: slide 块。
+     默认只显示预览入口，读者点击后才加载 PDF。
+     PPT / PPTX 请参考 template-media-attachments.md 的 Office 附件写法。 -->
 
-本篇文档展示如何在技术博文正文中无缝嵌入学术汇报、会议演讲或项目架构演示文稿（PPT / PDF）。
+## 演讲简介
 
-## 幻灯片演示 (Slide Presentation)
+说明分享背景、适合的听众和要回答的问题。
 
-无需使用笨重的第三方外链，在 Markdown 任意位置插入以下语法块即可生成深色极简放映机：
+## 课件
 
-::: slide attachments/slides/quantum-computing-slides.pdf 量子态矢量演化仿真课件
+上传 PDF 后，将下面示例中的路径改为真实文件，再删除围栏即可启用：
+
+```text
+::: slide attachments/slides/my-talk.pdf 演讲课件
 :::
+```
 
-### 播放器交互功能亮点
+<!-- 同一个 PDF 同时出现在 FrontMatter 与正文时会去重，以 FrontMatter 为准。
+     多个不同 PDF 可以分别嵌入。不要直接把不存在的路径写成活动资源引用。 -->
 
-1. **Retina 2x 矢量高清**：基于本地集成的 Mozilla PDF.js 矢量 Canvas 渲染，公式与代码图极度锐利，淘汰浏览器自带杂色阅读器。
-2. **沉浸式真全屏演播 (Present)**：点击工具栏的 `Present` 按钮或键盘轻按 `F` 键，立即进入纯黑剧场全屏模式。
-3. **灵动控制岛**：全屏下鼠标静止 2.5 秒后控制条自动淡出，轻微晃动光标即刻无缝唤出。
-4. **热区与快捷键**：点击幻灯片左右两侧热区即可向前/向后翻页；支持键盘 `←` / `→`、`Space`、`Enter` 翻页与 `ESC` 退出。
-5. **支持单篇多文档**：可在不同章节穿插多个独立的 `::: slide` 课件，彼此独立翻页演播。
+## 配套讲稿
 
-## 演讲配套文字说明
+在这里补充幻灯片中没有展开的推导、示例和问答。
 
-可以在幻灯片下方继续撰写演讲逐字稿、推导细节与讨论答疑，使读者兼顾视觉幻灯片与深度技术长文。
-
-
-PDF 默认显示预览与下载入口；点击「预览 PDF」才下载文件并初始化播放器，多份 PDF 不会在打开文章时同时加载。
+<!-- 播放器支持缩放、翻页和全屏；全屏键盘操作支持方向键、Space、F 和 Escape。
+     手机端也保留必要的翻页与缩放控件。 -->

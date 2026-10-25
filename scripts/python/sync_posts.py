@@ -22,11 +22,11 @@ from urllib.parse import urlsplit, unquote
 if __package__:
     from .lib.frontmatter import parse_frontmatter, normalize_doc_type
     from .lib.office_preview import build_previews
-    from .lib.feed import render_feed
+    from .lib.markdown_source import without_examples
 else:
     from lib.frontmatter import parse_frontmatter, normalize_doc_type
     from lib.office_preview import build_previews
-    from lib.feed import render_feed
+    from lib.markdown_source import without_examples
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 POSTS_DIR = os.path.join(BASE_DIR, "posts")
@@ -115,7 +115,6 @@ import(pathToFileURL(process.argv[1]).href).then(({config}) => {
     cfg.update(exclude)
     cfg["site"] = site
     cfg["postsRoute"] = config.get("routes", {}).get("posts", "/posts")
-    cfg["rssIncludeHidden"] = config.get("features", {}).get("rssIncludeHidden", False)
     cfg['wordsPerMinute'] = int(site.get('wordsPerMinute', 300))
     if cfg['wordsPerMinute'] < 1:
         raise ValueError('site.wordsPerMinute 必须是正整数')
@@ -143,7 +142,6 @@ def parse_md_file(filepath, words_per_minute=300):
     tags = []
     pinned = False
     home = None
-    rss = None
     excerpt = ""
     slide = ""
     slide_explicit = False
@@ -198,8 +196,6 @@ def parse_md_file(filepath, words_per_minute=300):
                 toc_levels = normalize_toc_levels(value)
             elif key == "pinned":
                 pinned = (val.lower() == "true")
-            elif key == "rss":
-                rss = (val.lower() == "true")
             elif key == "home":
                 home = (val.lower() == "true")
             elif key == "excerpt":
@@ -223,7 +219,7 @@ def parse_md_file(filepath, words_per_minute=300):
         column = slugify(column_slug) or column
 
     if not slide:
-        slide_m = re.search(r":::\s*(?:slide|pdf|deck)\s+([^\s\r\n]+)", content)
+        slide_m = re.search(r":::[ \t]*(?:slide|pdf|deck)[ \t]+([^\s\r\n]+)", without_examples(content))
         if slide_m:
             slide = slide_m.group(1).strip()
 
@@ -267,7 +263,6 @@ def parse_md_file(filepath, words_per_minute=300):
         "words": word_units,
         "pinned": pinned,
         **({"home": home} if home is not None else {}),
-        **({"rss": rss} if rss is not None else {}),
         "type": doc_type,
         "isTest": is_test,
         "slide": slide,
@@ -492,7 +487,7 @@ def sync():
     office_keep = set()
     for slug, doc in documents.items():
         doc['type'] = normalize_doc_type(doc.get('type', 'normal'))
-        for flag in ['home','rss']:
+        for flag in ['home']:
             if flag in doc: doc[flag] = str(doc[flag]).lower() == 'true'
         if not valid_resource_slug(slug):
             raise ValueError(f"{doc['sourcePath']}: slug 需使用中文、英文小写或数字")
@@ -521,7 +516,7 @@ def sync():
         body_url = f'data/documents/{slug}.{digest}.json'
         bodies[body_url] = body
         keep = ['id', 'slug', 'title', 'type', 'sourcePath', 'relPath', 'date', 'updated', 'tags',
-                'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'home', 'rss', 'isTest', 'excerpt', 'tocLevels']
+                'column', 'columnName', 'columnDesc', 'order', 'readTime', 'words', 'pinned', 'home', 'isTest', 'excerpt', 'tocLevels']
         documents[slug] = {key: doc[key] for key in keep if key in doc}
         documents[slug]['bodyUrl'] = body_url
         if doc.get('type', 'normal') != 'post':
@@ -577,10 +572,6 @@ def sync():
         'about': about_data['slug'] if about_data else None,
         'searchUrl': search_url
     }
-    if cfg.get('siteUrl'):
-        write_if_changed(os.path.join(output_dir(),'feed.xml'), render_feed(list(documents.values()),cfg['site'],cfg['postsRoute'],cfg['rssIncludeHidden']))
-    elif os.path.exists(os.path.join(output_dir(),'feed.xml')):
-        os.remove(os.path.join(output_dir(),'feed.xml'))
     index_path = os.path.join(output_dir(), 'data', 'index.json')
     write_if_changed(index_path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     # Remove the obsolete global-script index left by earlier builds.

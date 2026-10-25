@@ -9,6 +9,7 @@ import sys
 import tempfile
 from urllib.parse import unquote, urlsplit
 from xml.sax.saxutils import escape
+from .markdown_source import without_examples
 
 
 OFFICE_SUFFIXES = {'.doc', '.docx', '.ppt', '.pptx'}
@@ -16,8 +17,7 @@ OFFICE_SUFFIXES = {'.doc', '.docx', '.ppt', '.pptx'}
 
 def attachment_sources(document):
     sources = list(document.get('attachments') or [])
-    content = re.sub(r'(?ms)^\s*(`{3,}|~{3,})[^\n]*\n.*?^\s*\1[^\n]*$', '', document.get('content', ''))
-    content = re.sub(r'(`+).*?\1', '', content)
+    content = without_examples(document.get('content', ''))
     for target in re.findall(r'\[[^\]\n]*\]\(([^)\n]+)\)', content):
         target = target.strip()
         if target.startswith('<') and '>' in target:

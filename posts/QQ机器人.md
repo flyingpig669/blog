@@ -41,6 +41,7 @@ docker run -d \
 - 6081: VNC登陆端口
 - 3000: HTTP API端口
 - 3001: WebSocket API端口
+
 数据卷说明：
 - qq-gateway-data: 网关数据卷
 - qq-client-config: QQ客户端配置数据卷

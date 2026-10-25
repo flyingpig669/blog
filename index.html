@@ -43,11 +43,23 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0A0B'/%3E%3Cpath d='M39 10 22 54' stroke='%233B82F6' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
 
   <!--
-    反白屏 (anti-FOUC)：外部 CSS 到达前先铺好底色。
-    本站为固定深色主题，若不提前上色，浏览器默认白底会闪一下再变黑。
+    首屏主题在 CSS 和 Vue 加载前确定，避免刷新时闪到另一种主题。
+    与 src/lib/theme.js 共用存储键；这里只做最小启动，不写入系统推导值。
   -->
+  <script>
+    (() => {
+      let theme;
+      try { theme = localStorage.getItem('aurora_blog_theme_v3'); } catch {}
+      if (theme !== 'light' && theme !== 'dark') {
+        theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    })();
+  </script>
   <style>
     html, body { margin: 0; background: #0A0A0B; color: #EDEDED; }
+    html[data-theme="light"], html[data-theme="light"] body { background: #FAFAFA; color: #171719; }
   </style>
 
   <!-- KaTeX 样式与脚本改为按正文需要动态注入（见 src/lib/katex-loader.js）：
@@ -56,8 +68,7 @@
   <!-- Static utilities compiled at build time (no browser Tailwind runtime). -->
   <link rel="stylesheet" href="css/utilities.css">
 
-  <!-- Custom Linear/Vercel Dark CSS -->
-  <link rel="alternate" type="application/rss+xml" title="CCC de Notes RSS" href="feed.xml">
+  <!-- Shared design tokens and light/dark palettes -->
   <link rel="stylesheet" href="css/main.css">
 
   <!-- Vendor JS -->

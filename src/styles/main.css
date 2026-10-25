@@ -1,7 +1,14 @@
-/* Linear / Vercel / Raycast Dark Aesthetic Design System */
+/* Shared design system: dark defaults with a light palette override. */
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
+  color-scheme: dark;
+  --ink-rgb: 255, 255, 255;
+  --text-on-accent: #FFFFFF;
+  --shadow-menu: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --shadow-player: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-canvas: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-island: 0 10px 40px rgba(0, 0, 0, 0.7);
   --bg-page: #0A0A0B;
   --bg-surface: #111113;
   --bg-code: #161618;
@@ -10,9 +17,9 @@
   --text-muted: #5A5A5E;
   --accent-primary: #3B82F6;
   --accent-secondary: #22D3EE;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --divider: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(var(--ink-rgb), 0.08);
+  --border-hover: rgba(var(--ink-rgb), 0.16);
+  --divider: rgba(var(--ink-rgb), 0.06);
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
   --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
@@ -20,6 +27,27 @@
   --shell: 720px;
   --shell-detail: 1000px;
 }
+
+/* Light mode keeps the same geometry, typography and component tokens. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink-rgb: 23, 23, 25;
+  --bg-page: #FAFAFA;
+  --bg-surface: #FFFFFF;
+  --bg-code: #F0F0F2;
+  --text-primary: #171719;
+  --text-secondary: #57575C;
+  --text-muted: #6E6E73;
+  --accent-primary: #2563EB;
+  --accent-secondary: #087E96;
+  --shadow-menu: 0 12px 32px rgba(0, 0, 0, 0.08);
+  --shadow-player: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-canvas: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-island: 0 10px 40px rgba(0, 0, 0, 0.12);
+}
+
+.btn-secondary.theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 7px; flex-shrink: 0; }
+.theme-toggle svg { width: 18px; height: 18px; }
 
 * {
   box-sizing: border-box;
@@ -58,7 +86,7 @@
 @media (hover: none) { .heading-link { opacity: 1; } }
 .btn-secondary { padding: 6px 12px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-primary); font-size: 13px; transition: border-color 180ms ease-out; }
 .btn-secondary:hover { border-color: var(--border-hover); }
-.btn-primary { padding: 6px 14px; border: 1px solid var(--accent-primary); border-radius: 8px; background: var(--accent-primary); color: var(--text-primary); font-size: 13px; transition: background-color 180ms ease-out; }
+.btn-primary { padding: 6px 14px; border: 1px solid var(--accent-primary); border-radius: 8px; background: var(--accent-primary); color: var(--text-on-accent); font-size: 13px; transition: background-color 180ms ease-out; }
 .btn-primary:hover { background: color-mix(in srgb, var(--accent-primary) 88%, black); }
 .view-status { color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
 
@@ -75,6 +103,7 @@ html, body {
   background-color: var(--bg-page);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  transition: background-color 180ms ease-out, color 180ms ease-out;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
@@ -84,14 +113,14 @@ html, body {
 /* Subtle Scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); }
+::-webkit-scrollbar-thumb { background: rgba(var(--ink-rgb), 0.12); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(var(--ink-rgb), 0.24); }
 
 /* Background Ultra-subtle Grid (<4% opacity) */
 .subtle-grid-bg {
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(to right, rgba(var(--ink-rgb), 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(var(--ink-rgb), 0.02) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
@@ -159,7 +188,7 @@ html, body {
 .tag-tile.is-active {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
-  background: rgba(59, 130, 246, 0.08);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
 }
 
 /* 关于页作者名片：头像（支持任意图片链接）+ 名字 + 头衔。
@@ -206,7 +235,7 @@ html, body {
 
 /* Navbar */
 .nav-blur {
-  background: rgba(10, 10, 11, 0.72);
+  background: color-mix(in srgb, var(--bg-page) 72%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--divider);
@@ -294,11 +323,11 @@ html, body {
   min-width: 160px;
   padding: 6px;
   border-radius: 12px;
-  background: rgba(17, 17, 19, 0.96);
+  background: color-mix(in srgb, var(--bg-surface) 96%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-menu);
 }
 .nav-dropdown-item {
   display: block;
@@ -311,7 +340,7 @@ html, body {
 }
 .nav-dropdown-item:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink-rgb), 0.04);
 }
 .nav-dropdown-item.active {
   color: var(--accent-primary);
@@ -368,7 +397,7 @@ html, body {
 }
 .linear-btn:hover {
   border-color: var(--border-hover);
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(var(--ink-rgb), 0.04);
 }
 .linear-btn-primary {
   background-color: var(--accent-primary);
@@ -430,7 +459,7 @@ html, body {
 .markdown-body a.wiki-link {
   color: var(--accent-primary);
   text-decoration: none;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.45);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
   transition: color 150ms ease-out, border-color 150ms ease-out;
 }
 .markdown-body a.wiki-link:hover {
@@ -488,7 +517,7 @@ html, body {
   font-family: var(--font-mono);
   font-size: 13px;
   padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   color: var(--text-primary);
   border-radius: 4px;
 }
@@ -515,13 +544,13 @@ html, body {
 
 .callout-tip {
   border-left-color: var(--accent-secondary);
-  background: rgba(34, 211, 238, 0.06);
+  background: color-mix(in srgb, var(--accent-secondary) 6%, transparent);
 }
 .callout-tip .callout-icon { color: var(--accent-secondary); }
 
 .callout-note {
   border-left-color: var(--accent-primary);
-  background: rgba(59, 130, 246, 0.06);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
 }
 .callout-note .callout-icon { color: var(--accent-primary); }
 
@@ -551,7 +580,7 @@ html, body {
   justify-content: space-between;
   align-items: center;
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--ink-rgb), 0.02);
   border-bottom: 1px solid var(--divider);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -563,7 +592,7 @@ html, body {
   gap: 4px;
   padding: 3px 8px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   color: var(--text-secondary);
   font-size: 11px;
   font-family: var(--font-mono);
@@ -576,7 +605,7 @@ html, body {
   opacity: 1;
 }
 .code-copy-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(var(--ink-rgb), 0.12);
   color: var(--text-primary);
 }
 .code-container pre {
@@ -730,7 +759,7 @@ html, body {
   padding: 18px 22px;
   margin-bottom: 32px;
   border-radius: 12px;
-  background-color: rgba(17, 17, 19, 0.85);
+  background-color: color-mix(in srgb, var(--bg-surface) 85%, transparent);
   backdrop-filter: blur(8px);
   border-left: 2px solid var(--accent-primary);
   border-top: 1px solid var(--border-subtle);
@@ -774,22 +803,22 @@ html, body {
   height: 9px;
   border-radius: 9999px;
   background-color: var(--text-muted);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(var(--ink-rgb), 0.16);
   box-shadow: 0 0 0 4px var(--bg-page);
   transition: all 150ms ease-out;
 }
 .about-timeline-item:first-child .about-timeline-node {
   background-color: var(--accent-primary);
   border: 1px solid var(--accent-primary);
-  box-shadow: 0 0 0 4px var(--bg-page), 0 0 10px rgba(59, 130, 246, 0.6);
+  box-shadow: 0 0 0 4px var(--bg-page), 0 0 10px color-mix(in srgb, var(--accent-primary) 60%, transparent);
 }
 .about-timeline-period {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
   border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: rgba(var(--ink-rgb), 0.04);
+  border: 1px solid rgba(var(--ink-rgb), 0.06);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
@@ -894,7 +923,7 @@ html, body {
   padding: 3px 8px;
   border-radius: 4px;
   border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--ink-rgb), 0.02);
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
@@ -903,7 +932,7 @@ html, body {
 .entry-chip:hover {
   color: var(--text-primary);
   border-color: var(--border-hover);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--ink-rgb), 0.05);
   transform: translateY(-1px);
 }
 .entry-chip-label {
@@ -958,13 +987,13 @@ html, body {
 .pub-card.is-expanded {
   border-radius: 8px;
   border-color: var(--border-subtle);
-  background: rgba(255, 255, 255, 0.015);
+  background: rgba(var(--ink-rgb), 0.015);
 }
 .pub-card.is-expanded:last-child { border-bottom-color: var(--border-subtle); }
 .pub-card.is-highlighted {
   border-radius: 8px;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 
 .pub-card-head {
@@ -976,7 +1005,7 @@ html, body {
   transition: background-color 150ms ease-out;
 }
 .pub-card.is-expandable .pub-card-head { cursor: pointer; }
-.pub-card.is-expandable .pub-card-head:hover { background: rgba(255, 255, 255, 0.02); }
+.pub-card.is-expandable .pub-card-head:hover { background: rgba(var(--ink-rgb), 0.02); }
 
 .pub-seq {
   flex-shrink: 0;
@@ -1032,7 +1061,7 @@ html, body {
   padding: 2px 7px;
   border-radius: 4px;
   border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--ink-rgb), 0.02);
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
@@ -1043,12 +1072,12 @@ html, body {
 .pub-badge:hover {
   color: var(--text-primary);
   border-color: var(--border-hover);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--ink-rgb), 0.05);
 }
 .pub-badge-pdf {
   color: var(--accent-primary);
-  border-color: rgba(59, 130, 246, 0.3);
-  background: rgba(59, 130, 246, 0.08);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
 }
 .pub-badge-pdf:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
 .pub-badge-arrow { font-size: 9px; opacity: 0.7; }
@@ -1119,16 +1148,16 @@ html, body {
 /* Slide Deck / PDF Presentation Player (Linear & Raycast Aesthetic) */
 .slide-player-root {
   background: var(--bg-page);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(var(--ink-rgb), 0.08);
   border-radius: 12px;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-player);
 }
 
 .slide-player-header {
   background: var(--bg-surface);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(var(--ink-rgb), 0.06);
 }
 
 .slide-stage {
@@ -1143,7 +1172,7 @@ html, body {
 .slide-canvas {
   display: block;
   border-radius: 6px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: var(--shadow-canvas), 0 0 0 1px rgba(var(--ink-rgb), 0.05);
 }
 
 /* 画布本身即全屏入口：常态下给出缩放光标，进入演示后收回 */
@@ -1164,8 +1193,8 @@ html, body {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 9999px;
-  background: rgba(17, 17, 19, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--bg-surface) 86%, transparent);
+  border: 1px solid rgba(var(--ink-rgb), 0.12);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   font-family: var(--font-mono);
@@ -1198,7 +1227,7 @@ html, body {
   transition: all 150ms ease-out;
 }
 .slide-tool-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
 }
 
 .slide-action-btn {
@@ -1285,7 +1314,7 @@ html, body {
 
 /* Floating Fullscreen Island */
 .slide-fs-island {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: var(--shadow-island), 0 0 0 1px rgba(var(--ink-rgb), 0.12);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -311,7 +311,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         relative = os.path.relpath(source, self.directory).replace(os.sep, "/")
         if relative == 'css/main.css':
             return os.path.join(self.directory, 'src', 'styles', 'main.css')
-        generated = relative in {"data/index.json", "css/utilities.css", "sitemap.xml", "feed.xml"} or relative.startswith(("data/", "js/vue/"))
+        generated = relative in {"data/index.json", "css/utilities.css", "sitemap.xml"} or relative.startswith(("data/", "js/vue/"))
         if preview and generated:
             # Missing preview data must 404 rather than expose stale production bodies.
             return os.path.join(os.path.abspath(preview), relative)
@@ -404,8 +404,6 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         except OSError:
             return None
 
-        if not os.path.isfile(self.translate_path('/feed.xml')):
-            body = b'\n'.join(line for line in body.split(b'\n') if b'type="application/rss+xml"' not in line)
         if WATCHER is not None and b"data-aurora-livereload" not in body:
             if b"</body>" in body:
                 body = body.replace(b"</body>", LIVE_RELOAD_BYTES + b"</body>", 1)

@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { config, registry, navController, hrefFor } from "../lib/content";
 import ActionLinks from './ActionLinks.vue';
+import ThemeToggle from './ThemeToggle.vue';
 const props = defineProps({ active: String, routeKey: String });
 defineEmits(["search"]);
 const mobile = ref(false),
@@ -151,6 +152,7 @@ onUnmounted(() => {
           >
         </button>
         <ActionLinks />
+        <ThemeToggle />
         <button
           id="mobile-nav-toggle"
           class="md:hidden p-1.5 text-secondary"

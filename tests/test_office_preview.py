@@ -10,6 +10,7 @@ class OfficePreviewTests(unittest.TestCase):
         sources = attachment_sources({'attachments': ['attachments/讲义.docx'], 'content': '''
 [Slides](attachments/课件.pptx)
 [Notes](<attachments/notes one.docx> "title")
+<!-- [Hidden](attachments/missing-comment.docx) -->
 `[Example](attachments/example.doc)`
 ```md
 [Example](attachments/example.ppt)

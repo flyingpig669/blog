@@ -14,8 +14,9 @@ test('related articles rank shared topics and avoid duplicating chapter navigati
   const candidates=[post,{slug:'b',column:'book',tags:['Git','工具']},{slug:'c',tags:['Git'],date:'2026-01-02'},{slug:'d',tags:['Git','工具'],date:'2026-01-01'},{slug:'e',tags:['其他']}];
   assert.deepEqual(relatedPosts(post,candidates).map(p=>p.slug),['d','c']);
 });
-test('subscription output and backlink graph are included in the static publication',()=>{
+test('static publication includes backlinks and no removed subscription output',()=>{
   const fs=require('node:fs');
-  assert.match(fs.readFileSync('_site/feed.xml','utf8'),/<rss version="2.0">/);
+  assert.equal(fs.existsSync('_site/feed.xml'),false);
+  assert.doesNotMatch(fs.readFileSync('_site/index.html','utf8'),/application\/rss\+xml/);
   assert.equal(typeof JSON.parse(fs.readFileSync('_site/data/relations.json','utf8')),'object');
 });

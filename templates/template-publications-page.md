@@ -1,100 +1,38 @@
 ---
-title: "论著与学术产出模板"
-type: "post"              # 结构化独立页：publications / timeline / focusAreas / social 等区块会被原生渲染
-excerpt: "本页面展示论著列表 (Publications) 与可展开时间线 (Timeline) 的完整写法。"
-tocLevels: [2, 3]
-
-# ============================================================================
-# 论著与学术产出 (Publications)
-# ============================================================================
-# 渲染规则：
-#   1. 按 year 倒序自动分组（年份相同的归入同一组），组内保持书写顺序
-#   2. 卡片默认折叠；有 abstract 或 links.pdf 时可点击展开
-#   3. authors 数组里与 src/config/blog.config.js 的 author.name 同名者自动加粗；
-#      也可用 "**姓名**" 显式标注，或用尾随 * 标注通讯作者
-#   4. links 的值若是裸标识会自动补全协议前缀：
-#        doi: "10.1103/PhysRevA.113.012345"  ->  https://doi.org/10.1103/PhysRevA.113.012345
-#        arxiv: "2601.00001"                 ->  https://arxiv.org/abs/2601.00001
-#      站内相对路径（attachments/...）与完整 URL 原样使用
-#   5. links 可用的 key：pdf / doi / arxiv / code / slides / dataset / video / poster / site / bib
-#      未登记的 key 会以大写形式直接生成徽章，可随时自造
+title: "论著与学术产出"
+type: "post"
+excerpt: "研究成果、论文与相关项目。"
 publications:
-  - title: "论文完整标题"
-    slug: "paper-slug"                    # 供 timeline[].links.paper 回指；不填则可用标题回指
-    authors: ["Your Name", "Co Author"]   # 数组 / "A, B" 逗号分隔字符串均可
-    venue: "Journal or Conference Name"
+  - title: "在这里填写论文标题"
+    slug: "my-paper"
+    authors: ["Your Name", "Co Author"]
+    venue: "期刊或会议名称"
     year: 2026
-    citations: 12                          # 可选，会汇总到区块右上角的 Citations 计数
-    links:
-      pdf: "attachments/papers/paper.pdf"  # 有 pdf 时展开后可按需加载内嵌预览
-      doi: "10.1103/PhysRevA.113.012345"
-      arxiv: "2601.00001"
-      code: "https://github.com/your/repo"
-    abstract: "摘要正文。展开卡片后显示；留空则只保留 PDF 预览入口。"
-  - title: "没有 PDF 的条目（只有徽章）"
-    slug: "paper-without-pdf"
-    authors: "Your Name, Co Author"
-    venue: "IEEE IPDPS"
-    year: 2025
-    links:
-      doi: "10.1109/IPDPS49936.2025.00091"
-
-# ============================================================================
-# 经历与时间线 (Timeline & Milestones)
-# ============================================================================
-# 条目可选 detail（展开后的补充说明）与 links（关联资源筹码）。
-# 两者皆空时不渲染箭头 —— 条目退化为纯静态展示，不会出现「点了没反应」的空箭头。
+    abstract: "说明研究问题、主要方法和结果；点击条目后展开。"
+    # citations: 12
+    # links:
+    #   pdf: "attachments/papers/my-paper.pdf"
+    #   doi: "在这里填写 DOI"
+    #   arxiv: "在这里填写 arXiv 编号"
+    #   code: "https://github.com/你的用户名/项目名"
 timeline:
-  - period: "2024 – PRESENT"
-    title: "架构设计与前沿计算探索"
-    desc: "始终可见的一句话概述。"
-    detail: "点击标题后展开的补充说明，可以写更长。"
+  - period: "2026"
+    title: "在这里填写研究项目"
+    desc: "说明这段经历与成果的关系。"
     links:
-      paper: ["paper-slug"]               # 命中 publications 的 slug/标题 -> 点击滚动并展开该论著
-      post: "my-first-post"               # 命中博文 slug -> 跳转文章详情
-      slides: "attachments/slides/demo.pdf"
-      tag: "distributed-systems"          # 跳转标签筛选页
-      code: "https://github.com/your/repo"
-  - period: "2022 – 2024"
-    title: "没有任何附加内容的条目"
-    desc: "只有 desc 时不会出现展开箭头。"
-
-# 核心关注领域同样支持 detail 与 links
-focusAreas:
-  - title: "分布式系统与高可用架构"
-    desc: "一句话概述。"
-    detail: "展开后的补充说明。"
-    links:
-      paper: "paper-slug"
-
-social:
-  - name: "GitHub"
-    url: "https://github.com/your-name"
+      paper: "my-paper"
 ---
 
-本模板是 `type: post` 结构化独立页的**学术向**排版示例：论著列表按年份分组、卡片可展开摘要与 PDF 预览；经历时间线可点击展开并挂关联论文/项目筹码。
+<!-- 使用：复制到 posts/publications.md，替换论文与经历。
+     独立页的导航登记方式见 templates/README.md，禁止直接向 config.nav 塞入口。
+     示例资源全部注释，上传真实文件后再启用对应 links 字段。
+     year 用四位数字；同年条目保持书写顺序，年份组自动倒序排列。
+     authors 与配置 author.name 同名时自动加粗，也可显式写 "**姓名**"。
+     timeline.links.paper 必须对应本页 publications 的 slug 或完整标题。 -->
 
-## 使用方式
+## 研究说明
 
-把上面的 FrontMatter 复制到 `posts/` 下的任意 `.md`，或直接合并进 [`about.md`](../about.md)：
+在这里补充研究方向、合作信息或成果说明。
 
-```bash
-cp templates/template-publications-page.md posts/publications.md
-```
-
-随后在 `src/config/blog.config.js` 的 `nav` 里绑定即可：
-
-```js
-{ id: "publications", label: "Publications", target: "file:posts/publications.md" }
-```
-
-## 区块之间的闭环
-
-`timeline[].links.paper` 写 `publications[].slug`（或完整标题）时，筹码会渲染成「滚动到该论著并自动展开」的页内锚点。这样「某段经历产出了哪篇论文」在页面上是一条可点的路径，而不是两个互不相干的区块。
-
-## 撰写建议
-
-- **摘要**写清方法与量化结果，展开阅读的读者通常是想判断相关性。
-- **年份**用四位数字，不要写 `"2026 年"`；解析器只提取前四位。
-- **引用数**可省略，省略时不会显示 `0 citations`。
-- 论文 PDF 建议放 `attachments/papers/`，与幻灯片（`attachments/slides/`）分开放。
+<!-- PDF 点击预览时才下载。links 同级还支持 slides、dataset、video、poster、site、bib；
+     doi 和 arxiv 可填裸标识，渲染时自动补全相应链接前缀。 -->

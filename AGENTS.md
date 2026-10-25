@@ -34,6 +34,20 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
 
 ---
 
+### 2.1 日夜主题
+
+项目支持白天与黑暗切换。上表的色值及文中「深色／禁止纯白」描述适用于黑暗模式；浅色模式通过 `src/styles/main.css` 的 `:root[data-theme="light"]` 统一覆盖同名令牌，组件禁止自行写浅色特例。
+
+| 令牌 | 浅色值 |
+| :--- | :--- |
+| `--bg-page` / `--bg-surface` / `--bg-code` | `#FAFAFA` / `#FFFFFF` / `#F0F0F2` |
+| `--text-primary` / `--text-secondary` / `--text-muted` | `#171719` / `#57575C` / `#6E6E73` |
+| `--accent-primary` / `--accent-secondary` | `#2563EB` / `#087E96` |
+| `--ink-rgb` | 深色 `255,255,255`，浅色 `23,23,25`；中性透明边框与背景引用它 |
+| `--text-on-accent` | `#FFFFFF`；强调色按钮文字独立于正文主题 |
+
+新增样式必须引用语义类（如 `bg-page`、`text-primary`、`border-subtle`）或 CSS 变量，不再新增写死深色值的工具类。主题入口为 `ThemeToggle.vue`，状态在 `store`，持久化与 DOM 同步在 `src/lib/theme.js`，系统与跨标签页监听在 `useTheme.js`。`index.html` 的最小启动脚本负责首屏防闪烁，存储键必须与主题模块保持一致。布局、版心与列表语言在两种主题中完全一致。
+
 ## 3. 字体与排版层级约束 (Typography & Monospace Rules)
 
 全站字体严格区分为两套体系，不得混淆：
@@ -243,7 +257,7 @@ Agent 编写 HTML、Tailwind 类名或原生 CSS 时，必须严格遵循以下�
    - 新展示型模块（如 Series、Notes、Books）必须追加至主导航组末尾。
    - 主导航项建议控制在 7 项以内，超出后必须将低频项折叠至 `More` 下拉菜单（`More` 下拉内的项仍遵循相同命名规范）。
 2. **操作组 (Action Navigation)**：承载搜索、写作、主题切换等操作型功能，位于导航栏右侧。
-   - 新操作型功能（如登录、通知、RSS 订阅）必须归入操作组。
+   - 新操作型功能（如登录、通知）必须归入操作组。
    - 操作组项必须保持 `shrink-0`，图标优先，文本标签可选。
 
 ### 7.2 新增导航项的四步准入规则
@@ -406,7 +420,7 @@ $$
 
 线上的产物**不是整个仓库**，而是 CI 组装的 `_site/` 白名单。新增任何站点级文件前必须同时改白名单，否则线上拿不到；反过来，不要把源码、测试、模板混进白名单。
 
-1. **白名单**（唯一实现为 `scripts/assemble-site.js`，本地构建和 CI 共用）：`index.html`、`robots.txt`、`404.html`、`og-image.png`、`sitemap.xml`、`feed.xml`，以及目录 `css/`、`js/`、`data/`、`vendor/`、`attachments/`。
+1. **白名单**（唯一实现为 `scripts/assemble-site.js`，本地构建和 CI 共用）：`index.html`、`robots.txt`、`404.html`、`og-image.png`、`sitemap.xml`，以及目录 `css/`、`js/`、`data/`、`vendor/`、`attachments/`。
 2. **兜底断言**：产物中出现 `*.md` / `*.py` / `*.sh` / `*.yml` / `package*.json` / `*.test.js` 即判定构建失败。原始 Markdown 尤其不能上线 —— `robots.txt` 是 `Allow: /`，一旦可下载就会被搜索引擎当独立页面收录。
 3. **`404.html` 不能用相对路径**：Pages 会把它原样返回给任意深度的未知物理路径且不重写 URL，`css/…` 这类相对路径必然解析错。因此样式全部内联，站内链接依赖 CI 注入的 `__SITE_BASE__`；新增链接时必须沿用该占位符。
 4. **`og-image.png` 用 `npm run build:og` 生成**（`scripts/generate-og-image.js`，文案取自 `src/config/blog.config.js`），产物随仓库提交，CI 只拷贝 —— 不让部署依赖无头浏览器。站点主题或文案变更后需重新生成。
@@ -445,4 +459,4 @@ $$
 - 项目模块必须使用 ES `import` / `export`，禁止新增 `window.Blog*` 全局对象。站点配置导出 `config`，路由表导出 `routeTable` / `registry` / `routes`，内容状态由 `createStore()` 创建并使用 Vue `shallowReactive`。启动入口加载 `data/index.json`，正文和搜索索引继续懒加载。
 
 - 阅读历史与排版设置集中在 `src/lib/reading.js`，生命周期绑定复用 `useReading`；仅「继续阅读」链接使用 `resume=1` 恢复位置。移动端阅读操作与目录抽屉使用同一断点。
-- 搜索必须保留中文输入、分类筛选、键盘焦点循环和失败重试。订阅字段 `rss` 与 `home` 独立；RSS 和引用关系均在内容构建阶段生成。新增产物同步加入发布白名单与预览映射。
+- 搜索必须保留中文输入、分类筛选、键盘焦点循环和失败重试。引用关系在内容构建阶段生成。新增产物同步加入发布白名单与预览映射。

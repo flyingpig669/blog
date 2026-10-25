@@ -1,11 +1,11 @@
 import { routes, registry } from './routes.js';
-const feedPath = 'feed.xml';
 /**
  * ==============================================================================
  * Aurora Blog - 全局统一配置文件 (Global Blog Configuration)
  * ==============================================================================
  * 所有站点名称、作者资料、社交媒体链接、导航菜单与显示选项均在此集中配置。
  * 修改此处即可全站生效，无需翻找繁琐的 HTML 或 JS 模板。
+ * 字段可选值、当前值与实际用途见 docs/configuration.md。
  *
  * 注意：`routes` 与 `nav` 不再手写 —— 它们由 src/config/routes.js 的声明式路由表派生。
  * 新增页面或改路由请改那张表（一个模块一行）；本文件只保留「不对应站内路由」的
@@ -17,7 +17,7 @@ export const config = {
   // 这里不再手写字面量 —— 新增/改名请改那张表，路由、导航、校验会一起跟上。
   routes: routes,
 
-  // 默认路由：访问空 Hash (#) 或根地址时落到哪里
+  // 保留字段：当前 Vue Router 根入口由 routes.js 定义，不读取此设置。
   defaultRoute: routes.home,
 
   // 1. 站点基础信息 (Site Metadata)
@@ -28,12 +28,11 @@ export const config = {
     brand: "CCC de Notes",
     // 网站一句话介绍 (显示在首页大标题下方)
     tagline: "Personal technical blog focused on Physics, Math, and Computer Science.",
-    // SEO 与元描述
+    // SEO 描述；同步 index.html 中 description / og:description / twitter:description。
     description: "A personal technical blog by CCC, covering topics in Physics, Math, and Computer Science. Explore articles, tutorials, and insights on cutting-edge technologies and research.",
-    // 页脚版权说明 (由 src/components/Footer.vue 渲染)
+    // 页脚版权说明；同时同步 index.html 的 noscript 兜底。
     footerText: "© 2026 CCC · All rights reserved.",
-    feedPath,
-    footerEmail: "ccc0000006@gmail.com",
+    footerEmail: "ccc0000006@gmail.com", // 页脚 EMAIL 目标；空字符串关闭，同步 noscript。
     // 部署后的站点根地址（含子路径，末尾不带 /），用于生成 sitemap.xml 与 og:url。
     // 填好后 scripts/python/sync_posts.py 会产出 sitemap.xml，app.js#absoluteSiteUrl 也会用它作 canonical。
     url: "https://notes.theccyy.com",
@@ -45,11 +44,11 @@ export const config = {
   author: {
     name: "CCC",
     title: "Student",
-    bio: "Physics, Math, and Computer Science Enthusiast.",
+    bio: "Physics, Math, and Computer Science Enthusiast.", // 保留资料；页面简介填写 about.md 的 bio。
     avatar: "https://api.dicebear.com/7.x/initials/svg?seed=CCC&backgroundColor=161618&textColor=EDEDED&fontWeight=600",
     location: "Shandong, China",
-    email: "flyingpig06@outlook.com",
-    github: "https://github.com/flyingpig669",
+    email: "flyingpig06@outlook.com", // 保留资料；页面链接填写 about.md 的 social。
+    github: "https://github.com/flyingpig669", // 同上，不自动生成入口。
     // twitter: "https://twitter.com",
   },
 
@@ -60,11 +59,11 @@ export const config = {
   // 站内新模块请改路由表，不要写在这里；写法参考 src/config/routes.js 顶部的「怎么加一个新模块」。
   // 外部链接项用 href 而不是 target（target 会被当作站内路由解析）。
   nav: registry.buildNav().concat([
-    // { id: "rss", label: "RSS", href: "https://example.com/feed.xml" },
+    // 可选站外链接：{ id: 'github', label: 'GitHub', href: 'https://github.com/your-name' }
   ]),
 
-  // 操作组链接：新增静态订阅或站外入口只改配置。
-  actions: [{id:'rss', label:'RSS', description:'RSS 订阅', href:feedPath, feature:'rss', requiresSiteUrl:true}],
+  // 操作组链接：新增站外入口只改配置。
+  actions: [],
 
   // 4. 社交媒体链接 (Social Links - 预留：关于页社交信息统一在 about.md 的 social 字段维护)
   // social: [
@@ -80,8 +79,6 @@ export const config = {
   features: {
     // 首页每页条目数；每本书聚合为一个入口。
     homePageSize: 10,
-    rss: true,
-    rssIncludeHidden: false,
     // 启用顶部平滑阅读进度条
     readingProgress: true,
     // 文章详情页常驻右侧悬浮 Outline (目录导航与自动 Scrollspy 高亮)

@@ -1,6 +1,6 @@
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const generatedFiles = new Set(['data/index.json', 'css/utilities.css', 'sitemap.xml', 'feed.xml']);
+const generatedFiles = new Set(['data/index.json', 'css/utilities.css', 'sitemap.xml']);
 function resourcePath(name) {
   if (name === 'css/main.css') return path.join(root, 'src/styles/main.css');
   const generated = generatedFiles.has(name) || name === 'data' || name.startsWith('data/') || name === 'js/vue' || name.startsWith('js/vue/');
