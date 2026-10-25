@@ -1,8 +1,9 @@
 <script setup>
 import { ref, shallowRef, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { ensureViewer } from "../lib/viewer";
-import { safeUrl, pad } from "../lib/content";
+import { safeUrl } from "../lib/content";
 import { fileSize } from '../lib/attachments.js';
+import PdfControls from './PdfControls.vue';
 const props = defineProps({
   url: String,
   title: String,
@@ -74,7 +75,7 @@ async function draw() {
     const viewport = documentPage.getViewport({ scale: 1 });
     const width = Math.max(100, stage.value.clientWidth - 32);
     const height = present.value
-      ? innerHeight - 100
+      ? Math.max(100, stage.value.clientHeight - 32)
       : props.format === "Word"
         ? 620
         : 440;
@@ -105,6 +106,7 @@ function key(event) {
     present.value = false;
     return;
   }
+  if (event.target.closest('button,a,input,select')) return;
   if (["ArrowRight", "ArrowDown", "Enter", " "].includes(event.key)) {
     event.preventDefault();
     turn(1);
@@ -136,7 +138,7 @@ onUnmounted(() => {
 </script>
 <template>
   <div class="my-8" data-preview-control>
-    <div v-if="!opened" class="linear-card p-4">
+    <div v-if="!opened" class="linear-card pdf-preview-card p-4">
       <h3 class="text-[15px] font-semibold text-primary mb-3">
         {{ title || format }}
       </h3>
@@ -183,67 +185,20 @@ onUnmounted(() => {
             }}</span
             ><span class="truncate text-[13px] text-primary">{{ title }}</span>
           </div>
-          <div class="flex items-center gap-2 font-mono text-[12px]">
-            <button
-              class="btn-secondary"
-              aria-label="上一页"
-              :disabled="page === 1"
-              @click="turn(-1)"
-            >
-              ‹</button
-            ><span>{{ pad(page) }} / {{ pad(pages) }}</span
-            ><button
-              class="btn-secondary"
-              aria-label="下一页"
-              :disabled="page === pages"
-              @click="turn(1)"
-            >
-              ›
-            </button>
-          </div>
-          <div class="flex gap-2 items-center text-[12px]">
-            <button
-              aria-label="缩小"
-              class="text-secondary"
-              @click="zoom = Math.max(0.4, zoom - 0.15)"
-            >
-              −</button
-            ><button
-              aria-label="放大"
-              class="text-secondary"
-              @click="zoom = Math.min(3, zoom + 0.15)"
-            >
-              ＋</button
-            ><button class="btn-secondary" @click="present = true">
-              全屏</button
-            ><a
-              :href="safeUrl(url)"
-              download
-              aria-label="下载PDF"
-              class="text-secondary"
-              >↓</a
-            >
-          </div>
+          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" @turn="turn" @zoom="zoom = $event" @present="present = true" />
         </div>
         <div
           ref="stage"
-          class="relative flex flex-1 items-center justify-center overflow-auto p-4 min-h-[360px]"
+          class="pdf-stage relative flex-1 overflow-auto p-4"
         >
           <canvas ref="canvas" class="slide-canvas" @click="present = true" />
           <p v-if="error" role="status">{{ error }}</p>
         </div>
         <div
           v-if="present"
-          class="flex justify-center items-center gap-4 pb-5 font-mono text-[13px]"
+          class="pdf-fullscreen-controls"
         >
-          <button class="btn-secondary" aria-label="上一页" @click="turn(-1)">
-            ←</button
-          ><span>{{ page }} / {{ pages }}</span
-          ><button class="btn-secondary" aria-label="下一页" @click="turn(1)">
-            →</button
-          ><button class="btn-secondary" @click="present = false">
-            退出全屏 (ESC)
-          </button>
+          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" present @turn="turn" @zoom="zoom = $event" @present="present = false" />
         </div>
       </div></Teleport
     >

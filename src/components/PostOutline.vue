@@ -1,19 +1,17 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch,nextTick } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { columnHref } from "../lib/content";
 import ExpandableEntry from './ExpandableEntry.vue';
 import SeriesChapters from "./SeriesChapters.vue";
+import MobileDrawer from './MobileDrawer.vue';
 const props = defineProps({ toc: Array, navigation: Object, post: Object });
 const route = useRoute();
 const mobile = ref(false),
   active = ref("");
 const mobileChapters=ref(null);
 const desktopChapters=ref(null);
-defineExpose({expanded:mobile,open:() => {mobile.value=true;nextTick(()=>{
-  mobileChapters.value?.locate();
-  document.getElementById('mobile-outline-drawer')?.querySelector('button')?.focus();
-});}});
+defineExpose({expanded:mobile,open:() => { mobile.value=true; }});
 let frame;
 function scrollTo(id) {
   document
@@ -32,12 +30,6 @@ function track() {
     active.value = selected;
   });
 }
-function key(event) {
-  if (event.key === "Escape" && mobile.value) {
-    mobile.value = false;
-    document.getElementById('mobile-reading-outline-trigger')?.focus();
-  }
-}
 watch(
   () => route.fullPath,
   () => {
@@ -46,12 +38,10 @@ watch(
 );
 onMounted(() => {
   window.addEventListener("scroll", track, { passive: true });
-  document.addEventListener("keydown", key);
   track();
 });
 onUnmounted(() => {
   window.removeEventListener("scroll", track);
-  document.removeEventListener("keydown", key);
   cancelAnimationFrame(frame);
 });
 </script>
@@ -91,16 +81,7 @@ onUnmounted(() => {
       </nav>
     </div>
   </aside>
-  <div class="outline-floating-fab fixed">
-    <div
-      id="mobile-outline-drawer"
-      :hidden="!mobile"
-      class="fixed top-14 bottom-0 right-0 w-[280px] max-w-[85vw] bg-page border-l border-subtle z-50 p-5 overflow-y-auto"
-    >
-      <div class="flex justify-between mb-4">
-        <span class="font-mono text-[12px] text-muted">章节与目录</span
-        ><button aria-label="关闭目录" @click="mobile = false">✕</button>
-      </div>
+  <MobileDrawer id="mobile-outline-drawer" title="章节与目录" :open="mobile" @close="mobile = false" @opened="mobileChapters?.locate()">
       <div v-if="navigation.columnInfo" class="mb-6">
         <SeriesChapters ref="mobileChapters" :chapters="navigation.colPosts" :current-slug="post.slug" />
       </div>
@@ -108,13 +89,12 @@ onUnmounted(() => {
         <button
           v-for="item in toc"
           :key="item.id"
-          class="outline-nav-btn block text-left w-full py-1 text-[12px] text-secondary"
+          class="outline-nav-btn mobile-outline-item"
           :class="{ active: active === item.id }"
           @click="scrollTo(item.id)"
         >
           {{ item.text }}
         </button>
       </nav>
-    </div>
-  </div>
+  </MobileDrawer>
 </template>

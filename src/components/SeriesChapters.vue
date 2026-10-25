@@ -6,7 +6,7 @@ const root=ref(null);
 async function locate() {
   await nextTick();
   const link=root.value?.querySelector('[aria-current=page]');
-  const list=props.compact ? root.value?.parentElement : root.value?.closest('#mobile-outline-drawer');
+  const list=props.compact ? root.value?.parentElement : root.value?.closest('[data-sheet-scroll]');
   if (link && list && list.scrollHeight>list.clientHeight) {
     const item=link.getBoundingClientRect(),box=list.getBoundingClientRect();
     list.scrollTop=Math.max(0,list.scrollTop+item.top-box.top-list.clientHeight/2+item.height/2);
@@ -18,7 +18,7 @@ watch(()=>props.currentSlug,locate);
 defineExpose({locate});
 </script>
 <template>
-  <nav ref="root" aria-label="Series chapters" :class="compact ? 'space-y-1' : 'space-y-2'">
+  <nav ref="root" aria-label="Series chapters" :class="compact ? 'space-y-1' : 'mobile-chapters'">
     <a
       v-for="(chapter, index) in chapters"
       :key="chapter.slug"

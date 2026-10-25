@@ -3,6 +3,8 @@ import { ref, computed, watch, nextTick, onScopeDispose } from "vue";
 import { store, postHref, tagHref } from "../lib/content";
 import { html } from '../lib/html.js';
 import { recentlyRead } from '../lib/reading.js';
+import { useVisualViewport } from '../composables/useVisualViewport';
+const viewportStyle = useVisualViewport();
 const scope=ref('all'),failed=ref(false),emptyHeading=ref('最新文章');
 const props = defineProps({ open: Boolean });
 const emit = defineEmits(["close"]);
@@ -118,15 +120,16 @@ onScopeDispose(() => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="search-modal-title"
-      class="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-page/80 backdrop-blur-sm"
+      class="search-overlay fixed z-50 flex items-start justify-center bg-page/80 backdrop-blur-sm"
+      :style="viewportStyle"
       @click.self="$emit('close')"
       @keydown="keydown"
     >
       <div
-        class="w-full max-w-[560px] bg-surface rounded-xl border border-white/[0.12] overflow-hidden"
+        class="search-dialog w-full max-w-[560px] bg-surface rounded-xl border border-subtle overflow-hidden"
       >
         <h2 id="search-modal-title" class="sr-only">搜索文章</h2>
-        <div class="p-3.5 border-b border-divider flex items-center gap-3">
+        <div class="search-input-row p-3.5 border-b border-divider flex items-center gap-3">
           <input
             id="search-modal-input"
             ref="input"
@@ -134,12 +137,13 @@ onScopeDispose(() => {
             type="search"
             aria-label="搜索文章"
             placeholder="搜索文章、书籍、标签或专栏…"
-            class="w-full text-[14px] bg-transparent text-primary"
+            class="min-w-0 w-full text-[14px] bg-transparent text-primary"
           /><button
-            class="btn-secondary font-mono text-[11px]"
+            class="btn-secondary search-close font-mono text-[11px]"
+            aria-label="关闭搜索"
             @click="$emit('close')"
           >
-            ESC
+            <span class="sm:hidden">关闭</span><span class="hidden sm:inline">ESC</span>
           </button>
         </div>
         <div class="search-filters" aria-label="搜索范围">
@@ -149,7 +153,7 @@ onScopeDispose(() => {
         <div
           id="search-modal-results"
           aria-live="polite"
-          class="max-h-80 overflow-y-auto p-2 space-y-1"
+          class="search-results overflow-y-auto p-2 space-y-1"
         >
           <p v-if="status" class="view-status" role="status">{{ status }} <button v-if="failed" class="text-accent" @click="search">重试</button></p>
           <a

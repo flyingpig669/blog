@@ -5,7 +5,7 @@ defineProps({ document: Object, navigation: Object });
 <template>
   <nav
     aria-label="Breadcrumb"
-    class="flex flex-wrap gap-2 text-[12px] font-mono text-muted mb-4"
+    class="post-breadcrumb flex flex-wrap gap-2 text-[12px] font-mono text-muted mb-4"
   >
     <a :href="hrefFor('home')">文章</a
     ><template v-if="navigation.columnInfo"
@@ -27,16 +27,16 @@ defineProps({ document: Object, navigation: Object });
       >章节目录 →</a
     >
   </div>
-  <header class="mb-8 pb-6 border-b border-divider">
+  <header class="post-header mb-8 pb-6 border-b border-divider">
     <h1
-      class="text-[32px] sm:text-[36px] font-bold text-primary leading-tight mb-4"
+      class="post-title text-[32px] sm:text-[36px] font-bold text-primary leading-tight mb-4"
     >
       {{ document.title }}
     </h1>
-    <div class="text-[12px] font-mono text-muted mb-4">
-      {{ document.date
-      }}<span v-if="document.updated"> · 更新于 {{ document.updated }}</span> ·
-      {{ document.readTime }} · {{ wordCount(document.words) }}
+    <div class="post-metadata text-[12px] font-mono text-muted mb-4">
+      <time>{{ document.date }}</time>
+      <span v-if="document.updated">更新于 {{ document.updated }}</span>
+      <span>{{ document.readTime }}</span><span>{{ wordCount(document.words) }}</span>
     </div>
     <div class="flex flex-wrap gap-2">
       <a

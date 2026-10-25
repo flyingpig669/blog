@@ -62,7 +62,7 @@ watch(
   <IndexPage v-else-if="document.type === 'index'" :document="document" />
   <div
     v-else
-    class="shell-detail mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20 flex items-start gap-8"
+    class="shell-detail mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20 flex items-start gap-8 post-layout"
   >
     <div class="flex-1 max-w-[680px] min-w-0 reader-content" :style="{'--reader-size':reading.fontSize+'px','--reader-leading':reading.lineHeight}">
       <ReadingSettings />

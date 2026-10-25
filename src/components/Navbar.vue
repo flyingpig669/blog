@@ -3,6 +3,7 @@ import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { config, registry, navController, hrefFor } from "../lib/content";
 import ActionLinks from './ActionLinks.vue';
 import ThemeToggle from './ThemeToggle.vue';
+import MobileDrawer from './MobileDrawer.vue';
 const props = defineProps({ active: String, routeKey: String });
 defineEmits(["search"]);
 const mobile = ref(false),
@@ -45,17 +46,17 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <header class="sticky top-0 z-40 w-full nav-blur">
+  <header class="site-header sticky top-0 z-40 w-full nav-blur">
     <div
-      class="w-full px-4 sm:px-6 md:px-8 lg:px-12 h-14 flex items-center justify-between gap-4"
+      class="navbar-frame w-full px-4 sm:px-6 md:px-8 lg:px-12 h-14 flex items-center justify-between gap-2 sm:gap-4"
     >
       <div class="flex items-center gap-6 lg:gap-8 min-w-0">
         <a
           id="brand-link"
           :href="hrefFor('home')"
-          class="flex items-center gap-2 text-primary font-mono text-[14px] font-semibold shrink-0 whitespace-nowrap"
+          class="flex items-center gap-2 text-primary font-mono text-[14px] font-semibold min-w-0 md:shrink-0 whitespace-nowrap"
           ><span class="text-accent">/</span
-          ><span>{{ config.site.brand }}</span></a
+          ><span class="truncate">{{ config.site.brand }}</span></a
         >
         <nav
           id="desktop-nav"
@@ -125,11 +126,11 @@ onUnmounted(() => {
           </template>
         </nav>
       </div>
-      <div class="flex gap-3 items-center shrink-0">
+      <div class="nav-actions flex gap-1 sm:gap-3 items-center shrink-0">
         <button
           v-if="config.features.searchModal !== false"
           id="search-action"
-          class="btn-secondary flex items-center gap-2"
+          class="btn-secondary nav-search flex items-center gap-2"
           aria-label="Search articles"
           aria-haspopup="dialog"
           aria-controls="search-modal"
@@ -155,7 +156,7 @@ onUnmounted(() => {
         <ThemeToggle />
         <button
           id="mobile-nav-toggle"
-          class="md:hidden p-1.5 text-secondary"
+          class="icon-button md:hidden text-secondary"
           aria-label="Toggle navigation"
           :aria-expanded="mobile"
           aria-controls="mobile-drawer"
@@ -175,23 +176,21 @@ onUnmounted(() => {
         </button>
       </div>
     </div>
-    <nav
-      id="mobile-drawer"
-      :hidden="!mobile"
-      aria-label="Mobile navigation"
-      class="md:hidden px-4 py-3 border-t border-divider bg-page"
-    >
+    <MobileDrawer id="mobile-drawer" title="导航" :open="mobile" :breakpoint="768" @close="mobile = false">
+    <nav aria-label="Mobile navigation">
       <template v-for="group in groups" :key="group.head.id"
         ><a
           v-for="(item, index) in [group.head, ...group.folded]"
           :key="item.id"
           :href="navController.navItemHref(item)"
-          class="mobile-nav-link block py-3 text-[15px] text-secondary"
-          :class="{ active: active === item.id, 'pl-8': index > 0 }"
+          class="mobile-nav-link"
+          :class="{ active: active === item.id, 'is-nested': index > 0 }"
           :aria-current="active === item.id ? 'page' : undefined"
+          @click="mobile = false"
           >{{ item.label }}</a
         ></template
       >
     </nav>
+    </MobileDrawer>
   </header>
 </template>
