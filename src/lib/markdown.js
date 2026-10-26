@@ -101,11 +101,11 @@ export const markdown = {
       // 避免 title 与 desc 取到同一字符串（历史问题）。
       var inlineTitle = (title || '').trim();
       var bodyText = (desc || '').trim();
-      var slideTitle = inlineTitle || bodyText || '课件预览';
+      var slideTitle = inlineTitle || bodyText;
       var cleanUrl = html.safeUrl(url, true);
       if (!cleanUrl) return '<p class="view-status">Invalid presentation URL.</p>';
       // 两个属性值都来自正文，必须转义后再拼接（escapeHtml 会先处理 & ，避免实体被二次解析）
-      return '<div class="article-slide-player-mount my-8" data-slide-url="' + escapeHtml(cleanUrl) + '" data-slide-title="' + escapeHtml(slideTitle) + '"></div>';
+      return '<div class="article-slide-player-mount" data-slide-url="' + escapeHtml(cleanUrl) + '" data-slide-title="' + escapeHtml(slideTitle) + '"></div>';
     });
 
     // 3. Marked.js parsing

@@ -1,17 +1,18 @@
 <script setup>
 import { postHref, columnHref, tagHref } from "../lib/content";
+import UpdatedAt from './UpdatedAt.vue';
 defineProps({ post: Object });
 </script>
 <template>
   <article class="post-item">
-    <div class="text-[12px] font-mono text-muted mb-2">
-      <span>{{ post.date }}</span
-      ><span> · </span>
+    <div class="post-metadata text-[12px] font-mono text-muted mb-2">
+      <time :datetime="post.date">{{ post.date }}</time>
+      <UpdatedAt :value="post.updated" />
       <span v-if="post.kind === 'book'"
         >BOOK · {{ post.chapterCount }} CHAPTERS</span
       >
       <span v-else>{{ post.readTime }}</span>
-      <span v-if="post.pinned" class="ml-2">PINNED</span>
+      <span v-if="post.pinned">PINNED</span>
     </div>
     <h2 class="text-[18px] font-semibold text-primary leading-snug mb-2">
       <a

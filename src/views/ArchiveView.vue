@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { store, registry, postHref, setTitle } from "../lib/content";
 import PageHeader from "../components/PageHeader.vue";
+import UpdatedAt from '../components/UpdatedAt.vue';
 const definition = registry.get("archive");
 setTitle(definition.title);
 const groups = computed(() => {
@@ -29,12 +30,12 @@ const groups = computed(() => {
           :key="post.slug"
           :href="postHref(post)"
           class="flex items-baseline gap-4 py-1.5 group"
-          ><time class="font-mono text-[12px] text-muted shrink-0">{{
+          ><time :datetime="post.date" class="font-mono text-[12px] text-muted shrink-0">{{
             post.date.slice(5)
           }}</time
-          ><span class="text-[15px] text-secondary group-hover:text-accent">{{
+          ><span class="min-w-0"><span class="text-[15px] text-secondary group-hover:text-accent">{{
             post.title
-          }}</span></a
+          }}</span><UpdatedAt :value="post.updated" class="block mt-1 text-[11px] text-muted" /></span></a
         >
       </div>
     </section>

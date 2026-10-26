@@ -7,6 +7,7 @@ import InlineText from "./InlineText.vue";
 import Publications from "./Publications.vue";
 import MarkdownBody from "./MarkdownBody.vue";
 import Attachments from "./Attachments.vue";
+import UpdatedAt from './UpdatedAt.vue';
 const props = defineProps({ document: Object });
 const publications = ref(null);
 provide("jumpToPaper", (key) => publications.value?.jump(key));
@@ -103,6 +104,7 @@ function scroll(id) {
           >{{ lines(contact.name || contact.title || contact.label) }} ↗</a
         >
       </div>
+      <UpdatedAt :value="document.updated" class="block text-[12px] text-muted mt-3" />
     </header>
     <nav
       v-if="sections.length > 1"

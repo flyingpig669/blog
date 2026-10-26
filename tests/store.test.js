@@ -179,3 +179,20 @@ test('search matches a book or column name without requiring it in the chapter b
   const store=createStore();store.posts=[{slug:'chapter',title:'简介',columnName:'抽象代数与群论导引',tags:[],date:'2026-10-16'}];
   assert.equal(store.searchPosts('群论')[0].slug,'chapter');
 });
+
+test('home books show the latest explicit update from visible chapters without changing publication dates', () => {
+  const store = createStore();
+  const chapters = [
+    {slug:'first', type:'books', column:'book', order:1, date:'2026-10-01', updated:'2026-10-24'},
+    {slug:'second', type:'books', column:'book', order:2, date:'2026-10-12', updated:'2026-10-20'},
+    {slug:'hidden', type:'books', column:'book', order:3, date:'2026-10-25', updated:'2026-10-26', home:false}
+  ];
+  store.posts = chapters;
+  store.documents = Object.fromEntries(chapters.map(post => [post.slug, post]));
+  store.rawColumns = [{id:'book', name:'Book', postIds:chapters.map(post => post.slug)}];
+  assert.equal(store.getHomeEntries()[0].updated, '2026-10-24');
+  assert.equal(store.getHomeEntries()[0].date, '2026-10-12');
+  delete chapters[0].updated;
+  delete chapters[1].updated;
+  assert.equal(store.getHomeEntries()[0].updated, undefined);
+});

@@ -69,7 +69,6 @@ watch(
       <PostHeader :document="document" :navigation="navigation" /><PdfPreview
         v-if="document.slideExplicit && document.slide"
         :url="document.slide"
-        :title="document.title"
         :size="document.attachmentInfo?.[document.slide]?.size"
       /><MarkdownBody
         :key="document.slug"

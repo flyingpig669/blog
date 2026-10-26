@@ -76,6 +76,7 @@ test("Vue post items escape metadata and preserve encoded Chinese links", async 
       title: "<script>bad</script>",
       tags: ["中文"],
       date: "2026-10-12",
+      updated: "2026-10-26",
       readTime: 3,
     },
   });
@@ -83,6 +84,8 @@ test("Vue post items escape metadata and preserve encoded Chinese links", async 
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /#\/posts\/%E9%87%8F/);
   assert.match(html, /#\/tags\/%E4%B8%AD/);
+  assert.match(html, /class="updated-at font-mono"/);
+  assert.match(html, /<time datetime="2026-10-26">2026-10-26<\/time>/);
 });
 test("Vue home book entries use book directories instead of chapter links", async () => {
   const html = await render("PostItem", {
@@ -114,6 +117,7 @@ test("Vue PDF and Office previews render idle buttons without fetching documents
       format: "Word",
     });
     assert.match(html, /预览 Word/);
+    assert.match(html, /文档预览/);
     assert.match(html, /下载原文件/);
     assert.doesNotMatch(html, /<iframe|<canvas|pdfjs/);
     assert.equal(fetches, 0);

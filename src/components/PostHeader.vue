@@ -1,5 +1,6 @@
 <script setup>
 import { hrefFor, columnHref, tagHref, wordCount } from "../lib/content";
+import UpdatedAt from './UpdatedAt.vue';
 defineProps({ document: Object, navigation: Object });
 </script>
 <template>
@@ -34,8 +35,8 @@ defineProps({ document: Object, navigation: Object });
       {{ document.title }}
     </h1>
     <div class="post-metadata text-[12px] font-mono text-muted mb-4">
-      <time>{{ document.date }}</time>
-      <span v-if="document.updated">更新于 {{ document.updated }}</span>
+      <time :datetime="document.date">{{ document.date }}</time>
+      <UpdatedAt :value="document.updated" />
       <span>{{ document.readTime }}</span><span>{{ wordCount(document.words) }}</span>
     </div>
     <div class="flex flex-wrap gap-2">

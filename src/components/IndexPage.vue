@@ -3,6 +3,7 @@ import { ref, nextTick } from "vue";
 import MarkdownBody from "./MarkdownBody.vue";
 import Attachments from "./Attachments.vue";
 import { decorateIndex } from "../lib/index-content";
+import UpdatedAt from './UpdatedAt.vue';
 defineProps({ document: Object });
 const root = ref(null),
   outline = ref([]),
@@ -24,7 +25,7 @@ function scroll(id) {
     class="shell mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-20 index-page"
   >
     <header class="mb-10 pb-6 border-b border-divider">
-      <div class="index-eyebrow">INDEX / {{ document.date }}</div>
+      <div class="index-eyebrow flex-wrap">INDEX / <time :datetime="document.date">{{ document.date }}</time><UpdatedAt :value="document.updated" /></div>
       <h1 class="text-[32px] sm:text-[36px] font-bold mb-2">
         {{ document.title }}
       </h1>

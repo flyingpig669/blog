@@ -1,206 +1,226 @@
 <script setup>
-import { ref, shallowRef, watch, nextTick, onMounted, onUnmounted } from "vue";
-import { ensureViewer } from "../lib/viewer";
-import { safeUrl } from "../lib/content";
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
+import { ensureViewer } from '../lib/viewer';
+import { safeUrl } from '../lib/content';
 import { fileSize } from '../lib/attachments.js';
+import { pdfLayout, previewFileName } from '../lib/pdf-layout.js';
+import { trapDialogFocus } from '../lib/focus';
+import { useVisualViewport } from '../composables/useVisualViewport';
 import PdfControls from './PdfControls.vue';
+import PreviewDownloads from './PreviewDownloads.vue';
+
 const props = defineProps({
-  url: String,
-  title: String,
-  source: String,
-  size: Number,
-  format: { type: String, default: "PDF" },
+  url: String, title: String, source: String, size: Number,
+  format: { type: String, default: 'PDF' },
 });
-const opened = ref(false),
-  loading = ref(false),
-  error = ref(""),
-  page = ref(1),
-  pages = ref(0),
-  zoom = ref(1),
-  present = ref(false);
-const root = ref(null),
-  stage = ref(null),
-  canvas = ref(null);
-let pdf,
-  loadTask,
-  renderTask,
-  observer,
-  disposed = false,
-  renderRevision = 0;
+const displayName = computed(() => props.title || previewFileName(props.source || props.url) || '文档');
+const viewportStyle = useVisualViewport();
+const opened = ref(false), loading = ref(false), rendering = ref(false), canvasReady = ref(false);
+const loadError = ref(''), renderError = ref('');
+const page = ref(1), pages = ref(0), zoom = ref(1), present = ref(false);
+const root = ref(null), stage = ref(null), canvas = ref(null), openButton = ref(null);
+let pdf, loadTask, renderTask, observer, frame, previousOverflow, previousFocus;
+let disposed = false, documentRevision = 0, renderRevision = 0, observedWidth = 0, observedHeight = 0;
+
+function releaseDocument() {
+  renderRevision++;
+  cancelAnimationFrame(frame);
+  observer?.disconnect();
+  observer = null;
+  renderTask?.cancel();
+  renderTask = null;
+  const closing = loadTask ? loadTask.destroy() : pdf?.destroy();
+  closing?.catch(() => {});
+  loadTask = null;
+  pdf = null;
+}
+function unlock() {
+  if (previousOverflow !== undefined) {
+    document.body.style.overflow = previousOverflow;
+    previousOverflow = undefined;
+  }
+}
+function close() {
+  documentRevision++;
+  present.value = false;
+  releaseDocument();
+  opened.value = loading.value = rendering.value = canvasReady.value = false;
+  loadError.value = renderError.value = '';
+  page.value = 1;
+  pages.value = 0;
+  zoom.value = 1;
+  nextTick(() => { if (!disposed) openButton.value?.focus({ preventScroll: true }); });
+}
 async function open() {
   if (loading.value || opened.value) return;
+  const revision = ++documentRevision;
   loading.value = true;
-  error.value = "";
+  loadError.value = '';
   try {
-    await ensureViewer();
-    if (disposed) return;
-    const library = window.pdfjsLib;
-    library.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js";
-    loadTask = library.getDocument(safeUrl(props.url));
-    pdf = await loadTask.promise;
-    if (disposed) {
-      pdf.destroy();
-      return;
-    }
+    const library = await ensureViewer();
+    if (disposed || revision !== documentRevision) return;
+    library.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.min.js';
+    const task = library.getDocument(safeUrl(props.url));
+    loadTask = task;
+    const loaded = await task.promise;
+    if (disposed || revision !== documentRevision) { loaded.destroy().catch(() => {}); return; }
+    pdf = loaded;
     pages.value = pdf.numPages;
     opened.value = true;
     await nextTick();
-    root.value?.focus();
-    observer = new ResizeObserver(() => draw());
+    if (disposed || revision !== documentRevision) return;
+    root.value?.focus({ preventScroll: true });
+    observedWidth = stage.value.clientWidth;
+    observedHeight = 0;
+    observer = new ResizeObserver(() => {
+      const width = stage.value?.clientWidth, height = present.value ? stage.value?.clientHeight : 0;
+      // Inline height follows the page; only width changes need another render.
+      if (width === observedWidth && height === observedHeight) return;
+      observedWidth = width;
+      observedHeight = height;
+      queueDraw();
+    });
     observer.observe(stage.value);
     await draw();
-  } catch (cause) {
-    if (!disposed) {
-      loadTask?.destroy();
-      loadTask = null;
-      error.value = "预览加载失败，请重试或下载文件。";
+  } catch {
+    if (!disposed && revision === documentRevision) {
+      releaseDocument();
+      loadError.value = '文档加载失败，请重试或下载文件。';
     }
   } finally {
-    if (!disposed) loading.value = false;
+    if (!disposed && revision === documentRevision) loading.value = false;
   }
 }
+function queueDraw() {
+  if (!pdf || disposed) return;
+  cancelAnimationFrame(frame);
+  frame = requestAnimationFrame(draw);
+}
 async function draw() {
-  if (!pdf || !canvas.value || disposed) return;
-  const revision = ++renderRevision;
+  if (!pdf || !canvas.value || !stage.value || disposed) return;
+  const revision = ++renderRevision, currentDocument = pdf;
+  rendering.value = true;
+  renderError.value = '';
   try {
-    const documentPage = await pdf.getPage(page.value);
+    const documentPage = await currentDocument.getPage(page.value);
     if (revision !== renderRevision || disposed) return;
     if (renderTask) {
       renderTask.cancel();
-      try {
-        await renderTask.promise;
-      } catch {}
+      try { await renderTask.promise; } catch {}
     }
     if (revision !== renderRevision || disposed) return;
     const viewport = documentPage.getViewport({ scale: 1 });
-    const width = Math.max(100, stage.value.clientWidth - 32);
-    const height = present.value
-      ? Math.max(100, stage.value.clientHeight - 32)
-      : props.format === "Word"
-        ? 620
-        : 440;
-    const scale =
-      Math.min(width / viewport.width, height / viewport.height) * zoom.value;
-    const fitted = documentPage.getViewport({ scale });
-    const density = Math.min(devicePixelRatio || 1, 2);
-    canvas.value.width = Math.floor(fitted.width * density);
-    canvas.value.height = Math.floor(fitted.height * density);
-    canvas.value.style.width = fitted.width + "px";
-    canvas.value.style.height = fitted.height + "px";
+    const style = getComputedStyle(stage.value);
+    const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const layout = pdfLayout({
+      pageWidth: viewport.width, pageHeight: viewport.height,
+      width: stage.value.clientWidth - horizontalPadding,
+      height: stage.value.clientHeight - verticalPadding,
+      fullscreen: present.value, zoom: zoom.value, pixelRatio: devicePixelRatio || 1,
+    });
+    const fitted = documentPage.getViewport({ scale: layout.scale });
+    canvas.value.width = Math.max(1, Math.floor(fitted.width * layout.density));
+    canvas.value.height = Math.max(1, Math.floor(fitted.height * layout.density));
+    canvas.value.style.width = fitted.width + 'px';
+    canvas.value.style.height = fitted.height + 'px';
     renderTask = documentPage.render({
-      canvasContext: canvas.value.getContext("2d"),
-      viewport: fitted,
-      transform: [density, 0, 0, density, 0, 0],
+      canvasContext: canvas.value.getContext('2d'), viewport: fitted,
+      transform: [layout.density, 0, 0, layout.density, 0, 0],
     });
     await renderTask.promise;
+    if (revision === renderRevision && !disposed) canvasReady.value = true;
   } catch (cause) {
-    if (!disposed && cause.name !== "RenderingCancelledException")
-      error.value = "页面渲染失败，请重试。";
+    if (!disposed && revision === renderRevision && cause.name !== 'RenderingCancelledException') {
+      canvasReady.value = false;
+      renderError.value = '这一页未能显示，请重试或下载文件。';
+    }
+  } finally {
+    if (!disposed && revision === renderRevision) rendering.value = false;
   }
 }
 function turn(delta) {
   page.value = Math.max(1, Math.min(pages.value, page.value + delta));
+  if (stage.value) stage.value.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+}
+function resetZoom() {
+  zoom.value = 1;
+  stage.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
 function key(event) {
-  if (event.key === "Escape") {
-    present.value = false;
-    return;
+  if (present.value) trapDialogFocus(event, root.value);
+  if (event.key === 'Escape') { present.value = false; return; }
+  if (event.target.closest('button,a,input,select') || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (['ArrowRight', 'PageDown'].includes(event.key) || present.value && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
+    event.preventDefault(); turn(1);
   }
-  if (event.target.closest('button,a,input,select')) return;
-  if (["ArrowRight", "ArrowDown", "Enter", " "].includes(event.key)) {
-    event.preventDefault();
-    turn(1);
+  if (['ArrowLeft', 'PageUp'].includes(event.key) || present.value && event.key === 'ArrowUp') {
+    event.preventDefault(); turn(-1);
   }
-  if (["ArrowLeft", "ArrowUp"].includes(event.key)) {
-    event.preventDefault();
-    turn(-1);
-  }
-  if (event.key === "+") zoom.value = Math.min(3, zoom.value + 0.15);
-  if (event.key === "-") zoom.value = Math.max(0.4, zoom.value - 0.15);
+  if (event.key === '+') { event.preventDefault(); zoom.value = Math.min(3, zoom.value + 0.15); }
+  if (event.key === '-') { event.preventDefault(); zoom.value = Math.max(0.4, zoom.value - 0.15); }
+  if (event.key.toLowerCase() === 'f') { event.preventDefault(); present.value = !present.value; }
 }
-function globalKey(event) {
-  if (present.value) key(event);
-}
-watch([page, zoom, present], () => nextTick(draw));
-watch(present, (value) => {
-  document.body.style.overflow = value ? "hidden" : "";
+watch([page, zoom, present], () => nextTick(queueDraw));
+watch(present, async value => {
+  zoom.value = 1;
+  if (value) {
+    previousFocus = document.activeElement;
+    previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  } else unlock();
+  await nextTick();
+  if (disposed) return;
+  if (value) root.value?.focus({ preventScroll: true });
+  else if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
 });
-onMounted(() => document.addEventListener("keydown", globalKey));
-onUnmounted(() => {
+watch(() => [props.url, props.source], close);
+onBeforeUnmount(() => {
   disposed = true;
-  renderRevision++;
-  observer?.disconnect();
-  renderTask?.cancel();
-  loadTask?.destroy();
-  if (present.value) document.body.style.overflow = "";
-  document.removeEventListener("keydown", globalKey);
+  documentRevision++;
+  releaseDocument();
+  unlock();
 });
 </script>
+
 <template>
-  <div class="my-8" data-preview-control>
-    <div v-if="!opened" class="linear-card pdf-preview-card p-4">
-      <h3 class="text-[15px] font-semibold text-primary mb-3">
-        {{ title || format }}
-      </h3>
-      <p v-if="size !== undefined" class="font-mono text-[11px] text-muted mb-3">{{ format }} · {{ fileSize(size) }}</p>
-      <p v-if="error" role="status" class="text-[13px] text-secondary mb-3">
-        {{ error }}
-      </p>
-      <div class="flex flex-wrap items-center gap-3">
-        <button class="btn-secondary" :disabled="loading" @click="open">
-          {{
-            loading ? "正在加载…" : error ? "重试预览" : "预览 " + format
-          }}</button
-        ><a
-          v-if="source"
-          :href="safeUrl(source)"
-          download
-          class="text-[13px] text-secondary hover:text-accent"
-          >下载原文件</a
-        ><a
-          :href="safeUrl(url)"
-          download
-          class="text-[13px] text-secondary hover:text-accent"
-          >下载 PDF</a
-        >
+  <section class="document-preview" data-preview-control :aria-label="'文档预览：' + displayName">
+    <div v-if="!opened" class="document-preview-card">
+      <div class="preview-placeholder">
+        <svg class="preview-document-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></svg>
+        <div class="preview-file-info">
+          <div class="preview-label">文档预览 <span class="preview-format">{{ format }}</span></div>
+          <div class="preview-file-name">{{ displayName }}</div>
+          <div v-if="size !== undefined || source" class="preview-file-meta">
+            <span v-if="size !== undefined">{{ fileSize(size) }}</span><span v-if="source">转换为 PDF 展示</span>
+          </div>
+        </div>
+      </div>
+      <div v-if="loadError" class="preview-error" role="alert">{{ loadError }}</div>
+      <div class="preview-actions">
+        <button ref="openButton" type="button" class="btn-secondary" :disabled="loading" @click="open">{{ loading ? '正在加载…' : loadError ? '重试预览' : '预览 ' + format }}</button>
+        <button v-if="loading" type="button" class="preview-link" @click="close">取消加载</button>
+        <PreviewDownloads :url="url" :source="source" />
       </div>
     </div>
-    <Teleport v-else to="body" :disabled="!present"
-      ><div
-        ref="root"
-        tabindex="0"
-        class="slide-player-root border border-subtle rounded-xl overflow-hidden bg-page"
-        :class="{ 'theater-presentation-mode': present }"
-        :role="present ? 'dialog' : undefined"
-        :aria-modal="present ? 'true' : undefined"
-        :aria-label="present ? title : undefined"
-        @keydown.stop="key"
-      >
-        <div
-          class="slide-player-header flex flex-wrap gap-y-2 justify-between items-center px-3 py-2.5"
-        >
-          <div class="flex gap-2 items-center w-full sm:w-auto min-w-0">
-            <span class="font-mono text-[10px] text-accent shrink-0">{{
-              format.toUpperCase()
-            }}</span
-            ><span class="truncate text-[13px] text-primary">{{ title }}</span>
+    <Teleport v-else to="body" :disabled="!present">
+      <div ref="root" tabindex="0" class="document-preview document-viewer slide-player-root" :class="{ 'theater-presentation-mode': present }" :style="present ? viewportStyle : undefined" :role="present ? 'dialog' : undefined" :aria-modal="present ? 'true' : undefined" :aria-label="displayName" @keydown.stop="key">
+        <div class="preview-viewer-header">
+          <div class="preview-heading-row">
+            <span class="preview-format">{{ format }}</span><span class="preview-viewer-title" :title="displayName">{{ displayName }}</span>
+            <button type="button" class="icon-button" aria-label="收起预览" @click="close"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
           </div>
-          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" @turn="turn" @zoom="zoom = $event" @present="present = true" />
+          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" @turn="turn" @zoom="zoom = $event" @reset="resetZoom" @present="present = true" />
         </div>
-        <div
-          ref="stage"
-          class="pdf-stage relative flex-1 overflow-auto p-4"
-        >
-          <canvas ref="canvas" class="slide-canvas" @click="present = true" />
-          <p v-if="error" role="status">{{ error }}</p>
+        <div ref="stage" class="pdf-stage" :class="{ 'is-rendering': rendering }" :aria-busy="rendering">
+          <canvas v-show="canvasReady && !renderError" ref="canvas" class="slide-canvas" role="img" :aria-label="displayName + '，第 ' + page + ' 页'" />
+          <div v-if="rendering" class="preview-render-status" role="status">正在显示第 {{ page }} 页…</div>
+          <div v-if="renderError" class="preview-error preview-page-error" role="alert">{{ renderError }} <button type="button" class="btn-secondary" @click="queueDraw">重试这一页</button></div>
         </div>
-        <div
-          v-if="present"
-          class="pdf-fullscreen-controls"
-        >
-          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" present @turn="turn" @zoom="zoom = $event" @present="present = false" />
+        <div v-if="present" class="pdf-fullscreen-controls">
+          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" present @turn="turn" @zoom="zoom = $event" @reset="resetZoom" @present="present = false" />
         </div>
-      </div></Teleport
-    >
-  </div>
+      </div>
+    </Teleport>
+  </section>
 </template>

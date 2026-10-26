@@ -1,5 +1,6 @@
 <script setup>
 import { ref, useId, watch, onMounted, onUnmounted } from 'vue';
+import { trapDialogFocus } from '../lib/focus';
 
 const props = defineProps({
   open: Boolean,
@@ -34,14 +35,7 @@ function sync() {
   }
 }
 function keydown(event) {
-  if (event.key !== 'Tab') return;
-  const controls = [...dialog.value.querySelectorAll('button:not([disabled]),a[href],input,select,[tabindex="0"]')]
-    .filter(element => element.getClientRects().length);
-  const first = controls[0], last = controls.at(-1);
-  if ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
-    event.preventDefault();
-    (event.shiftKey ? last : first)?.focus();
-  }
+  trapDialogFocus(event, dialog.value);
 }
 watch(() => props.open, sync, { flush: 'post' });
 onMounted(() => {

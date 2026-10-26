@@ -42,7 +42,8 @@ excerpt: "介绍正文与配套材料的用途。"
 [阅读课程讲义](attachments/files/my-notes.docx)
 ```
 
-PDF / Word / PPT 点击后加载预览，并保留原文件下载。
+PDF / Word / PPT 统一显示文档预览入口，点击后加载并保留原文件下载。
+PDF 与 Word 按正文宽度自适应，页高随当前页比例变化；可翻页、缩放、适应宽度和收起。
 本地 Office 附件需要 LibreOffice，构建时先转成 PDF；不保留 PPT 动画和音视频。
 
 ## 音视频

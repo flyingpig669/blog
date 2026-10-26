@@ -120,7 +120,7 @@ excerpt: "用一两句话说明文章解决的问题。"
 在这里撰写正文。
 ```
 
-页面会显示 FrontMatter 标题，正文不必重复 `#` 大标题。`date` 可省略，首次构建写入并保持不变；`updated` 可记录更新日期。`slug` 可省略，由文件名自动生成：中文保留、英文转小写、空格与符号转连字符。修改文件名会改变自动地址；要保持地址稳定就显式填写 `slug`。
+页面会显示 FrontMatter 标题，正文不必重复 `#` 大标题。`date` 可省略，首次构建写入并保持不变；手动填写 `updated: "2026-10-26"` 后，首页与文章列表、归档和正文头部会显示「更新于」；省略时不显示，保存文件不会自动改写。书籍入口取可见章节中最近的更新时间，不改变发布排序。`slug` 可省略，由文件名自动生成：中文保留、英文转小写、空格与符号转连字符。修改文件名会改变自动地址；要保持地址稳定就显式填写 `slug`。
 
 | `type` | 场景 | 进入文章流 |
 | --- | --- | --- |
@@ -223,6 +223,8 @@ attachments: ["attachments/files/data.zip", "attachments/files/my-notes.docx"]
 ```
 
 附件显示类型、大小、预览与下载入口。PDF / Word / PPT 点击后才加载预览；`.doc`、`.docx`、`.ppt`、`.pptx` 在构建时由 LibreOffice 转成 PDF，并缓存结果。macOS 支持 `/Applications/LibreOffice.app`，其他环境使用 PATH 中的 `soffice`，也可设置 `AURORA_SOFFICE`。CI 已安装转换器与中文字体。PPT 不保留动画、音视频和切换效果，复杂版式可能与 Office 有差异。外部 Office 链接不自动转换。
+
+预览入口统一显示「文档预览」和文件信息，点击后才加载。PDF / Word 按当前页比例适应正文宽度，高度随页面和屏幕变化；全屏时适应可见视口。工具栏提供「适应宽度／适应页面」、翻页、缩放与下载，可收起预览释放资源，失败时可重试。
 
 演示文稿可用 FrontMatter `slide: "attachments/slides/talk.pdf"` 在文首提供入口，或用正文 `::: slide 路径 标题` 指定位置；同文件会去重。支持翻页、缩放和全屏。音视频可使用带 `controls` 的原生 `audio` / `video`。完整例子见 [媒体模板](templates/template-media-attachments.md) 与 [课件模板](templates/template-slide-presentation.md)。
 

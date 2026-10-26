@@ -131,8 +131,12 @@ export function createStore() { return shallowReactive({
       var collection = self.getColumnById(id);
       if (!collection) { entries.push.apply(entries, posts); return; }
       var latest = posts.slice().sort(function(a, b) { return self.comparePosts(a, b, 'date'); })[0];
+      var updated = posts.reduce(function(latest, post) {
+        return post.updated && post.updated > latest ? post.updated : latest;
+      }, '');
       entries.push({ kind: 'book', slug: 'book:' + id, collection: collection,
         title: collection.name, excerpt: collection.desc, date: latest.date,
+        ...(updated ? { updated: updated } : {}),
         chapterCount: collection.postsCount, pinned: posts.some(function(post) { return post.pinned; }),
         tags: Array.from(new Set(posts.flatMap(function(post) { return post.tags || []; }))) });
     });

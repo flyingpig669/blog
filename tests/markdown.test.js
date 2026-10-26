@@ -38,3 +38,10 @@ test('template comments cannot activate PDF or math preprocessing', () => {
   assert.match(html, /Visible text/);
   assert.match(render('```html\n<!-- keep this example -->\n```'), /&lt;!-- keep this example --&gt;/);
 });
+
+test('unnamed PDF directives leave labeling to the common document preview', () => {
+  const html = render('::: pdf attachments/files/notes.pdf\n:::');
+  assert.match(html, /data-slide-title=""/);
+  assert.doesNotMatch(html, /课件预览/);
+  assert.match(render('::: pdf attachments/files/notes.pdf 指定标题\n:::'), /data-slide-title="指定标题"/);
+});
