@@ -341,6 +341,8 @@ def write_sitemap(site_url, last_modified=''):
     """
     if not site_url:
         return False
+    if len(last_modified) > 10:
+        last_modified = datetime.fromisoformat(last_modified).replace(tzinfo=ZoneInfo('Asia/Shanghai')).isoformat(timespec='minutes')
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += f'  <url>\n    <loc>{escape_xml(site_url)}/</loc>\n'
@@ -581,7 +583,7 @@ def sync():
 
     print(f"\n✅ 同步完成！共收录 {len(synced_posts)} 篇博文，{len(columns_list)} 个专栏。")
     print(f" -> 索引文件已更新: data/index.json")
-    last_modified = max((max(p.get('date', ''), p.get('updated', '')) for p in synced_posts), default='')
+    last_modified = max((max(p.get('date', ''), p.get('updated', '').replace('T', ' ')) for p in synced_posts), default='')
     if write_sitemap(cfg.get("siteUrl", ""), last_modified):
         print(f" -> sitemap.xml 已生成: {cfg['siteUrl']}/")
     else:

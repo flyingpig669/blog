@@ -196,3 +196,38 @@ test('home books show the latest explicit update from visible chapters without c
   delete chapters[1].updated;
   assert.equal(store.getHomeEntries()[0].updated, undefined);
 });
+
+test('home sorts by minute-level updates with publication fallback, pinning and stable ties', () => {
+  const store = createStore();
+  store.posts = [
+    {slug:'earlier-minute', date:'2026-01-01', updated:'2026-10-26 09:30'},
+    {slug:'latest-minute', date:'2026-01-01', updated:'2026-10-26T09:31'},
+    {slug:'new-post', date:'2026-10-26'},
+    {slug:'pinned', date:'2020-01-01', pinned:true},
+    {slug:'legacy-date', date:'2026-01-01', updated:'2026-10-25'},
+    {slug:'hidden', date:'2026-10-26', updated:'2026-10-26 23:59', home:false}
+  ];
+  const expected = ['pinned','latest-minute','earlier-minute','new-post','legacy-date'];
+  assert.deepEqual(Array.from(store.getHomeEntries(), post => post.slug), expected);
+  assert.deepEqual(Array.from(store.getHomePage(1, 2).items, post => post.slug), expected.slice(0, 2));
+  store.posts.reverse();
+  assert.deepEqual(Array.from(store.getHomeEntries(), post => post.slug), expected);
+  assert.equal(store.getPosts({sort:'date'})[0].slug, 'hidden');
+  assert.equal(store.getPosts({sort:'date'}).at(-1).slug, 'pinned');
+});
+
+test('home book activity accounts for new chapters and ignores hidden updates', () => {
+  const store = createStore();
+  const chapters = [
+    {slug:'old', type:'books', column:'book', date:'2026-10-01', updated:'2026-10-25 23:59'},
+    {slug:'new', type:'books', column:'book', date:'2026-10-26'},
+    {slug:'hidden', type:'books', column:'book', date:'2026-10-26', updated:'2026-10-26 23:59', home:false}
+  ];
+  store.posts = chapters.concat([{slug:'article', date:'2026-10-01', updated:'2026-10-25 23:59'}]);
+  store.documents = Object.fromEntries(chapters.map(post => [post.slug, post]));
+  store.rawColumns = [{id:'book', name:'Book', postIds:chapters.map(post => post.slug)}];
+  assert.equal(store.getHomeEntries()[0].kind, 'book');
+  chapters[0].updated = '2026-10-26T09:30';
+  chapters[1].updated = '2026-10-26 09:31';
+  assert.equal(store.getHomeEntries()[0].updated, '2026-10-26 09:31');
+});

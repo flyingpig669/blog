@@ -60,10 +60,15 @@ def validate_metadata(data):
         if not fields.get(key):
             continue
         value = fields[key]
-        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
-            raise ValueError(f'{key} 必须使用 YYYY-MM-DD')
+        pattern = r'\d{4}-\d{2}-\d{2}' + (r'(?:[ T](?:[01]\d|2[0-3]):[0-5]\d)?' if key == 'updated' else '')
+        if not re.fullmatch(pattern, value):
+            expected = 'YYYY-MM-DD HH:mm（兼容 YYYY-MM-DD）' if key == 'updated' else 'YYYY-MM-DD'
+            raise ValueError(f'{key} 必须使用 {expected}')
         try:
-            datetime.date.fromisoformat(value)
+            if len(value) > 10:
+                datetime.datetime.fromisoformat(value)
+            else:
+                datetime.date.fromisoformat(value)
         except ValueError as error:
             raise ValueError(f'{key} 不是有效日期') from error
     for key in ['pinned', 'test', 'home']:

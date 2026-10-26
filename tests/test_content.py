@@ -73,6 +73,20 @@ class ContentTests(unittest.TestCase):
             self.assertEqual(post['date'], '2026-01-02')
             self.assertEqual(post['updated'], '2026-02-03')
 
+    def test_updated_accepts_valid_minutes_and_rejects_invalid_dates_or_times(self):
+        from scripts.python.lib.frontmatter import parse_frontmatter
+        for value in ['2026-10-26 09:30', '2026-10-26T09:30', '2026-10-26']:
+            metadata, _ = parse_frontmatter('---\nupdated: "' + value + '"\n---\nBody')
+            self.assertEqual(metadata['updated'], value)
+        for value in ['2026-02-30 09:30', '2026-10-26 24:00', '2026-10-26 09:60', '2026-10-26 9:30', '2026-10-26 09:30:01']:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                parse_frontmatter('---\nupdated: "' + value + '"\n---\nBody')
+
+    def test_sitemap_uses_timezone_qualified_minute_timestamp(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, AURORA_OUTPUT_DIR=directory):
+            sync_posts.write_sitemap('https://example.com', '2026-10-26 09:30')
+            self.assertIn('<lastmod>2026-10-26T09:30+08:00</lastmod>', (Path(directory) / 'sitemap.xml').read_text())
+
     def test_compiled_types_keep_books_and_indexes_searchable_and_pages_separate(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'source'

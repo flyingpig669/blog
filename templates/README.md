@@ -45,7 +45,7 @@ cp templates/template-standard-post.md posts/my-first-note.md
 | `tags` | `["物理", "量子计算"]` | 标签，不带 `#` |
 | `excerpt` | `"说明文章的问题与结论。"` | 列表摘要 |
 | `date` | `"2026-10-25"` | 可省略，首次构建写入并保持不变 |
-| `updated` | `"2026-10-26"` | 手动填写，列表和详情显示「更新于」；不改变发布排序 |
+| `updated` | `"2026-10-26 22:46"` | 北京时间，精确到分钟；首页按更新时间排序，未填用发布日期；归档仍按发布日排序 |
 | `slug` | `"my-first-note"` | 可省略；显式填写可固定文章地址，支持中文 |
 | `type` | `normal` / `books` / `index` / `post` | 选择内容结构 |
 | `pinned` | `true` | 首页置顶 |

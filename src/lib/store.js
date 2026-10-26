@@ -2,6 +2,7 @@ import { shallowReactive } from 'vue';
 import { config as siteConfig } from '../config/blog.config.js';
 import { routes as defaultRoutes, registry } from '../config/routes.js';
 import { html } from './html.js';
+import { contentTimestamp, homeTimestamp } from './dates.js';
 import { THEME_STORAGE_KEY, readThemePreference, normalizeTheme, systemTheme, applyDocumentTheme } from './theme.js';
 /**
  * ==============================================================================
@@ -104,6 +105,10 @@ export function createStore() { return shallowReactive({
   // 同日先显示独立文章，再按专栏分组和章节序号排列，最终用标题与 slug 消除扫描顺序影响。
   comparePosts: function(a, b, sort) {
     if (sort !== 'date' && !!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+    if (sort === 'updated') {
+      var byUpdated = homeTimestamp(b) - homeTimestamp(a);
+      if (byUpdated) return byUpdated;
+    }
     var dateA = Date.parse(a.date), dateB = Date.parse(b.date);
     var byDate = (Number.isFinite(dateB) ? dateB : 0) - (Number.isFinite(dateA) ? dateA : 0);
     if (byDate) return byDate;
@@ -132,7 +137,7 @@ export function createStore() { return shallowReactive({
       if (!collection) { entries.push.apply(entries, posts); return; }
       var latest = posts.slice().sort(function(a, b) { return self.comparePosts(a, b, 'date'); })[0];
       var updated = posts.reduce(function(latest, post) {
-        return post.updated && post.updated > latest ? post.updated : latest;
+        return (contentTimestamp(post.updated) ?? -Infinity) > (contentTimestamp(latest) ?? -Infinity) ? post.updated : latest;
       }, '');
       entries.push({ kind: 'book', slug: 'book:' + id, collection: collection,
         title: collection.name, excerpt: collection.desc, date: latest.date,
@@ -140,7 +145,7 @@ export function createStore() { return shallowReactive({
         chapterCount: collection.postsCount, pinned: posts.some(function(post) { return post.pinned; }),
         tags: Array.from(new Set(posts.flatMap(function(post) { return post.tags || []; }))) });
     });
-    return entries.sort(function(a, b) { return self.comparePosts(a, b); });
+    return entries.sort(function(a, b) { return self.comparePosts(a, b, 'updated'); });
   },
 
   getHomePage: function(requestedPage, requestedSize) {
