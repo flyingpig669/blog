@@ -1475,29 +1475,40 @@ button.icon-button:not([hidden]) { display: inline-flex; }
 .preview-link svg { width: 14px; height: 14px; flex-shrink: 0; }
 .document-preview .preview-link:hover { color: var(--accent-primary); background: var(--bg-code); }
 .document-viewer { margin: 0; min-width: 0; }
-.preview-heading-row { width: fit-content; max-width: 100%; display: flex; align-items: center; gap: 10px; padding: 2px 4px 2px 12px; border-radius: 10px; background: var(--bg-surface); }
+.preview-heading-row { width: fit-content; max-width: 100%; display: flex; align-items: center; gap: 10px; padding: 2px 4px 2px 12px; border: 0; border-radius: 10px; background: var(--bg-code); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14); }
 .preview-viewer-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
 .preview-error { padding: 12px; color: var(--text-secondary); font-size: 13px; overflow-wrap: anywhere; }
 .preview-page-error { flex: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; }
-.preview-render-status { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 1; padding: 4px 10px; border-radius: 6px; background: var(--bg-surface); color: var(--text-secondary); font: 11px var(--font-mono); white-space: nowrap; pointer-events: none; }
-.document-viewer.slide-player-root { border: 0; border-radius: 8px; box-shadow: none; overflow: clip; }
+.preview-render-status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; padding: 5px 12px; border: 0; border-radius: 999px; background: var(--bg-code); color: var(--text-secondary); font: 11px var(--font-mono); white-space: nowrap; pointer-events: none; }
+/* 预览器本体零边框零投影：页面由底色层次区分，不靠框线 */
+.document-viewer.slide-player-root { border: 0; border-radius: 10px; box-shadow: none; overflow: clip; background: var(--bg-page); }
 /* The programmatic keyboard target is the stage; action controls keep their focus rings. */
 .document-viewer:focus-visible { outline: 0; }
 .document-viewer .slide-canvas { border-radius: 0; box-shadow: none; }
 .preview-overlay { z-index: 3; opacity: 0; pointer-events: none; transition: opacity 180ms ease-out; }
 .preview-chrome-visible .preview-overlay { opacity: 1; pointer-events: auto; }
+/* 翻页：页面左右两侧垂直居中，圆形无边框浮钮，左上一页 / 右下一页 */
+.pdf-turn { position: absolute; top: 50%; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 999px; background: var(--bg-code); color: var(--text-secondary); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16); cursor: pointer; opacity: 0; pointer-events: none; transform: translateY(-50%); transition: opacity 180ms ease-out, color 150ms ease-out, background 150ms ease-out; }
+.pdf-turn svg { width: 20px; height: 20px; }
+.pdf-turn-prev { left: 12px; }
+.pdf-turn-next { right: 12px; }
+.preview-chrome-visible .pdf-turn:not(:disabled) { opacity: 1; pointer-events: auto; }
+.pdf-turn:not(:disabled):hover { background: color-mix(in srgb, var(--bg-code) 86%, var(--text-primary) 8%); color: var(--text-primary); }
+.pdf-turn:disabled { opacity: 0; pointer-events: none; }
 .preview-overlay-top { position: absolute; inset: 12px 12px auto; }
 .preview-overlay-bottom { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); height: 0; margin: 0 12px; }
 .preview-overlay-bottom > .pdf-controls { transform: translateY(calc(-100% - 12px)); }
-.pdf-controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 8px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 4px; border-radius: 12px; background: var(--bg-surface); color: var(--text-primary); font-size: 12px; }
+.pdf-controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 10px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 4px 8px; border: 0; border-radius: 12px; background: var(--bg-code); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14); color: var(--text-primary); font-size: 12px; }
 .pdf-control-group { display: flex; align-items: center; gap: 0; }
 .document-preview .preview-tool { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 44px; height: 44px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); text-decoration: none; cursor: pointer; transition: color 150ms ease-out, background 150ms ease-out; }
 .document-preview .preview-tool:hover { background: var(--bg-code); color: var(--text-primary); }
 .preview-tool svg { width: 18px; height: 18px; }
-.pdf-page-count { min-width: 54px; text-align: center; white-space: nowrap; font-size: 11px; }
+.pdf-page-count { display: inline-flex; align-items: baseline; justify-content: center; gap: 3px; min-width: 58px; padding: 0 4px; text-align: center; white-space: nowrap; font-size: 11px; letter-spacing: 0.04em; color: var(--text-secondary); }
+.pdf-page-count i { font-style: normal; color: var(--text-muted); }
+.pdf-control-rule { flex-shrink: 0; width: 1px; height: 16px; background: var(--divider); }
 .pdf-fit-control { font: 11px var(--font-mono); }
 .pdf-stage { position: relative; display: flex; flex: 1 1 auto; align-items: flex-start; min-width: 0; min-height: 0; padding: 0; overflow: auto; overscroll-behavior: contain; }
-.pdf-stage .slide-canvas { flex-shrink: 0; margin: auto; max-width: none; }
+.pdf-stage .slide-canvas { flex-shrink: 0; margin: auto; max-width: none; transition: opacity 150ms ease-out; }
 .pdf-stage.is-rendering .slide-canvas { opacity: 0.45; }
 .theater-presentation-mode .pdf-stage { min-height: 0; }
 .theater-presentation-mode .preview-overlay-bottom { position: absolute; left: 0; right: 0; }
@@ -1507,6 +1518,9 @@ button.icon-button:not([hidden]) { display: inline-flex; }
   .preview-overlay-bottom { margin-inline: 8px; }
   .pdf-controls { column-gap: 4px; }
   .pdf-controls > .pdf-view-actions { justify-content: center; flex-basis: 100%; }
+  .pdf-turn { width: 44px; height: 44px; }
+  .pdf-turn-prev { left: 8px; }
+  .pdf-turn-next { right: 8px; }
 }
 .theater-presentation-mode { padding-top: env(safe-area-inset-top); height: var(--viewport-height, 100dvh) !important; top: var(--viewport-top, 0px) !important; bottom: auto !important; }
 button:disabled { opacity: 0.4; cursor: default; }

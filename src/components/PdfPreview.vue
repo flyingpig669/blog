@@ -221,8 +221,10 @@ onBeforeUnmount(() => {
           <div v-if="rendering" class="preview-render-status" role="status">正在显示第 {{ page }} 页…</div>
           <div v-if="renderError" class="preview-error preview-page-error" role="alert">{{ renderError }} <button type="button" class="btn-secondary" @click="queueDraw">重试这一页</button></div>
         </div>
+        <button type="button" class="pdf-turn pdf-turn-prev" :disabled="page <= 1" aria-label="上一页" title="上一页 · ←" @click="turn(-1)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m14 6-6 6 6 6" /></svg></button>
+        <button type="button" class="pdf-turn pdf-turn-next" :disabled="page >= pages" aria-label="下一页" title="下一页 · →" @click="turn(1)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m10 6 6 6-6 6" /></svg></button>
         <div class="preview-overlay preview-overlay-bottom">
-          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" :present="present" @turn="turn" @zoom="zoom = $event" @reset="resetZoom" @present="present = !present" />
+          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" :present="present" @zoom="zoom = $event" @reset="resetZoom" @present="present = !present" />
         </div>
       </div>
     </Teleport>
