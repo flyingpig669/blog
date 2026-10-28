@@ -42,9 +42,15 @@ function unlock() {
     previousOverflow = undefined;
   }
 }
+// 预览接管画面时通知页面：底部移动端阅读栏需让位（见 main.css body.preview-open）
+function markOpenState(open) {
+  if (typeof document === 'undefined') return;
+  document.body.classList.toggle('preview-open', open);
+}
 function close() {
   documentRevision++;
   present.value = false;
+  markOpenState(false);
   releaseDocument();
   opened.value = loading.value = rendering.value = canvasReady.value = false;
   loadError.value = renderError.value = '';
@@ -69,6 +75,7 @@ async function open() {
     pdf = loaded;
     pages.value = pdf.numPages;
     opened.value = true;
+    markOpenState(true);
     await nextTick();
     if (disposed || revision !== documentRevision) return;
     root.value?.focus({ preventScroll: true });
@@ -183,6 +190,7 @@ watch(() => [props.url, props.source], close);
 onBeforeUnmount(() => {
   disposed = true;
   documentRevision++;
+  markOpenState(false);
   releaseDocument();
   unlock();
 });

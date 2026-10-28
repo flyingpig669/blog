@@ -10,9 +10,9 @@ defineEmits(['zoom', 'present', 'reset']);
     <span class="pdf-page-count font-mono" aria-live="polite" :aria-label="'第 ' + page + ' 页，共 ' + pages + ' 页'">{{ pad(page) }}<i aria-hidden="true">/</i>{{ pad(pages) }}</span>
     <span class="pdf-control-rule" aria-hidden="true" />
     <div class="pdf-control-group font-mono" :aria-label="'缩放 ' + Math.round(zoom * 100) + '%'">
-      <button type="button" class="preview-tool" aria-label="缩小" title="缩小 · −" :disabled="zoom <= 0.4" @click="$emit('zoom', Math.max(0.4, zoom - 0.15))">−</button>
+      <button type="button" class="preview-tool pdf-step-control" aria-label="缩小" title="缩小 · −" :disabled="zoom <= 0.4" @click="$emit('zoom', Math.max(0.4, zoom - 0.15))">−</button>
       <button type="button" class="preview-tool pdf-fit-control" :aria-label="present ? '适应页面' : '适应宽度'" title="恢复自适应" @click="$emit('reset')">{{ Math.round(zoom * 100) }}%</button>
-      <button type="button" class="preview-tool" aria-label="放大" title="放大 · +" :disabled="zoom >= 3" @click="$emit('zoom', Math.min(3, zoom + 0.15))">＋</button>
+      <button type="button" class="preview-tool pdf-step-control" aria-label="放大" title="放大 · +" :disabled="zoom >= 3" @click="$emit('zoom', Math.min(3, zoom + 0.15))">+</button>
     </div>
     <div class="pdf-control-group pdf-view-actions">
       <PreviewDownloads :url="url" :source="source" compact />
