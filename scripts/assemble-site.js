@@ -1,6 +1,7 @@
 // One publication whitelist for local builds and CI. Never copy source directories.
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const {resourcePath} = require('./generated-path');
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, '_site');
@@ -19,6 +20,14 @@ for (const name of ['css/utilities.css','js/vue','data']) {
   const target = path.join(output,name); fs.mkdirSync(path.dirname(target),{recursive:true});
   fs.cpSync(resourcePath(name),target,{recursive:true});
 }
+// Stable entry URLs otherwise let browsers reuse an old UI after deployment.
+const entryPath = path.join(output, 'index.html');
+let entryHtml = fs.readFileSync(entryPath, 'utf8');
+for (const asset of ['css/main.css', 'css/utilities.css', 'js/vue/app.js']) {
+  const digest = createHash('sha256').update(fs.readFileSync(path.join(output, asset))).digest('hex').slice(0, 12);
+  entryHtml = entryHtml.replaceAll(`"${asset}"`, `"${asset}?v=${digest}"`);
+}
+fs.writeFileSync(entryPath, entryHtml);
 // The configured domain takes precedence; project Pages deploy below /repo/.
 const cname = path.join(root,'CNAME');
 const repository = process.env.GITHUB_REPOSITORY || '';

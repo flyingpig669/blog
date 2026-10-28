@@ -29,3 +29,14 @@ test('assembled site includes runtime bundles and excludes front-end source and 
   assert.equal(fs.existsSync(path.join(root,'data')),false);
   assert.doesNotMatch(fs.readFileSync(path.join(site,'404.html'),'utf8'),/__SITE_BASE__/);
 });
+
+test('published entry versions CSS and JavaScript using their actual content hashes', () => {
+  const { createHash } = require('node:crypto');
+  const site = path.join(root, '_site');
+  const entry = fs.readFileSync(path.join(site, 'index.html'), 'utf8');
+  for (const asset of ['css/main.css', 'css/utilities.css', 'js/vue/app.js']) {
+    const digest = createHash('sha256').update(fs.readFileSync(path.join(site, asset))).digest('hex').slice(0, 12);
+    assert.ok(entry.includes(`"${asset}?v=${digest}"`), asset);
+    assert.equal(entry.includes(`"${asset}"`), false, asset + ' must not reuse the unversioned cache');
+  }
+});
