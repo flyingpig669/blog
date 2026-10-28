@@ -1,7 +1,7 @@
 <script setup>
-import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { ensureViewer } from '../lib/viewer';
-import { safeUrl } from '../lib/content';
+import { safeUrl, pad } from '../lib/content';
 import { fileSize } from '../lib/attachments.js';
 import { pdfLayout, previewFileName } from '../lib/pdf-layout.js';
 import { trapDialogFocus } from '../lib/focus';
@@ -49,6 +49,7 @@ function markOpenState(open) {
 }
 function close() {
   documentRevision++;
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   present.value = false;
   markOpenState(false);
   releaseDocument();
@@ -157,10 +158,26 @@ function resetZoom() {
   zoom.value = 1;
   stage.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
+// 演示模式：先进 CSS 剧场布局把节点搬到 body，再请求原生全屏，
+// 顺序反过来会在 Teleport 移动节点时被浏览器踢出全屏。
+async function togglePresent() {
+  if (present.value) { await exitPresent(); return; }
+  present.value = true;
+  await nextTick();
+  try { await root.value?.requestFullscreen?.(); } catch { /* 原生全屏被拒时退回剧场模式 */ }
+}
+async function exitPresent() {
+  if (document.fullscreenElement) { try { await document.exitFullscreen(); } catch {} }
+  present.value = false;
+}
+// 用户按 Esc / 浏览器自己退出全屏时，同步回预览态
+function onFullscreenChange() {
+  if (!document.fullscreenElement && present.value) present.value = false;
+}
 function key(event) {
   chrome.reveal();
   if (present.value) trapDialogFocus(event, root.value);
-  if (event.key === 'Escape') { event.preventDefault(); if (present.value) present.value = false; else close(); return; }
+  if (event.key === 'Escape') { event.preventDefault(); if (present.value) exitPresent(); else close(); return; }
   if (event.target.closest('button,a,input,select') || event.metaKey || event.ctrlKey || event.altKey) return;
   if (['ArrowRight', 'PageDown'].includes(event.key) || present.value && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
     event.preventDefault(); turn(1);
@@ -170,12 +187,13 @@ function key(event) {
   }
   if (event.key === '+') { event.preventDefault(); zoom.value = Math.min(3, zoom.value + 0.15); }
   if (event.key === '-') { event.preventDefault(); zoom.value = Math.max(0.4, zoom.value - 0.15); }
-  if (event.key.toLowerCase() === 'f') { event.preventDefault(); present.value = !present.value; }
+  if (event.key.toLowerCase() === 'f') { event.preventDefault(); togglePresent(); }
 }
 watch([page, zoom, present], () => nextTick(queueDraw));
 watch(present, async value => {
   zoom.value = 1;
-  chrome.reveal();
+  // 退出放映恢复控件；进入时先不处理，等 focus 落定后再统一压回隐藏
+  if (!value) chrome.reveal();
   if (value) {
     previousFocus = document.activeElement;
     previousOverflow = document.body.style.overflow;
@@ -183,13 +201,18 @@ watch(present, async value => {
   } else unlock();
   await nextTick();
   if (disposed) return;
-  if (value) root.value?.focus({ preventScroll: true });
-  else if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+  if (value) {
+    root.value?.focus({ preventScroll: true });
+    // focus 会冒泡出 focusin → chrome.reveal()，必须在 focus 之后再压回隐藏
+    chrome.dismiss();
+  } else if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
 });
 watch(() => [props.url, props.source], close);
+onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
 onBeforeUnmount(() => {
   disposed = true;
   documentRevision++;
+  document.removeEventListener('fullscreenchange', onFullscreenChange);
   markOpenState(false);
   releaseDocument();
   unlock();
@@ -219,9 +242,11 @@ onBeforeUnmount(() => {
     <Teleport v-else to="body" :disabled="!present">
       <div ref="root" tabindex="0" class="document-preview document-viewer slide-player-root" :class="{ 'theater-presentation-mode': present, 'preview-chrome-visible': chrome.visible.value, 'slide-cursor-hidden': present && !chrome.visible.value }" :style="present ? viewportStyle : undefined" :role="present ? 'dialog' : undefined" :aria-modal="present ? 'true' : undefined" :aria-label="displayName" @keydown.stop="key" @pointermove="chrome.pointer" @pointerdown="chrome.touch" @pointerleave="chrome.hide" @focusin="chrome.reveal" @focusout="chrome.hide">
         <div class="preview-overlay preview-overlay-top">
-          <div class="preview-heading-row">
+          <div class="preview-heading-row" :class="{ 'is-present': present }">
             <span class="preview-format">{{ format }}</span><span class="preview-viewer-title" :title="displayName">{{ displayName }}</span>
-            <button type="button" class="preview-tool" aria-label="收起预览" title="收起预览 · Esc" @click="close"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+            <span v-if="present && pages" class="pdf-page-count font-mono" aria-live="polite" :aria-label="'第 ' + page + ' 页，共 ' + pages + ' 页'">{{ pad(page) }}<i aria-hidden="true">/</i>{{ pad(pages) }}</span>
+            <button v-if="present" type="button" class="preview-tool" aria-label="退出全屏" title="退出全屏 · Esc" @click="togglePresent"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9h5V4m6 0v5h5M4 15h5v5m6 0v-5h5" /></svg></button>
+            <button v-else type="button" class="preview-tool" aria-label="收起预览" title="收起预览 · Esc" @click="close"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
           </div>
         </div>
         <div ref="stage" class="pdf-stage" :class="{ 'is-rendering': rendering }" :aria-busy="rendering">
@@ -231,8 +256,8 @@ onBeforeUnmount(() => {
         </div>
         <button type="button" class="pdf-turn pdf-turn-prev" :disabled="page <= 1" aria-label="上一页" title="上一页 · ←" @click="turn(-1)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m14 6-6 6 6 6" /></svg></button>
         <button type="button" class="pdf-turn pdf-turn-next" :disabled="page >= pages" aria-label="下一页" title="下一页 · →" @click="turn(1)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m10 6 6 6-6 6" /></svg></button>
-        <div class="preview-overlay preview-overlay-bottom">
-          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" :present="present" @zoom="zoom = $event" @reset="resetZoom" @present="present = !present" />
+        <div v-if="!present" class="preview-overlay preview-overlay-bottom">
+          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" :present="present" @zoom="zoom = $event" @reset="resetZoom" @present="togglePresent" />
         </div>
       </div>
     </Teleport>

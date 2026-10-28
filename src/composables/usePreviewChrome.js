@@ -13,6 +13,8 @@ export function usePreviewChrome(root) {
     }, 2400);
   }
   function reveal() { visible.value = true; hide(); }
+  // 立即可见性由放映模式要求：进入全屏的那一帧就必须是一张干净的幻灯片
+  function dismiss() { clearTimeout(timer); visible.value = false; }
   function pointer(event) {
     if (event.pointerType !== 'touch') reveal();
   }
@@ -22,5 +24,5 @@ export function usePreviewChrome(root) {
     if (visible.value) hide();
   }
   onScopeDispose(() => clearTimeout(timer));
-  return { visible, reveal, hide, pointer, touch };
+  return { visible, reveal, hide, dismiss, pointer, touch };
 }

@@ -31,6 +31,8 @@
   --preview-chrome-fg: rgba(255, 255, 255, 0.92);
   --preview-chrome-fg-muted: rgba(255, 255, 255, 0.56);
   --preview-chrome-hover: rgba(255, 255, 255, 0.10);
+  /* 放映舞台：幻灯片放映永远用纯黑，留白由黑边吸收，不跟主题 */
+  --preview-stage-bg: #000000;
 
   /* 版心宽度：唯一来源，详见下方 .shell 注释与 AGENTS.md 第 4 节 */
   --shell: 720px;
@@ -1250,7 +1252,7 @@ html, body {
 /* Presentation Mode / Native Fullscreen Mode */
 .slide-player-root:fullscreen,
 .slide-player-root:-webkit-full-screen {
-  background: var(--bg-page) !important;
+  background: var(--preview-stage-bg) !important;
   border: none !important;
   border-radius: 0 !important;
   width: 100vw !important;
@@ -1272,7 +1274,7 @@ html, body {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   height: auto !important;
-  background: var(--bg-page) !important;
+  background: var(--preview-stage-bg) !important;
 }
 
 /* 放映模式下画布零装饰：去掉内距、圆角与投影，幻灯片直接铺到屏幕边缘，
@@ -1309,7 +1311,7 @@ html, body {
   position: fixed !important;
   inset: 0 !important;
   z-index: 99999 !important;
-  background: var(--bg-page) !important;
+  background: var(--preview-stage-bg) !important;
   border: none !important;
   border-radius: 0 !important;
   width: 100vw !important;
@@ -1529,8 +1531,17 @@ button.icon-button:not([hidden]) { display: inline-flex; }
 .pdf-stage .slide-canvas { flex-shrink: 0; margin: auto; max-width: none; transition: opacity 150ms ease-out; }
 .pdf-stage.is-rendering .slide-canvas { opacity: 0.45; }
 .theater-presentation-mode .pdf-stage { min-height: 0; }
+/* 演示模式：画面让给内容，只保留翻页与退出，底部工具栏不再渲染 */
+.theater-presentation-mode .pdf-turn { width: 48px; height: 48px; }
+.theater-presentation-mode .pdf-turn svg { width: 22px; height: 22px; }
+.theater-presentation-mode .pdf-turn-prev { left: 20px; }
+.theater-presentation-mode .pdf-turn-next { right: 20px; }
+.preview-heading-row.is-present { padding: 3px 4px 3px 12px; gap: 8px; }
+.preview-heading-row.is-present .preview-viewer-title { font-size: 12px; }
+.preview-heading-row.is-present .preview-tool { min-width: 32px; height: 32px; }
+.preview-heading-row .pdf-page-count { min-width: 0; padding: 0 2px; }
 .theater-presentation-mode .preview-overlay-bottom { position: absolute; left: 0; right: 0; }
-.theater-presentation-mode .preview-overlay-top { top: max(12px, env(safe-area-inset-top)); }
+.theater-presentation-mode .preview-overlay-top { top: max(16px, env(safe-area-inset-top)); inset-inline: 20px; }
 @media (max-width: 479px) {
   .preview-overlay-top { inset-inline: 8px; top: 8px; }
   .preview-overlay-bottom { margin-inline: 8px; }
@@ -1540,6 +1551,9 @@ button.icon-button:not([hidden]) { display: inline-flex; }
   .pdf-page-count { min-width: 40px; padding: 0; font-size: 10px; }
   .pdf-control-rule { height: 10px; margin: 0; }
   .document-preview .preview-tool { min-width: 28px; padding: 0 5px; }
+  .theater-presentation-mode .pdf-turn { width: 44px; height: 44px; }
+  .theater-presentation-mode .pdf-turn-prev { left: 12px; }
+  .theater-presentation-mode .pdf-turn-next { right: 12px; }
   .pdf-turn-prev { left: 8px; }
   .pdf-turn-next { right: 8px; }
 }
