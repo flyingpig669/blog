@@ -126,10 +126,10 @@ onScopeDispose(() => {
       @keydown="keydown"
     >
       <div
-        class="search-dialog w-full max-w-[560px] bg-surface rounded-xl border border-subtle overflow-hidden"
+        class="search-dialog w-full max-w-[560px] bg-surface rounded-xl overflow-hidden"
       >
         <h2 id="search-modal-title" class="sr-only">搜索文章</h2>
-        <div class="search-input-row p-3.5 border-b border-divider flex items-center gap-3">
+        <div class="search-input-row p-3.5 flex items-center gap-3">
           <input
             id="search-modal-input"
             ref="input"
@@ -139,7 +139,7 @@ onScopeDispose(() => {
             placeholder="搜索文章、书籍、标签或专栏…"
             class="min-w-0 w-full text-[14px] bg-transparent text-primary"
           /><button
-            class="btn-secondary search-close font-mono text-[11px]"
+            class="nav-action search-close font-mono text-[11px]"
             aria-label="关闭搜索"
             @click="$emit('close')"
           >

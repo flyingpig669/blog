@@ -7,6 +7,7 @@ import { pdfLayout, previewFileName } from '../lib/pdf-layout.js';
 import { trapDialogFocus } from '../lib/focus';
 import { useVisualViewport } from '../composables/useVisualViewport';
 import PdfControls from './PdfControls.vue';
+import { usePreviewChrome } from '../composables/usePreviewChrome';
 import PreviewDownloads from './PreviewDownloads.vue';
 
 const props = defineProps({
@@ -19,6 +20,7 @@ const opened = ref(false), loading = ref(false), rendering = ref(false), canvasR
 const loadError = ref(''), renderError = ref('');
 const page = ref(1), pages = ref(0), zoom = ref(1), present = ref(false);
 const root = ref(null), stage = ref(null), canvas = ref(null), openButton = ref(null);
+const chrome = usePreviewChrome(root);
 let pdf, loadTask, renderTask, observer, frame, previousOverflow, previousFocus;
 let disposed = false, documentRevision = 0, renderRevision = 0, observedWidth = 0, observedHeight = 0;
 
@@ -82,6 +84,7 @@ async function open() {
     });
     observer.observe(stage.value);
     await draw();
+    chrome.reveal();
   } catch {
     if (!disposed && revision === documentRevision) {
       releaseDocument();
@@ -148,8 +151,9 @@ function resetZoom() {
   stage.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
 function key(event) {
+  chrome.reveal();
   if (present.value) trapDialogFocus(event, root.value);
-  if (event.key === 'Escape') { present.value = false; return; }
+  if (event.key === 'Escape') { event.preventDefault(); if (present.value) present.value = false; else close(); return; }
   if (event.target.closest('button,a,input,select') || event.metaKey || event.ctrlKey || event.altKey) return;
   if (['ArrowRight', 'PageDown'].includes(event.key) || present.value && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
     event.preventDefault(); turn(1);
@@ -164,6 +168,7 @@ function key(event) {
 watch([page, zoom, present], () => nextTick(queueDraw));
 watch(present, async value => {
   zoom.value = 1;
+  chrome.reveal();
   if (value) {
     previousFocus = document.activeElement;
     previousOverflow = document.body.style.overflow;
@@ -204,21 +209,20 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <Teleport v-else to="body" :disabled="!present">
-      <div ref="root" tabindex="0" class="document-preview document-viewer slide-player-root" :class="{ 'theater-presentation-mode': present }" :style="present ? viewportStyle : undefined" :role="present ? 'dialog' : undefined" :aria-modal="present ? 'true' : undefined" :aria-label="displayName" @keydown.stop="key">
-        <div class="preview-viewer-header">
+      <div ref="root" tabindex="0" class="document-preview document-viewer slide-player-root" :class="{ 'theater-presentation-mode': present, 'preview-chrome-visible': chrome.visible.value, 'slide-cursor-hidden': present && !chrome.visible.value }" :style="present ? viewportStyle : undefined" :role="present ? 'dialog' : undefined" :aria-modal="present ? 'true' : undefined" :aria-label="displayName" @keydown.stop="key" @pointermove="chrome.pointer" @pointerdown="chrome.touch" @pointerleave="chrome.hide" @focusin="chrome.reveal" @focusout="chrome.hide">
+        <div class="preview-overlay preview-overlay-top">
           <div class="preview-heading-row">
             <span class="preview-format">{{ format }}</span><span class="preview-viewer-title" :title="displayName">{{ displayName }}</span>
-            <button type="button" class="icon-button" aria-label="收起预览" @click="close"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+            <button type="button" class="preview-tool" aria-label="收起预览" title="收起预览 · Esc" @click="close"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
           </div>
-          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" @turn="turn" @zoom="zoom = $event" @reset="resetZoom" @present="present = true" />
         </div>
         <div ref="stage" class="pdf-stage" :class="{ 'is-rendering': rendering }" :aria-busy="rendering">
           <canvas v-show="canvasReady && !renderError" ref="canvas" class="slide-canvas" role="img" :aria-label="displayName + '，第 ' + page + ' 页'" />
           <div v-if="rendering" class="preview-render-status" role="status">正在显示第 {{ page }} 页…</div>
           <div v-if="renderError" class="preview-error preview-page-error" role="alert">{{ renderError }} <button type="button" class="btn-secondary" @click="queueDraw">重试这一页</button></div>
         </div>
-        <div v-if="present" class="pdf-fullscreen-controls">
-          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" present @turn="turn" @zoom="zoom = $event" @reset="resetZoom" @present="present = false" />
+        <div class="preview-overlay preview-overlay-bottom">
+          <PdfControls :page="page" :pages="pages" :zoom="zoom" :url="url" :source="source" :present="present" @turn="turn" @zoom="zoom = $event" @reset="resetZoom" @present="present = !present" />
         </div>
       </div>
     </Teleport>

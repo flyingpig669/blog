@@ -130,7 +130,7 @@ onUnmounted(() => {
         <button
           v-if="config.features.searchModal !== false"
           id="search-action"
-          class="btn-secondary nav-search flex items-center gap-2"
+          class="nav-action nav-search flex items-center gap-2"
           aria-label="Search articles"
           aria-haspopup="dialog"
           aria-controls="search-modal"
@@ -148,7 +148,7 @@ onUnmounted(() => {
             <line x1="21" y1="21" x2="16.65" y2="16.65" /></svg
           ><span class="hidden md:inline">Search</span
           ><kbd
-            class="hidden md:inline-block px-1 py-0.5 text-[10px] font-mono bg-codebg border border-subtle rounded text-muted"
+            class="hidden md:inline-block px-1 py-0.5 text-[10px] font-mono text-muted"
             >⌘K</kbd
           >
         </button>

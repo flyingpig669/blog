@@ -7,7 +7,7 @@ const { isDark, toggle } = useTheme();
   <button
     id="theme-toggle"
     type="button"
-    class="btn-secondary theme-toggle"
+    class="nav-action theme-toggle"
     :aria-label="isDark ? '切换到白天模式' : '切换到黑暗模式'"
     :title="isDark ? '切换到白天模式' : '切换到黑暗模式'"
     @click="toggle"

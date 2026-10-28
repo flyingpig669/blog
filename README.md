@@ -224,7 +224,7 @@ attachments: ["attachments/files/data.zip", "attachments/files/my-notes.docx"]
 
 附件显示类型、大小、预览与下载入口。PDF / Word / PPT 点击后才加载预览；`.doc`、`.docx`、`.ppt`、`.pptx` 在构建时由 LibreOffice 转成 PDF，并缓存结果。macOS 支持 `/Applications/LibreOffice.app`，其他环境使用 PATH 中的 `soffice`，也可设置 `AURORA_SOFFICE`。CI 已安装转换器与中文字体。PPT 不保留动画、音视频和切换效果，复杂版式可能与 Office 有差异。外部 Office 链接不自动转换。
 
-预览入口统一显示「文档预览」和文件信息，点击后才加载。PDF / Word 按当前页比例适应正文宽度，高度随页面和屏幕变化；全屏时适应可见视口。工具栏提供「适应宽度／适应页面」、翻页、缩放与下载，可收起预览释放资源，失败时可重试。
+预览入口统一显示「文档预览」和文件信息，点击后才加载。PDF / Word 按当前页比例适应正文宽度，高度随页面和屏幕变化；全屏时适应可见视口。文件信息和工具栏悬浮在预览画面内，静置约 2.4 秒后隐藏；鼠标移动、触屏轻触或键盘操作可唤出。工具栏提供翻页、缩放、下载与全屏，点击缩放百分比恢复自适应。方向键翻页、`+` / `-` 缩放、`F` 切换全屏，`Esc` 退出全屏或收起预览。收起时释放资源，失败时可重试。
 
 演示文稿可用 FrontMatter `slide: "attachments/slides/talk.pdf"` 在文首提供入口，或用正文 `::: slide 路径 标题` 指定位置；同文件会去重。支持翻页、缩放和全屏。音视频可使用带 `controls` 的原生 `audio` / `video`。完整例子见 [媒体模板](templates/template-media-attachments.md) 与 [课件模板](templates/template-slide-presentation.md)。
 
