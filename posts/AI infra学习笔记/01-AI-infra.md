@@ -3,7 +3,7 @@ title: "编程语言基础"
 date: "2026-10-28"
 tags: [“programming", "language", "基础","linux","Python","C","C++"]
 column: "AI infra学习笔记"
-columnSlug: "AI-infra-learning-notes"
+columnSlug: "ai-infra-learning-notes"
 columnName: "AI infra学习笔记"
 columnDesc: "学习AI基础设施的基础知识。"
 order: 1
