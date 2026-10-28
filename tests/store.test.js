@@ -231,3 +231,28 @@ test('home book activity accounts for new chapters and ignores hidden updates', 
   chapters[1].updated = '2026-10-26 09:31';
   assert.equal(store.getHomeEntries()[0].updated, '2026-10-26 09:31');
 });
+
+test('technical tags preserve display names and distinguish C, C++ and C# routes', () => {
+  const store = createStore();
+  assert.equal(store.tagSlug('C'), 'c');
+  assert.equal(store.tagSlug('C++'), 'c-plus-plus');
+  assert.equal(store.tagSlug('C#'), 'c-sharp');
+  assert.equal(store.tagSlug('量子力学'), '量子力学');
+  assert.equal(store.tagSlug('Python'), 'python');
+});
+
+test('tag counts and filtering merge case variants without counting a post twice', () => {
+  const store = createStore();
+  store.posts = [
+    {slug: 'first', tags: ['Python', 'python', 'C++'], date: '2026-10-28'},
+    {slug: 'second', tags: ['python', 'C'], date: '2026-10-27'},
+    {slug: 'third', tags: ['PYTHON', 'C#'], date: '2026-10-26'}
+  ];
+  const tags = store.getAllTags();
+  assert.equal(tags.length, 4);
+  assert.deepEqual(tags[0], {name: 'Python', count: 3});
+  assert.equal(store.getPosts({tag: 'python'}).length, 3);
+  assert.equal(store.getPosts({tag: 'C++'}).length, 1);
+  assert.equal(store.hasTag(store.posts[1], 'Python'), true);
+  assert.equal(store.hasTag(store.posts[1], 'C++'), false);
+});

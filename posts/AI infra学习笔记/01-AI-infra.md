@@ -1,7 +1,7 @@
 ---
 title: "编程语言基础"
 date: "2026-10-28"
-tags: [“programming", "language", "基础","linux","Python","C","C++"]
+tags: ["programming", "language", "基础","linux","Python","C","C++"]
 column: "AI infra学习笔记"
 columnSlug: "ai-infra-learning-notes"
 columnName: "AI infra学习笔记"

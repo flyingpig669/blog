@@ -18,7 +18,7 @@ const tags = store.getAllTags();
 const posts = computed(() =>
   store
     .getPosts()
-    .filter((post) => selected.value.every((tag) => post.tags.includes(tag))),
+    .filter((post) => selected.value.every((tag) => store.hasTag(post, tag))),
 );
 function applyTagSelection(names) {
   router.push(tagsPath(names));

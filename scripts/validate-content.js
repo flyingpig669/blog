@@ -140,11 +140,12 @@ for (const doc of Object.values(store.documents)) {
 checkAsset(store.searchUrl, 'search');
 // Local entry dependencies must exist; runtime-only PDF assets are also checked.
 const entry = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const tagSlugs = new Set();
+const tagSlugs = new Map();
 for (const tag of store.getAllTags()) {
   const slug = store.tagSlug(tag.name);
-  if (!registry.validResourceSlug(slug) || tagSlugs.has(slug)) fail(`Tag ${tag.name}: needs a unique Chinese or lowercase English route slug`);
-  tagSlugs.add(slug);
+  if (!registry.validResourceSlug(slug)) fail(`标签 "${tag.name}" 无法生成有效地址；请使用中文、英文字母或数字命名`);
+  else if (tagSlugs.has(slug)) fail(`标签 "${tag.name}" 与 "${tagSlugs.get(slug)}" 的地址冲突：${slug}；请区分标签名称`);
+  tagSlugs.set(slug, tag.name);
 }
 for (const match of entry.matchAll(/(?:src|href)="([^"#]+)"/g)) {
   if (!/^(https?:|mailto:|tel:|data:image\/svg\+xml,)/i.test(match[1])) checkAsset(match[1], 'index.html');

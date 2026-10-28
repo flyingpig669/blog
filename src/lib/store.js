@@ -80,7 +80,7 @@ export function createStore() { return shallowReactive({
 
     if (filter.tag) {
       list = list.filter(function(p) {
-        return p.tags && p.tags.indexOf(filter.tag) !== -1;
+        return self.hasTag(p, filter.tag);
       });
     }
 
@@ -451,24 +451,31 @@ export function createStore() { return shallowReactive({
     });
   },
 
+  hasTag: function(post, name) {
+    const key = String(name || '').trim().toLowerCase();
+    return (post.tags || []).some(tag => tag.trim().toLowerCase() === key);
+  },
+
   // 聚合全站标签（记忆化：resolveLink 解析每条互链都可能需要它）
   tagSlug: function(name) {
-    return registry.resourceSlug(name);
+    return registry.resourceSlug(String(name || '').replace(/\+/g, '-plus-').replace(/#/g, '-sharp-'));
   },
 
   getAllTags: function() {
     if (this._tagsCache) return this._tagsCache;
-    var tagCount = {};
-    this.getPosts().forEach(function(p) {
-      if (p.tags && Array.isArray(p.tags)) {
-        p.tags.forEach(function(t) {
-          tagCount[t] = (tagCount[t] || 0) + 1;
-        });
-      }
+    const tagCount = new Map();
+    this.getPosts().forEach(function(post) {
+      const seen = new Set();
+      (post.tags || []).forEach(function(name) {
+        const key = name.trim().toLowerCase();
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        const tag = tagCount.get(key);
+        if (tag) tag.count++;
+        else tagCount.set(key, { name: name.trim(), count: 1 });
+      });
     });
-    this._tagsCache = Object.entries(tagCount)
-      .map(function(e) { return { name: e[0], count: e[1] }; })
-      .sort(function(a, b) { return b.count - a.count; });
+    this._tagsCache = [...tagCount.values()].sort((a, b) => b.count - a.count);
     return this._tagsCache;
   },
 
