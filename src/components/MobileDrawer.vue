@@ -6,6 +6,7 @@ const props = defineProps({
   open: Boolean,
   id: String,
   title: String,
+  variant: String,
   breakpoint: { type: Number, default: 900 },
 });
 const emit = defineEmits(['close', 'opened']);
@@ -56,6 +57,7 @@ onUnmounted(() => {
       :id="id"
       ref="dialog"
       class="mobile-sheet"
+      :class="{ 'mobile-outline-panel': variant === 'outline' }"
       :aria-labelledby="heading"
       @cancel.prevent="$emit('close')"
       @click="event => event.target === dialog && $emit('close')"

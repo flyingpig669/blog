@@ -16,7 +16,7 @@ import NotFoundView from "./NotFoundView.vue";
 import { useReading } from '../composables/useReading';
 import { reading } from '../lib/reading.js';
 import ReadingSettings from '../components/ReadingSettings.vue';
-import MobileReadingBar from '../components/MobileReadingBar.vue';
+import MobileOutlineButton from '../components/MobileOutlineButton.vue';
 import ArticleRelations from '../components/ArticleRelations.vue';
 import DocumentStatus from '../components/DocumentStatus.vue';
 const route = useRoute();
@@ -93,6 +93,6 @@ watch(
       :toc="toc"
       :navigation="navigation"
     />
-    <MobileReadingBar :navigation="navigation" :outline="features.outlineSidebar !== false && (toc.length || navigation.colPosts.length > 1)" :outline-expanded="!!outlineView?.expanded" @outline="outlineView?.open()" />
+    <MobileOutlineButton v-if="features.outlineSidebar !== false && (toc.length || navigation.colPosts.length > 1)" :expanded="!!outlineView?.expanded" @open="outlineView?.open()" />
   </div>
 </template>
